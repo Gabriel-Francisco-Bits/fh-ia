@@ -1,0 +1,8 @@
+node_modules/
+out/
+*.vsix
+!install/*.vsix
+fh-ia-*/
+.vscode-test/
+*.log
+.DS_Store

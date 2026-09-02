@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Instalar fh-ia
+Comment=Instala la extensión fh-ia en VS Code / Cursor con un clic
+Exec=sh -c '"$(dirname "$(readlink -f %k)")/Instalar-fh-ia.sh"'
+Path=
+Icon=applications-development
+Terminal=true
+Categories=Development;Utility;
+StartupNotify=true
+Keywords=fh-ia;vscode;grok;claude;

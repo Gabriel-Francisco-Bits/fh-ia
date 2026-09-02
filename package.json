@@ -1,0 +1,171 @@
+{
+  "name": "fh-ia",
+  "displayName": "fh-ia",
+  "description": "Panel de agente tipo Claude Code para VS Code, conmutando Claude, Grok y un endpoint OpenAI-compatible.",
+  "version": "0.1.1",
+  "publisher": "gfh",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Gabriel-Francisco-Bits/fh-ia.git"
+  },
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "AI",
+    "Chat",
+    "Other"
+  ],
+  "keywords": [
+    "claude",
+    "anthropic",
+    "grok",
+    "xai",
+    "openai",
+    "agent",
+    "chat"
+  ],
+  "activationEvents": [
+    "onView:fhIa.chatView",
+    "onCommand:fhIa.openPanel"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "fhIa.openPanel",
+        "title": "fh-ia: Open Chat Panel",
+        "category": "fh-ia"
+      },
+      {
+        "command": "fhIa.selectClaude",
+        "title": "fh-ia: Use Claude",
+        "category": "fh-ia"
+      },
+      {
+        "command": "fhIa.selectGrok",
+        "title": "fh-ia: Use Grok",
+        "category": "fh-ia"
+      },
+      {
+        "command": "fhIa.selectOpenAI",
+        "title": "fh-ia: Use OpenAI-compatible",
+        "category": "fh-ia"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "fhIa",
+          "title": "fh-ia",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "fhIa": [
+        {
+          "type": "webview",
+          "id": "fhIa.chatView",
+          "name": "Chat"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "fh-ia",
+      "properties": {
+        "fhIa.authMode": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "apiKey",
+            "terminal"
+          ],
+          "enumDescriptions": [
+            "API key in Settings, then terminal login (grok login / claude / Codex), then environment variable",
+            "Only API keys (Settings or ANTHROPIC_API_KEY / XAI_API_KEY / OPENAI_API_KEY)",
+            "Only terminal login files (~/.grok/auth.json, ~/.claude/.credentials.json, ~/.codex/auth.json)"
+          ],
+          "default": "auto",
+          "description": "How fh-ia authenticates. auto uses an API key if you set one, otherwise the same session you already logged into from the terminal."
+        },
+        "fhIa.provider": {
+          "type": "string",
+          "enum": [
+            "claude",
+            "grok",
+            "openai"
+          ],
+          "enumDescriptions": [
+            "Anthropic Claude (api.anthropic.com)",
+            "xAI Grok (api.x.ai)",
+            "OpenAI-compatible endpoint (ChatGPT, local, Azure-compatible, etc.)"
+          ],
+          "default": "grok",
+          "description": "IA activa. Cambiar esto enruta el siguiente prompt al backend elegido, sin recargar la extensión."
+        },
+        "fhIa.claude.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key de Anthropic. Vacío = usar sesión de `claude` (~/.claude/.credentials.json) o ANTHROPIC_API_KEY / CLAUDE_CODE_OAUTH_TOKEN."
+        },
+        "fhIa.claude.baseUrl": {
+          "type": "string",
+          "default": "https://api.anthropic.com",
+          "description": "Base URL de Claude / Anthropic."
+        },
+        "fhIa.claude.model": {
+          "type": "string",
+          "default": "claude-sonnet-4-20250514",
+          "description": "Modelo Claude."
+        },
+        "fhIa.grok.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key de xAI. Vacío = usar sesión de `grok login` (~/.grok/auth.json) o XAI_API_KEY."
+        },
+        "fhIa.grok.baseUrl": {
+          "type": "string",
+          "default": "https://api.x.ai",
+          "description": "Base URL de Grok / xAI."
+        },
+        "fhIa.grok.model": {
+          "type": "string",
+          "default": "grok-4",
+          "description": "Modelo Grok."
+        },
+        "fhIa.openai.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key OpenAI-compatible. Vacío = usar sesión de Codex (~/.codex/auth.json) o OPENAI_API_KEY."
+        },
+        "fhIa.openai.baseUrl": {
+          "type": "string",
+          "default": "https://api.openai.com/v1",
+          "description": "Base URL OpenAI-compatible (incluye /v1 si el proveedor lo requiere)."
+        },
+        "fhIa.openai.model": {
+          "type": "string",
+          "default": "gpt-4o",
+          "description": "Modelo OpenAI-compatible."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "clean": "rm -rf out",
+    "test": "npm run compile && node --test --test-reporter spec ./out/test/providers.test.js ./out/test/edits.test.js ./out/test/context.test.js ./out/test/webview-sandbox.test.js ./out/test/contributions.test.js ./out/test/auth.test.js",
+    "package": "npm run compile && npx --yes @vscode/vsce package --no-dependencies",
+    "vscode:prepublish": "npm run compile",
+    "launch-test": "npm run compile && node out/test/runLaunch.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^2.4.1",
+    "typescript": "^5.7.2"
+  }
+}

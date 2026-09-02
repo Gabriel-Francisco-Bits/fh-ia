@@ -1,0 +1,23 @@
+import * as vscode from "vscode";
+import { FhIaViewProvider } from "./panel";
+
+export function activate(context: vscode.ExtensionContext): void {
+  const provider = new FhIaViewProvider(context);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(FhIaViewProvider.viewId, provider, {
+      webviewOptions: { retainContextWhenHidden: true },
+    }),
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand("fhIa.openPanel", () => {
+      provider.reveal();
+    }),
+    vscode.commands.registerCommand("fhIa.selectClaude", () => provider.setProvider("claude")),
+    vscode.commands.registerCommand("fhIa.selectGrok", () => provider.setProvider("grok")),
+    vscode.commands.registerCommand("fhIa.selectOpenAI", () => provider.setProvider("openai")),
+  );
+}
+
+export function deactivate(): void {
+  // nothing to tear down beyond subscriptions
+}
