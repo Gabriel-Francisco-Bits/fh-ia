@@ -4,4 +4,4 @@
 2. Confirma “Permitir iniciar” si Ubuntu lo pide
 3. En VS Code aparece el icono **fh-ia**
 
-El instalador usa `install/fh-ia.vsix` si está en esta carpeta; si no, lo descarga del release de GitHub.
+El instalador usa el `fh-ia.vsix` más reciente que encuentre al lado (ahora **0.1.2**, con failover). Si no hay VSIX local, lo descarga del último release de GitHub.

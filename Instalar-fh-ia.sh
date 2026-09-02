@@ -17,18 +17,27 @@ CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/fh-ia"
 mkdir -p "$CACHE"
 
 find_local_vsix() {
-  local f
-  for f in \
-    "$HERE/install/fh-ia.vsix" \
-    "$HERE/fh-ia.vsix" \
-    "$HERE"/fh-ia-*.vsix \
-    "$CACHE/fh-ia.vsix"
-  do
+  local best="" best_mtime=0 f mtime
+  shopt -s nullglob
+  local candidates=(
+    "$HERE/install/fh-ia.vsix"
+    "$HERE/fh-ia.vsix"
+    "$HERE"/fh-ia-*.vsix
+  )
+  shopt -u nullglob
+  for f in "${candidates[@]}"; do
     if [ -f "$f" ] && [ -s "$f" ]; then
-      printf '%s\n' "$f"
-      return 0
+      mtime="$(stat -c %Y "$f" 2>/dev/null || echo 0)"
+      if [ "$mtime" -ge "$best_mtime" ]; then
+        best="$f"
+        best_mtime="$mtime"
+      fi
     fi
   done
+  if [ -n "$best" ]; then
+    printf '%s\n' "$best"
+    return 0
+  fi
   return 1
 }
 
