@@ -4,14 +4,14 @@ A Visual Studio Code extension with a sidebar agent chat panel (same idea as the
 
 ## Install (one click)
 
-Double-click **`Instalar-fh-ia.desktop`** or run:
+See **[INSTALAR.md](INSTALAR.md)**. Double-click **`Instalar-fh-ia.desktop`** or run:
 
 ```bash
 chmod +x Instalar-fh-ia.sh
 ./Instalar-fh-ia.sh
 ```
 
-That installs the bundled `install/fh-ia.vsix` into VS Code, Cursor, and/or VSCodium.
+That installs `install/fh-ia.vsix` (or downloads it from GitHub Releases) into VS Code, Cursor, and/or VSCodium.
 
 Switching the IA in the panel dropdown routes the next prompt to that backend. You do not need to reload the extension host.
 

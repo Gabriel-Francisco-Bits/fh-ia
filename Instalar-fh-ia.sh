@@ -3,26 +3,29 @@
 # Instalación de: fh-ia (extensión VS Code / Cursor)
 # Fecha: 2026-09-02
 # Solicitado por: gfh
-# Doble clic o: ./Instalar-fh-ia.sh
+#
+# Un solo archivo: descárgalo, dale doble clic o ejecútalo.
+# Si no hay VSIX al lado, lo baja del release público de GitHub.
 # ============================================================
 set -euo pipefail
 
 echo "[INFO] Iniciando instalación de fh-ia..."
 
-HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]:-$0}")")" && pwd)"
 REPO_SLUG="${FH_IA_REPO:-Gabriel-Francisco-Bits/fh-ia}"
-VSIX=""
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/fh-ia"
+mkdir -p "$CACHE"
 
 find_local_vsix() {
-  local candidates=(
-    "$HERE/install/fh-ia.vsix"
-    "$HERE/fh-ia.vsix"
-    "$HERE"/fh-ia-*.vsix
-  )
   local f
-  for f in "${candidates[@]}"; do
-    if [ -f "$f" ]; then
-      echo "$f"
+  for f in \
+    "$HERE/install/fh-ia.vsix" \
+    "$HERE/fh-ia.vsix" \
+    "$HERE"/fh-ia-*.vsix \
+    "$CACHE/fh-ia.vsix"
+  do
+    if [ -f "$f" ] && [ -s "$f" ]; then
+      printf '%s\n' "$f"
       return 0
     fi
   done
@@ -30,10 +33,9 @@ find_local_vsix() {
 }
 
 download_vsix() {
-  local dest="$HERE/install"
-  mkdir -p "$dest"
-  echo "[INFO] Descargando VSIX desde GitHub ($REPO_SLUG)..."
-  local url
+  local dest="$CACHE/fh-ia.vsix"
+  echo "[INFO] Descargando VSIX desde GitHub ($REPO_SLUG)..." >&2
+  local url=""
   url="$(curl -fsSL "https://api.github.com/repos/${REPO_SLUG}/releases/latest" \
     | python3 -c "
 import json, sys
@@ -41,25 +43,27 @@ data = json.load(sys.stdin)
 for a in data.get('assets', []):
     name = a.get('name') or ''
     if name.endswith('.vsix'):
-        print(a['browser_download_url'])
+        print(a.get('browser_download_url') or '')
         break
-")"
-  if [ -z "${url:-}" ]; then
-    url="https://github.com/${REPO_SLUG}/raw/main/install/fh-ia.vsix"
+" 2>/dev/null || true)"
+  if [ -z "$url" ]; then
+    url="https://github.com/${REPO_SLUG}/releases/latest/download/fh-ia.vsix"
   fi
-  curl -fL --progress-bar "$url" -o "$dest/fh-ia.vsix"
-  echo "$dest/fh-ia.vsix"
+  echo "[INFO] URL: $url" >&2
+  curl -fL --progress-bar "$url" -o "$dest" >&2
+  if [ ! -s "$dest" ]; then
+    echo "[ERROR] La descarga del VSIX quedó vacía" >&2
+    exit 1
+  fi
+  printf '%s\n' "$dest"
 }
 
+VSIX=""
 if VSIX="$(find_local_vsix)"; then
-  echo "[INFO] VSIX local: $VSIX"
+  echo "[INFO] VSIX: $VSIX"
 else
   VSIX="$(download_vsix)"
-fi
-
-if [ ! -f "$VSIX" ]; then
-  echo "[ERROR] No se encontró el paquete .vsix"
-  exit 1
+  echo "[INFO] VSIX descargado: $VSIX"
 fi
 
 editors=()
