@@ -2,7 +2,7 @@
   "name": "fh-ia",
   "displayName": "fh-ia",
   "description": "Panel de agente tipo Claude Code para VS Code, conmutando Claude, Grok y un endpoint OpenAI-compatible.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "publisher": "gfh",
   "repository": {
     "type": "git",
@@ -28,7 +28,13 @@
   ],
   "activationEvents": [
     "onView:fhIa.chatView",
-    "onCommand:fhIa.openPanel"
+    "onCommand:fhIa.openPanel",
+    "onCommand:fhIa.newChat",
+    "onWebviewPanel:fhIa.chatTab"
+  ],
+  "extensionKind": [
+    "ui",
+    "workspace"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -37,6 +43,24 @@
         "command": "fhIa.openPanel",
         "title": "fh-ia: Open Chat Panel",
         "category": "fh-ia"
+      },
+      {
+        "command": "fhIa.newChat",
+        "title": "fh-ia: Nuevo chat",
+        "category": "fh-ia",
+        "icon": "$(add)"
+      },
+      {
+        "command": "fhIa.openInTab",
+        "title": "fh-ia: Abrir en pestaña",
+        "category": "fh-ia",
+        "icon": "$(window)"
+      },
+      {
+        "command": "fhIa.openSettings",
+        "title": "fh-ia: Ajustes",
+        "category": "fh-ia",
+        "icon": "$(gear)"
       },
       {
         "command": "fhIa.selectClaude",
@@ -54,6 +78,25 @@
         "category": "fh-ia"
       }
     ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "fhIa.newChat",
+          "when": "view == fhIa.chatView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "fhIa.openInTab",
+          "when": "view == fhIa.chatView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "fhIa.openSettings",
+          "when": "view == fhIa.chatView",
+          "group": "navigation@3"
+        }
+      ]
+    },
     "viewsContainers": {
       "activitybar": [
         {
@@ -104,6 +147,21 @@
           ],
           "default": "grok",
           "description": "IA activa. Cambiar esto enruta el siguiente prompt al backend elegido, sin recargar la extensión."
+        },
+        "fhIa.agentMode": {
+          "type": "string",
+          "enum": [
+            "ask",
+            "plan",
+            "autonomous"
+          ],
+          "enumDescriptions": [
+            "Preguntar: propone ediciones y espera Accept/Reject",
+            "Plan: solo planifica, no escribe archivos",
+            "Autónomo: aplica las ediciones propuestas automáticamente"
+          ],
+          "default": "ask",
+          "description": "Modo del agente para chats nuevos: preguntar, plan o autónomo."
         },
         "fhIa.failover.enabled": {
           "type": "boolean",
@@ -167,7 +225,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "clean": "rm -rf out",
-    "test": "npm run compile && node --test --test-reporter spec ./out/test/providers.test.js ./out/test/edits.test.js ./out/test/context.test.js ./out/test/webview-sandbox.test.js ./out/test/contributions.test.js ./out/test/auth.test.js ./out/test/failover.test.js",
+    "test": "npm run compile && node --test --test-reporter spec ./out/test/providers.test.js ./out/test/edits.test.js ./out/test/context.test.js ./out/test/webview-sandbox.test.js ./out/test/contributions.test.js ./out/test/auth.test.js ./out/test/failover.test.js ./out/test/chats.test.js ./out/test/modes.test.js",
     "package": "npm run compile && npx --yes @vscode/vsce package --no-dependencies",
     "vscode:prepublish": "npm run compile",
     "launch-test": "npm run compile && node out/test/runLaunch.js"

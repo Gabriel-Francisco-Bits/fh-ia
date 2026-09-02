@@ -1,3 +1,4 @@
+import { isAgentMode, type AgentMode } from "./agent/modes";
 import { isAuthMode, type AuthMode } from "./auth/resolve";
 import { parseFailoverOrder, type FailoverPolicy } from "./providers/failover";
 import type { ProviderBundle, ProviderId, ProviderSettings } from "./providers/types";
@@ -10,6 +11,11 @@ export interface RawConfig {
 export function resolveAuthMode(config: RawConfig): AuthMode {
   const raw = String(config.get("fhIa.authMode") ?? "auto");
   return isAuthMode(raw) ? raw : "auto";
+}
+
+export function resolveAgentMode(config: RawConfig): AgentMode {
+  const raw = String(config.get("fhIa.agentMode") ?? "ask");
+  return isAgentMode(raw) ? raw : "ask";
 }
 
 export function resolveFailover(config: RawConfig): FailoverPolicy {

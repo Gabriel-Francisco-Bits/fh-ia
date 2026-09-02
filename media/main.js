@@ -13,7 +13,13 @@
 
   var state = {
     provider: "grok",
+    model: "grok-4",
+    mode: "ask",
     streaming: false,
+    models: [],
+    catalog: {},
+    config: null,
+    settingsOpen: false,
   };
 
   function el(tag, attrs, children) {
@@ -22,6 +28,7 @@
       Object.keys(attrs).forEach(function (k) {
         if (k === "className") node.className = attrs[k];
         else if (k === "text") node.textContent = attrs[k];
+        else if (k === "html") node.innerHTML = attrs[k];
         else if (k.indexOf("on") === 0 && typeof attrs[k] === "function") {
           node.addEventListener(k.slice(2).toLowerCase(), attrs[k]);
         } else if (attrs[k] != null) node.setAttribute(k, attrs[k]);
@@ -39,47 +46,204 @@
     }
   }
 
+  function fillSelect(select, values, current) {
+    select.innerHTML = "";
+    (values || []).forEach(function (v) {
+      var opt = el("option", { value: v, text: v });
+      select.appendChild(opt);
+    });
+    if (current) {
+      if ((values || []).indexOf(current) < 0) {
+        select.insertBefore(el("option", { value: current, text: current }), select.firstChild);
+      }
+      select.value = current;
+    }
+  }
+
   function mount(root) {
     if (!root) return;
 
     root.innerHTML = "";
     root.className = "mia-root";
 
-    var select = el("select", { id: "mia-provider" }, [
+    var newBtn = el("button", { className: "mia-icon-btn", title: "Nuevo chat", type: "button", text: "+" });
+    var title = el("h1", { text: "fh-ia" });
+    var authLabel = el("span", { id: "mia-auth", className: "mia-auth", text: "" });
+    var gearBtn = el("button", { className: "mia-icon-btn", title: "Ajustes", type: "button", text: "⚙" });
+
+    var providerSelect = el("select", { id: "mia-provider", title: "IA" }, [
       el("option", { value: "claude", text: "Claude" }),
       el("option", { value: "grok", text: "Grok" }),
-      el("option", { value: "openai", text: "OpenAI-compatible" }),
+      el("option", { value: "openai", text: "OpenAI" }),
     ]);
-    select.value = state.provider;
-    select.addEventListener("change", function () {
-      state.provider = select.value;
-      post({ type: "setProvider", provider: select.value });
-    });
+    var modelSelect = el("select", { id: "mia-model", title: "Modelo" });
+    var modeSelect = el("select", { id: "mia-mode", title: "Modo" }, [
+      el("option", { value: "ask", text: "Preguntar" }),
+      el("option", { value: "plan", text: "Plan" }),
+      el("option", { value: "autonomous", text: "Autónomo" }),
+    ]);
 
-    var authLabel = el("span", { id: "mia-auth", className: "mia-auth", text: "" });
+    providerSelect.value = state.provider;
+    modeSelect.value = state.mode;
+
     var header = el("div", { className: "mia-header" }, [
-      el("h1", { text: "fh-ia" }),
+      newBtn,
+      title,
       authLabel,
-      select,
+      gearBtn,
+    ]);
+    var toolbar = el("div", { className: "mia-toolbar" }, [
+      el("label", { className: "mia-field" }, [el("span", { text: "IA" }), providerSelect]),
+      el("label", { className: "mia-field mia-field-grow" }, [el("span", { text: "Modelo" }), modelSelect]),
+      el("label", { className: "mia-field" }, [el("span", { text: "Modo" }), modeSelect]),
     ]);
 
     var messages = el("div", { className: "mia-messages", id: "mia-messages" });
     var hint = el("div", {
       className: "mia-hint",
-      text: "The active editor file and selection are attached automatically. Use @path to attach extra files.",
+      text: "Chats independientes con +. Preguntar espera confirmación; Plan no escribe; Autónomo aplica cambios. @archivo adjunta ficheros.",
     });
 
     var input = el("textarea", {
       id: "mia-input",
-      placeholder: "Ask Claude, Grok, or another IA…",
+      placeholder: "Pregunta a Claude, Grok u otra IA…",
     });
-    var sendBtn = el("button", { id: "mia-send", text: "Send" });
+    var sendBtn = el("button", { id: "mia-send", text: "Enviar" });
     var composer = el("div", { className: "mia-composer" }, [input, sendBtn]);
 
+    var settings = el("div", { className: "mia-settings", hidden: "true" });
+
     root.appendChild(header);
+    root.appendChild(toolbar);
     root.appendChild(messages);
     root.appendChild(hint);
     root.appendChild(composer);
+    root.appendChild(settings);
+
+    function setSettingsOpen(open) {
+      state.settingsOpen = !!open;
+      if (open) settings.removeAttribute("hidden");
+      else settings.setAttribute("hidden", "true");
+    }
+
+    function providerBlock(id, label, cfg) {
+      cfg = cfg || {};
+      return el("fieldset", { className: "mia-set-block" }, [
+        el("legend", { text: label }),
+        el("label", {}, [
+          el("span", { text: "Modelo" }),
+          el("input", { type: "text", "data-key": id + ".model", value: cfg.model || "" }),
+        ]),
+        el("label", {}, [
+          el("span", { text: "Base URL" }),
+          el("input", { type: "text", "data-key": id + ".baseUrl", value: cfg.baseUrl || "" }),
+        ]),
+        el("label", {}, [
+          el("span", { text: "API key (vacío = no cambiar)" }),
+          el("input", { type: "password", "data-key": id + ".apiKey", value: cfg.apiKey || "", placeholder: "••••" }),
+        ]),
+      ]);
+    }
+
+    function renderSettings() {
+      var cfg = state.config || {};
+      settings.innerHTML = "";
+      var authSel = el("select", { "data-key": "authMode" }, [
+        el("option", { value: "auto", text: "auto (key, luego CLI)" }),
+        el("option", { value: "apiKey", text: "solo API key" }),
+        el("option", { value: "terminal", text: "solo sesión terminal" }),
+      ]);
+      authSel.value = cfg.authMode || "auto";
+      var failSel = el("select", { "data-key": "failoverEnabled" }, [
+        el("option", { value: "true", text: "sí" }),
+        el("option", { value: "false", text: "no" }),
+      ]);
+      failSel.value = cfg.failover && cfg.failover.enabled === false ? "false" : "true";
+      var orderInput = el("input", {
+        type: "text",
+        "data-key": "failoverOrder",
+        value: (cfg.failover && cfg.failover.order && cfg.failover.order.join
+          ? cfg.failover.order.join(",")
+          : "grok,claude,openai"),
+      });
+      var modeSel = el("select", { "data-key": "agentMode" }, [
+        el("option", { value: "ask", text: "Preguntar" }),
+        el("option", { value: "plan", text: "Plan" }),
+        el("option", { value: "autonomous", text: "Autónomo" }),
+      ]);
+      modeSel.value = cfg.agentMode || state.mode;
+      var provSel = el("select", { "data-key": "provider" }, [
+        el("option", { value: "claude", text: "Claude" }),
+        el("option", { value: "grok", text: "Grok" }),
+        el("option", { value: "openai", text: "OpenAI" }),
+      ]);
+      provSel.value = cfg.provider || state.provider;
+
+      var save = el("button", { text: "Guardar", type: "button" });
+      var vscodeBtn = el("button", { text: "Settings de VS Code", type: "button", className: "secondary" });
+      var close = el("button", { text: "Cerrar", type: "button", className: "secondary" });
+
+      save.addEventListener("click", function () {
+        function val(key) {
+          var node = settings.querySelector('[data-key="' + key + '"]');
+          return node ? node.value : "";
+        }
+        post({
+          type: "saveSettings",
+          settings: {
+            provider: val("provider"),
+            agentMode: val("agentMode"),
+            authMode: val("authMode"),
+            failoverEnabled: val("failoverEnabled") === "true",
+            failoverOrder: val("failoverOrder"),
+            claude: { model: val("claude.model"), baseUrl: val("claude.baseUrl"), apiKey: val("claude.apiKey") },
+            grok: { model: val("grok.model"), baseUrl: val("grok.baseUrl"), apiKey: val("grok.apiKey") },
+            openai: { model: val("openai.model"), baseUrl: val("openai.baseUrl"), apiKey: val("openai.apiKey") },
+          },
+        });
+      });
+      vscodeBtn.addEventListener("click", function () {
+        post({ type: "openVsCodeSettings" });
+      });
+      close.addEventListener("click", function () {
+        setSettingsOpen(false);
+      });
+
+      settings.appendChild(el("h2", { text: "Ajustes fh-ia" }));
+      settings.appendChild(el("p", { className: "mia-hint", text: "IA, modelo y modo también se cambian arriba. Aquí van claves, URLs y failover." }));
+      settings.appendChild(el("label", {}, [el("span", { text: "IA por defecto" }), provSel]));
+      settings.appendChild(el("label", {}, [el("span", { text: "Modo por defecto" }), modeSel]));
+      settings.appendChild(el("label", {}, [el("span", { text: "Autenticación" }), authSel]));
+      settings.appendChild(el("label", {}, [el("span", { text: "Failover" }), failSel]));
+      settings.appendChild(el("label", {}, [el("span", { text: "Orden failover" }), orderInput]));
+      settings.appendChild(providerBlock("claude", "Claude", cfg.claude));
+      settings.appendChild(providerBlock("grok", "Grok", cfg.grok));
+      settings.appendChild(providerBlock("openai", "OpenAI-compatible", cfg.openai));
+      settings.appendChild(el("div", { className: "mia-set-actions" }, [save, vscodeBtn, close]));
+    }
+
+    newBtn.addEventListener("click", function () {
+      post({ type: "newChat" });
+    });
+    gearBtn.addEventListener("click", function () {
+      if (!state.settingsOpen) renderSettings();
+      setSettingsOpen(!state.settingsOpen);
+    });
+
+    providerSelect.addEventListener("change", function () {
+      state.provider = providerSelect.value;
+      var list = (state.catalog && state.catalog[state.provider]) || state.models || [];
+      fillSelect(modelSelect, list, modelSelect.value);
+      post({ type: "setProvider", provider: providerSelect.value });
+    });
+    modelSelect.addEventListener("change", function () {
+      state.model = modelSelect.value;
+      post({ type: "setModel", model: modelSelect.value, provider: providerSelect.value });
+    });
+    modeSelect.addEventListener("change", function () {
+      state.mode = modeSelect.value;
+      post({ type: "setMode", mode: modeSelect.value });
+    });
 
     function append(role, text, extraClass) {
       var node = el("div", { className: "mia-msg " + role + (extraClass ? " " + extraClass : "") });
@@ -98,7 +262,7 @@
       append("user", text);
       streamNode = append("assistant", "");
       state.streaming = true;
-      post({ type: "send", text: text, provider: select.value });
+      post({ type: "send", text: text, provider: providerSelect.value });
     }
 
     sendBtn.addEventListener("click", send);
@@ -109,11 +273,60 @@
       }
     });
 
+    function applySession(session) {
+      if (!session) return;
+      state.provider = session.provider || state.provider;
+      state.model = session.model || state.model;
+      state.mode = session.mode || state.mode;
+      providerSelect.value = state.provider;
+      modeSelect.value = state.mode;
+      fillSelect(modelSelect, modelsForProvider(state.provider), state.model);
+      if (session.title) title.textContent = session.title;
+      if (vscodeApi && vscodeApi.setState) {
+        vscodeApi.setState({ sessionId: session.id });
+      }
+    }
+
+    function modelsForProvider(id) {
+      if (state.catalog && state.catalog[id] && state.catalog[id].length) {
+        return state.catalog[id];
+      }
+      return state.models || [];
+    }
+
+    function replayTranscript(items) {
+      messages.innerHTML = "";
+      (items || []).forEach(function (item) {
+        append(item.role, item.text, item.role === "error" ? "error" : "");
+      });
+    }
+
     window.addEventListener("message", function (event) {
       var msg = event.data || {};
-      if (msg.type === "provider") {
+      if (msg.type === "init") {
+        state.config = msg.config || state.config;
+        state.catalog = msg.catalog || state.catalog;
+        state.models = msg.models || state.models;
+        applySession(msg.session);
+        replayTranscript(msg.session && msg.session.transcript);
+      } else if (msg.type === "session") {
+        applySession(msg.session);
+      } else if (msg.type === "config") {
+        state.config = msg.config;
+        if (state.settingsOpen) renderSettings();
+      } else if (msg.type === "models") {
+        state.models = msg.models || state.models;
+        fillSelect(modelSelect, msg.models || modelsForProvider(state.provider), state.model);
+      } else if (msg.type === "showSettings") {
+        renderSettings();
+        setSettingsOpen(true);
+      } else if (msg.type === "settingsSaved") {
+        append("system", "Ajustes guardados.", "system");
+        setSettingsOpen(false);
+      } else if (msg.type === "provider") {
         state.provider = msg.provider;
-        select.value = msg.provider;
+        providerSelect.value = msg.provider;
+        fillSelect(modelSelect, modelsForProvider(state.provider), state.model);
       } else if (msg.type === "authStatus") {
         var kind = msg.kind === "session" ? "sesión terminal" : msg.kind === "apiKey" ? "API key" : "sin credencial";
         var src = msg.source === "terminal" ? "login CLI" : msg.source === "env" ? "env" : msg.source === "settings" ? "settings" : "";
@@ -133,11 +346,13 @@
         streamNode = null;
         state.streaming = false;
       } else if (msg.type === "edit") {
-        renderEdit(messages, msg.edit);
+        renderEdit(messages, msg.edit, msg.apply || "ask");
       } else if (msg.type === "editResolved") {
         var card = document.getElementById("edit-" + msg.id);
         if (card) {
-          card.appendChild(el("div", { className: "mia-msg system", text: msg.action === "accept" ? "Accepted — written to disk." : "Rejected — original file unchanged." }));
+          var doneText =
+            msg.action === "accept" ? "Aplicado — escrito en disco." : "Rechazado — el archivo original no cambia.";
+          card.appendChild(el("div", { className: "mia-msg system", text: doneText }));
         }
       }
     });
@@ -145,29 +360,34 @@
     post({ type: "ready" });
   }
 
-  function renderEdit(messages, edit) {
+  function renderEdit(messages, edit, apply) {
     var card = el("div", { className: "mia-edit", id: "edit-" + edit.id });
     var path = el("header", {}, [el("span", { text: edit.path })]);
     var pre = el("pre", { text: (edit.diff && edit.diff.unified) || "" });
-    var accept = el("button", { text: "Accept" });
-    var reject = el("button", { text: "Reject", className: "secondary" });
-    accept.addEventListener("click", function () {
-      post({ type: "acceptEdit", id: edit.id });
-    });
-    reject.addEventListener("click", function () {
-      post({ type: "rejectEdit", id: edit.id });
-    });
-    var actions = el("div", {}, [accept, reject]);
     card.appendChild(path);
     card.appendChild(pre);
-    card.appendChild(actions);
+    if (apply === "plan") {
+      card.appendChild(el("div", { className: "mia-msg system", text: "Plan — no se escribe nada." }));
+    } else if (apply === "auto") {
+      card.appendChild(el("div", { className: "mia-msg system", text: "Autónomo — aplicado automáticamente." }));
+    } else {
+      var accept = el("button", { text: "Accept" });
+      var reject = el("button", { text: "Reject", className: "secondary" });
+      accept.addEventListener("click", function () {
+        post({ type: "acceptEdit", id: edit.id });
+      });
+      reject.addEventListener("click", function () {
+        post({ type: "rejectEdit", id: edit.id });
+      });
+      card.appendChild(el("div", {}, [accept, reject]));
+    }
     messages.appendChild(card);
     messages.scrollTop = messages.scrollHeight;
   }
 
   global.__FH_IA__ = {
     ready: true,
-    version: "0.1.2",
+    version: "0.1.3",
     mount: mount,
     post: post,
     state: state,

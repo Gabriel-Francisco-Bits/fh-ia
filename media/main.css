@@ -18,12 +18,111 @@ html, body {
   height: 100%;
 }
 
+.mia-root {
+  position: relative;
+}
+
 .mia-header {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
   border-bottom: 1px solid var(--vscode-panel-border, #333);
+}
+
+.mia-icon-btn {
+  background: transparent;
+  color: inherit;
+  border: 1px solid var(--vscode-panel-border, #555);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 2px 8px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.mia-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--vscode-panel-border, #333);
+  flex-wrap: wrap;
+}
+
+.mia-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 10px;
+  opacity: 0.9;
+}
+
+.mia-field-grow {
+  flex: 1;
+  min-width: 90px;
+}
+
+.mia-field select,
+.mia-settings input,
+.mia-settings select {
+  background: var(--vscode-dropdown-background);
+  color: var(--vscode-dropdown-foreground);
+  border: 1px solid var(--vscode-dropdown-border, #555);
+  padding: 3px 6px;
+  width: 100%;
+}
+
+.mia-settings {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  z-index: 6;
+  background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mia-settings[hidden] {
+  display: none;
+}
+
+.mia-settings h2 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.mia-settings label,
+.mia-set-block label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+}
+
+.mia-set-block {
+  border: 1px solid var(--vscode-panel-border, #444);
+  border-radius: 6px;
+  padding: 8px;
+  margin: 0;
+}
+
+.mia-set-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mia-set-actions button,
+.mia-edit button,
+.mia-composer button {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: none;
+  padding: 4px 10px;
+  cursor: pointer;
+  border-radius: 4px;
 }
 
 .mia-header h1 {
@@ -39,7 +138,8 @@ html, body {
   text-align: right;
 }
 
-.mia-header select {
+.mia-header select,
+.mia-toolbar select {
   background: var(--vscode-dropdown-background);
   color: var(--vscode-dropdown-foreground);
   border: 1px solid var(--vscode-dropdown-border, #555);
@@ -101,7 +201,7 @@ html, body {
   padding: 8px;
 }
 
-.mia-edit button, .mia-composer button {
+.mia-edit button, .mia-composer button, .mia-set-actions button {
   background: var(--vscode-button-background);
   color: var(--vscode-button-foreground);
   border: none;
