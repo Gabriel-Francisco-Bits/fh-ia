@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import os from "node:os";
 import { AgentSession } from "./agent/session";
 import { createTerminalCredentialResolver } from "./auth/resolve";
-import { resolveAuthMode, resolveProviderBundle } from "./config";
+import { resolveAuthMode, resolveFailover, resolveProviderBundle } from "./config";
 import { renderWebviewHtml } from "./panelHtml";
 import { ProviderDispatcher } from "./providers/dispatcher";
 import { isProviderId, type ProviderId } from "./providers/types";
@@ -19,6 +19,7 @@ export class FhIaViewProvider implements vscode.WebviewViewProvider {
   constructor(private readonly context: vscode.ExtensionContext) {
     this.dispatcher = new ProviderDispatcher({
       bundle: this.readBundle(),
+      failover: resolveFailover(this.vscodeConfig()),
       credentials: createTerminalCredentialResolver({
         home: os.homedir(),
         env: process.env,
@@ -65,6 +66,7 @@ export class FhIaViewProvider implements vscode.WebviewViewProvider {
 
   private syncDispatcher(): void {
     this.dispatcher.updateBundle({ ...this.readBundle(), selected: this.dispatcher.getSelected() });
+    this.dispatcher.updateFailover(resolveFailover(this.vscodeConfig()));
   }
 
   private async postAuthStatus(): Promise<void> {
@@ -139,10 +141,13 @@ export class FhIaViewProvider implements vscode.WebviewViewProvider {
       const result = await session.send(text, (event) => {
         if (event.type === "text") {
           this.post({ type: "delta", text: event.text });
+        } else if (event.type === "status") {
+          this.post({ type: "status", text: event.text });
         } else if (event.type === "error") {
           this.post({ type: "error", message: event.error });
         }
       });
+      this.post({ type: "provider", provider: result.provider });
       this.post({ type: "assistantDone", text: result.text });
       for (const edit of result.edits) {
         this.pending.set(edit.id, edit);

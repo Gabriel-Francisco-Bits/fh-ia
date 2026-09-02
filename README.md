@@ -15,6 +15,8 @@ That installs `install/fh-ia.vsix` (or downloads it from GitHub Releases) into V
 
 Switching the IA in the panel dropdown routes the next prompt to that backend. You do not need to reload the extension host.
 
+If the selected IA fails (network, 429/5xx, or missing credentials), **failover** tries the next one (`fhIa.failover.order`, default `grok,claude,openai`). Turn it off with `fhIa.failover.enabled: false`.
+
 ## Features
 
 - Activity-bar **fh-ia** chat panel (also `fh-ia: Open Chat Panel` in the Command Palette)

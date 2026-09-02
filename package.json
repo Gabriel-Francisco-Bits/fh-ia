@@ -2,7 +2,7 @@
   "name": "fh-ia",
   "displayName": "fh-ia",
   "description": "Panel de agente tipo Claude Code para VS Code, conmutando Claude, Grok y un endpoint OpenAI-compatible.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "gfh",
   "repository": {
     "type": "git",
@@ -105,6 +105,16 @@
           "default": "grok",
           "description": "IA activa. Cambiar esto enruta el siguiente prompt al backend elegido, sin recargar la extensión."
         },
+        "fhIa.failover.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Si la IA activa falla (red, 429, 5xx, sin credencial), probar automáticamente las demás."
+        },
+        "fhIa.failover.order": {
+          "type": "string",
+          "default": "grok,claude,openai",
+          "description": "Orden de failover después de la IA seleccionada. Ejemplo: grok,claude,openai"
+        },
         "fhIa.claude.apiKey": {
           "type": "string",
           "default": "",
@@ -157,7 +167,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "clean": "rm -rf out",
-    "test": "npm run compile && node --test --test-reporter spec ./out/test/providers.test.js ./out/test/edits.test.js ./out/test/context.test.js ./out/test/webview-sandbox.test.js ./out/test/contributions.test.js ./out/test/auth.test.js",
+    "test": "npm run compile && node --test --test-reporter spec ./out/test/providers.test.js ./out/test/edits.test.js ./out/test/context.test.js ./out/test/webview-sandbox.test.js ./out/test/contributions.test.js ./out/test/auth.test.js ./out/test/failover.test.js",
     "package": "npm run compile && npx --yes @vscode/vsce package --no-dependencies",
     "vscode:prepublish": "npm run compile",
     "launch-test": "npm run compile && node out/test/runLaunch.js"

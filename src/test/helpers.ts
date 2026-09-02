@@ -79,3 +79,42 @@ export function startSseServer(opts: {
     server.on("error", reject);
   });
 }
+
+export function startFailingServer(opts: { status: number; body?: string }): Promise<FakeServer> {
+  const requests: CapturedRequest[] = [];
+  const server = http.createServer((req, res) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (c) => chunks.push(c as Buffer));
+    req.on("end", () => {
+      const body = Buffer.concat(chunks).toString("utf8");
+      const host = String(req.headers.host || "");
+      const url = req.url || "/";
+      requests.push({
+        method: req.method || "",
+        url,
+        path: url.split("?")[0],
+        host,
+        headers: req.headers,
+        body,
+      });
+      res.writeHead(opts.status, { "content-type": "application/json" });
+      res.end(opts.body ?? JSON.stringify({ error: "unavailable" }));
+    });
+  });
+  return new Promise((resolve, reject) => {
+    server.listen(0, "127.0.0.1", () => {
+      const addr = server.address() as AddressInfo;
+      resolve({
+        url: `http://127.0.0.1:${addr.port}`,
+        port: addr.port,
+        host: `127.0.0.1:${addr.port}`,
+        requests,
+        close: () =>
+          new Promise((resClose, rej) => {
+            server.close((err) => (err ? rej(err) : resClose()));
+          }),
+      });
+    });
+    server.on("error", reject);
+  });
+}

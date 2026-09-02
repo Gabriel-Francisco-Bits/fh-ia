@@ -118,6 +118,8 @@
         var kind = msg.kind === "session" ? "sesión terminal" : msg.kind === "apiKey" ? "API key" : "sin credencial";
         var src = msg.source === "terminal" ? "login CLI" : msg.source === "env" ? "env" : msg.source === "settings" ? "settings" : "";
         authLabel.textContent = src ? kind + " · " + src : kind;
+      } else if (msg.type === "status") {
+        append("system", String(msg.text || ""), "system");
       } else if (msg.type === "delta") {
         if (!streamNode) streamNode = append("assistant", "");
         streamNode.textContent += msg.text || "";
@@ -165,7 +167,7 @@
 
   global.__FH_IA__ = {
     ready: true,
-    version: "0.1.0",
+    version: "0.1.2",
     mount: mount,
     post: post,
     state: state,

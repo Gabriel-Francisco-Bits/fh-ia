@@ -37,6 +37,6 @@ export class AgentSession {
         edits.push(edit);
       }
     }
-    return { text, edits, provider: this.dispatcher.getSelected() };
+    return { text, edits, provider: this.dispatcher.getLastUsed() };
   }
 }

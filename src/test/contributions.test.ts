@@ -30,4 +30,7 @@ test("package.json declares vscode engine, chat view container, and open-panel c
   assert.ok(authEnum.includes("auto"));
   assert.ok(authEnum.includes("apiKey"));
   assert.ok(authEnum.includes("terminal"));
+  const props = pkg.contributes?.configuration?.properties ?? {};
+  assert.ok(props["fhIa.failover.enabled"]);
+  assert.ok(props["fhIa.failover.order"]);
 });

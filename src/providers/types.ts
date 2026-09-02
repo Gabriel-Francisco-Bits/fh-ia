@@ -33,7 +33,8 @@ export interface ChatMessage {
 export type StreamEvent =
   | { type: "text"; text: string }
   | { type: "done"; text: string }
-  | { type: "error"; error: string };
+  | { type: "error"; error: string }
+  | { type: "status"; text: string };
 
 export type StreamSink = (event: StreamEvent) => void;
 

@@ -1,4 +1,5 @@
 import { isAuthMode, type AuthMode } from "./auth/resolve";
+import { parseFailoverOrder, type FailoverPolicy } from "./providers/failover";
 import type { ProviderBundle, ProviderId, ProviderSettings } from "./providers/types";
 import { isProviderId } from "./providers/types";
 
@@ -9,6 +10,14 @@ export interface RawConfig {
 export function resolveAuthMode(config: RawConfig): AuthMode {
   const raw = String(config.get("fhIa.authMode") ?? "auto");
   return isAuthMode(raw) ? raw : "auto";
+}
+
+export function resolveFailover(config: RawConfig): FailoverPolicy {
+  const enabled = config.get<boolean>("fhIa.failover.enabled");
+  return {
+    enabled: enabled !== false,
+    order: parseFailoverOrder(config.get<string>("fhIa.failover.order")),
+  };
 }
 
 export function resolveProviderBundle(

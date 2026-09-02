@@ -19,6 +19,8 @@ chmod +x Instalar-fh-ia.sh
 
 El script instala el VSIX en **VS Code**, **Cursor** y **VSCodium** si están instalados.
 
+Failover (activo por defecto): si Grok/Claude/OpenAI falla, fh-ia prueba la siguiente IA (`fhIa.failover.order`).
+
 ## Repo y release
 
 - Código: https://github.com/Gabriel-Francisco-Bits/fh-ia
