@@ -20,6 +20,10 @@ If the selected IA fails (network, 429/5xx, or missing credentials), **failover*
 ## Features
 
 - Activity-bar **fh-ia** chat panel (also `fh-ia: Open Chat Panel` in the Command Palette)
+- **Nuevo chat** (`+`) opens an independent conversation tab, like Claude Code
+- Switch **IA** (Claude / Grok / OpenAI) and **model** from the panel
+- Agent **mode**: Preguntar (Accept/Reject), Plan (no writes), Autónomo (applies edits)
+- **Ajustes** gear: API keys, base URLs, auth, failover — also VS Code Settings
 - Streamed replies in the panel
 - Active editor file and current selection are attached automatically
 - Extra files via `@path/to/file` in the prompt
@@ -34,10 +38,10 @@ npm ci
 npm run package
 ```
 
-That produces `fh-ia-0.1.1.vsix`. Then in VS Code:
+That produces `fh-ia-0.1.3.vsix`. Then in VS Code:
 
 1. Command Palette → **Extensions: Install from VSIX…**
-2. Select `fh-ia-0.1.1.vsix`
+2. Select `fh-ia-0.1.3.vsix`
 3. Open the **fh-ia** icon in the activity bar
 
 ## Extension Development Host

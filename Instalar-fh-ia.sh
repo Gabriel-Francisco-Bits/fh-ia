@@ -75,16 +75,33 @@ else
   echo "[INFO] VSIX descargado: $VSIX"
 fi
 
+editor_ok() {
+  local bin="$1"
+  [ -n "$bin" ] && [ -x "$bin" ] && "$bin" --version >/dev/null 2>&1
+}
+
+add_editor() {
+  local bin="$1"
+  local resolved existing
+  [ -n "$bin" ] || return 0
+  resolved="$(readlink -f "$bin" 2>/dev/null || printf '%s' "$bin")"
+  for existing in "${editors[@]+"${editors[@]}"}"; do
+    if [ "$existing" = "$bin" ] || [ "$(readlink -f "$existing" 2>/dev/null || true)" = "$resolved" ]; then
+      return 0
+    fi
+  done
+  if editor_ok "$bin"; then
+    editors+=("$bin")
+  fi
+}
+
 editors=()
-if command -v code >/dev/null 2>&1; then
-  editors+=("code")
-fi
-if command -v cursor >/dev/null 2>&1; then
-  editors+=("cursor")
-fi
-if command -v codium >/dev/null 2>&1; then
-  editors+=("codium")
-fi
+for name in code cursor codium; do
+  add_editor "$(command -v "$name" 2>/dev/null || true)"
+done
+for path in /usr/bin/code /bin/code /usr/bin/cursor /usr/bin/codium; do
+  add_editor "$path"
+done
 
 if [ "${#editors[@]}" -eq 0 ]; then
   echo "[ERROR] No está VS Code, Cursor ni VSCodium en el PATH."

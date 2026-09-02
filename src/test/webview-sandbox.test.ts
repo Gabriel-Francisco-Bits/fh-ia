@@ -24,7 +24,13 @@ test("webview script evaluates in a browser-like sandbox without Node require", 
         (node.children as unknown[]).push(child);
         return child;
       },
+      insertBefore(child: unknown) {
+        (node.children as unknown[]).unshift(child);
+        return child;
+      },
       setAttribute: () => undefined,
+      removeAttribute: () => undefined,
+      querySelector: () => null,
     };
     return node;
   };
@@ -60,5 +66,5 @@ test("webview script evaluates in a browser-like sandbox without Node require", 
   assert.ok(api, "expected window.__FH_IA__");
   assert.equal(api.ready, true);
   assert.equal(typeof api.mount, "function");
-  assert.equal(api.version, "0.1.2");
+  assert.equal(api.version, "0.1.3");
 });

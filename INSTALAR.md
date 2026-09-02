@@ -17,7 +17,7 @@ chmod +x Instalar-fh-ia.sh
 ./Instalar-fh-ia.sh
 ```
 
-El script instala el VSIX **0.1.2** (con failover) en **VS Code**, **Cursor** y **VSCodium** si están instalados.
+El script instala el VSIX **0.1.3** (chats independientes, modos Preguntar/Plan/Autónomo, selector de IA y modelo) en **VS Code**, **Cursor** y **VSCodium** si están instalados.
 
 Failover (activo por defecto): si Grok/Claude/OpenAI falla, fh-ia prueba la siguiente IA (`fhIa.failover.order`).
 
