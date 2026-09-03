@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=fh-code
+GenericName=Editor fh-code
+Comment=Editor tipo Cursor con fh-ia (Claude, Grok, OpenAI, FCC)
+Exec=/home/gfh/Downloads/fh-ia/fh-code/bin/fh-code
+Icon=/home/gfh/Downloads/fh-ia/media/icon.svg
+Terminal=false
+Categories=Development;IDE;
+StartupWMClass=fh-code
+MimeType=text/plain;inode/directory;
+Keywords=fh-code;fh-ia;editor;cursor;
