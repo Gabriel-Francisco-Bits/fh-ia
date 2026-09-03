@@ -20,6 +20,8 @@
     catalog: {},
     config: null,
     settingsOpen: false,
+    fccEnabled: true,
+    fccOk: false,
   };
 
   function el(tag, attrs, children) {
@@ -71,11 +73,7 @@
     var authLabel = el("span", { id: "mia-auth", className: "mia-auth", text: "" });
     var gearBtn = el("button", { className: "mia-icon-btn", title: "Ajustes", type: "button", text: "⚙" });
 
-    var providerSelect = el("select", { id: "mia-provider", title: "IA" }, [
-      el("option", { value: "claude", text: "Claude" }),
-      el("option", { value: "grok", text: "Grok" }),
-      el("option", { value: "openai", text: "OpenAI" }),
-    ]);
+    var providerSelect = el("select", { id: "mia-provider", title: "IA" });
     var modelSelect = el("select", { id: "mia-model", title: "Modelo" });
     var modeSelect = el("select", { id: "mia-mode", title: "Modo" }, [
       el("option", { value: "ask", text: "Preguntar" }),
@@ -111,7 +109,7 @@
     var sendBtn = el("button", { id: "mia-send", text: "Enviar" });
     var composer = el("div", { className: "mia-composer" }, [input, sendBtn]);
 
-    var settings = el("div", { className: "mia-settings", hidden: "true" });
+    var settings = el("div", { className: "mia-settings" });
 
     root.appendChild(header);
     root.appendChild(toolbar);
@@ -120,10 +118,42 @@
     root.appendChild(composer);
     root.appendChild(settings);
 
+    function fillProviders() {
+      var current = providerSelect.value || state.provider;
+      providerSelect.innerHTML = "";
+      [
+        ["claude", "Claude"],
+        ["grok", "Grok"],
+        ["openai", "OpenAI"],
+      ].forEach(function (pair) {
+        providerSelect.appendChild(el("option", { value: pair[0], text: pair[1] }));
+      });
+      if (state.fccEnabled !== false) {
+        providerSelect.appendChild(el("option", { value: "fcc", text: "Free Claude Code" }));
+      }
+      if (current === "fcc" && state.fccEnabled === false) current = "grok";
+      providerSelect.value = current;
+      state.provider = providerSelect.value;
+    }
+
+    fillProviders();
+
+    function applyAppearance(ui) {
+      ui = ui || (state.config && state.config.ui) || {};
+      var theme = ui.theme || "auto";
+      root.setAttribute("data-theme", theme);
+      if (document.documentElement) document.documentElement.setAttribute("data-theme", theme);
+      if (document.body) document.body.setAttribute("data-theme", theme);
+      root.style.setProperty("--mia-font-size", (ui.fontSize || 13) + "px");
+      root.style.setProperty("--mia-icon-size", (ui.iconSize || 16) + "px");
+      if (ui.accent) root.style.setProperty("--mia-accent", ui.accent);
+      if (ui.userBubble) root.style.setProperty("--mia-user-bg", ui.userBubble);
+      if (ui.assistantBubble) root.style.setProperty("--mia-assistant-bg", ui.assistantBubble);
+    }
+
     function setSettingsOpen(open) {
       state.settingsOpen = !!open;
-      if (open) settings.removeAttribute("hidden");
-      else settings.setAttribute("hidden", "true");
+      settings.className = open ? "mia-settings is-open" : "mia-settings";
     }
 
     function providerBlock(id, label, cfg) {
@@ -176,18 +206,31 @@
         el("option", { value: "claude", text: "Claude" }),
         el("option", { value: "grok", text: "Grok" }),
         el("option", { value: "openai", text: "OpenAI" }),
+        el("option", { value: "fcc", text: "Free Claude Code" }),
       ]);
       provSel.value = cfg.provider || state.provider;
+      var fccOn = el("input", { type: "checkbox", "data-key": "fccEnabled" });
+      fccOn.checked = cfg.fccEnabled !== false;
+      var fccStatus = el("div", {
+        className: "mia-hint",
+        text: state.fccOk
+          ? "FCC en marcha (fcc-server)."
+          : "FCC no responde. Instala y arranca: curl -fsSL https://raw.githubusercontent.com/Alishahryar1/free-claude-code/main/scripts/install.sh | sh  →  fcc-server",
+      });
 
       var save = el("button", { text: "Guardar", type: "button" });
       var vscodeBtn = el("button", { text: "Settings de VS Code", type: "button", className: "secondary" });
       var close = el("button", { text: "Cerrar", type: "button", className: "secondary" });
 
       save.addEventListener("click", function () {
+        function nodeFor(key) {
+          return settings.querySelector('[data-key="' + key + '"]');
+        }
         function val(key) {
-          var node = settings.querySelector('[data-key="' + key + '"]');
+          var node = nodeFor(key);
           return node ? node.value : "";
         }
+        var fccBox = nodeFor("fccEnabled");
         post({
           type: "saveSettings",
           settings: {
@@ -196,9 +239,17 @@
             authMode: val("authMode"),
             failoverEnabled: val("failoverEnabled") === "true",
             failoverOrder: val("failoverOrder"),
+            fccEnabled: fccBox ? !!fccBox.checked : true,
+            theme: val("theme"),
+            fontSize: Number(val("fontSize") || 13),
+            iconSize: Number(val("iconSize") || 16),
+            accent: val("accent"),
+            userBubble: val("userBubble"),
+            assistantBubble: val("assistantBubble"),
             claude: { model: val("claude.model"), baseUrl: val("claude.baseUrl"), apiKey: val("claude.apiKey") },
             grok: { model: val("grok.model"), baseUrl: val("grok.baseUrl"), apiKey: val("grok.apiKey") },
             openai: { model: val("openai.model"), baseUrl: val("openai.baseUrl"), apiKey: val("openai.apiKey") },
+            fcc: { model: val("fcc.model"), baseUrl: val("fcc.baseUrl"), apiKey: val("fcc.apiKey") },
           },
         });
       });
@@ -209,8 +260,41 @@
         setSettingsOpen(false);
       });
 
+      var ui = cfg.ui || {};
+      var themeSel = el("select", { "data-key": "theme" }, [
+        el("option", { value: "auto", text: "Auto (VS Code)" }),
+        el("option", { value: "light", text: "Blanco" }),
+        el("option", { value: "dark", text: "Oscuro" }),
+      ]);
+      themeSel.value = ui.theme || "auto";
       settings.appendChild(el("h2", { text: "Ajustes fh-ia" }));
-      settings.appendChild(el("p", { className: "mia-hint", text: "IA, modelo y modo también se cambian arriba. Aquí van claves, URLs y failover." }));
+      settings.appendChild(el("p", { className: "mia-hint", text: "Apariencia suave, modos blanco/oscuro, y tamaños. IA, modelo y modo también se cambian arriba." }));
+      settings.appendChild(el("fieldset", { className: "mia-set-block" }, [
+        el("legend", { text: "Apariencia" }),
+        el("label", {}, [el("span", { text: "Tema" }), themeSel]),
+        el("label", {}, [
+          el("span", { text: "Tamaño del texto (px)" }),
+          el("input", { type: "number", min: "11", max: "22", "data-key": "fontSize", value: String(ui.fontSize || 13) }),
+        ]),
+        el("label", {}, [
+          el("span", { text: "Tamaño de iconos (px)" }),
+          el("input", { type: "number", min: "12", max: "28", "data-key": "iconSize", value: String(ui.iconSize || 16) }),
+        ]),
+        el("label", {}, [
+          el("span", { text: "Color de acento" }),
+          el("input", { type: "color", "data-key": "accent", value: ui.accent || "#7c8aff" }),
+        ]),
+        el("label", {}, [
+          el("span", { text: "Burbuja usuario" }),
+          el("input", { type: "color", "data-key": "userBubble", value: ui.userBubble || "#dce1ff" }),
+        ]),
+        el("label", {}, [
+          el("span", { text: "Burbuja asistente" }),
+          el("input", { type: "color", "data-key": "assistantBubble", value: ui.assistantBubble || "#eceae4" }),
+        ]),
+      ]));
+      settings.appendChild(el("label", { className: "mia-check" }, [fccOn, el("span", { text: "Habilitar Free Claude Code" })]));
+      settings.appendChild(fccStatus);
       settings.appendChild(el("label", {}, [el("span", { text: "IA por defecto" }), provSel]));
       settings.appendChild(el("label", {}, [el("span", { text: "Modo por defecto" }), modeSel]));
       settings.appendChild(el("label", {}, [el("span", { text: "Autenticación" }), authSel]));
@@ -219,6 +303,7 @@
       settings.appendChild(providerBlock("claude", "Claude", cfg.claude));
       settings.appendChild(providerBlock("grok", "Grok", cfg.grok));
       settings.appendChild(providerBlock("openai", "OpenAI-compatible", cfg.openai));
+      settings.appendChild(providerBlock("fcc", "Free Claude Code (localhost:8082)", cfg.fcc));
       settings.appendChild(el("div", { className: "mia-set-actions" }, [save, vscodeBtn, close]));
     }
 
@@ -305,14 +390,32 @@
       var msg = event.data || {};
       if (msg.type === "init") {
         state.config = msg.config || state.config;
+        if (state.config && state.config.fccEnabled === false) state.fccEnabled = false;
+        else state.fccEnabled = true;
         state.catalog = msg.catalog || state.catalog;
         state.models = msg.models || state.models;
+        applyAppearance(state.config && state.config.ui);
+        fillProviders();
         applySession(msg.session);
         replayTranscript(msg.session && msg.session.transcript);
       } else if (msg.type === "session") {
         applySession(msg.session);
       } else if (msg.type === "config") {
         state.config = msg.config;
+        if (state.config && state.config.fccEnabled === false) state.fccEnabled = false;
+        else if (state.config) state.fccEnabled = true;
+        applyAppearance(state.config && state.config.ui);
+        fillProviders();
+        if (state.settingsOpen) renderSettings();
+      } else if (msg.type === "fccStatus") {
+        state.fccEnabled = msg.enabled !== false;
+        state.fccOk = !!msg.ok;
+        fillProviders();
+        if (msg.models && msg.models.length) {
+          state.catalog = state.catalog || {};
+          state.catalog.fcc = msg.models;
+          if (state.provider === "fcc") fillSelect(modelSelect, modelsForProvider("fcc"), state.model);
+        }
         if (state.settingsOpen) renderSettings();
       } else if (msg.type === "models") {
         state.models = msg.models || state.models;
@@ -334,11 +437,15 @@
       } else if (msg.type === "status") {
         append("system", String(msg.text || ""), "system");
       } else if (msg.type === "delta") {
-        if (!streamNode) streamNode = append("assistant", "");
+        if (!streamNode) streamNode = append("assistant", "", "streaming");
+        streamNode.className = "mia-msg assistant streaming";
         streamNode.textContent += msg.text || "";
         messages.scrollTop = messages.scrollHeight;
       } else if (msg.type === "assistantDone") {
-        if (streamNode) streamNode.textContent = msg.text || streamNode.textContent;
+        if (streamNode) {
+          streamNode.textContent = msg.text || streamNode.textContent;
+          streamNode.className = "mia-msg assistant";
+        }
         streamNode = null;
         state.streaming = false;
       } else if (msg.type === "error") {
@@ -387,7 +494,7 @@
 
   global.__FH_IA__ = {
     ready: true,
-    version: "0.1.3",
+    version: "0.1.4",
     mount: mount,
     post: post,
     state: state,

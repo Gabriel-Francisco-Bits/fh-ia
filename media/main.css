@@ -1,60 +1,121 @@
 :root {
-  color-scheme: dark light;
+  --mia-font-size: 13px;
+  --mia-icon-size: 16px;
+  --mia-radius: 16px;
+  --mia-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --mia-accent: #7c8aff;
+  --mia-user-bg: color-mix(in srgb, var(--mia-accent) 16%, transparent);
+  --mia-assistant-bg: color-mix(in srgb, var(--mia-fg) 7%, transparent);
+  --mia-fg: var(--vscode-foreground, #1c1c1c);
+  --mia-muted: color-mix(in srgb, var(--mia-fg) 58%, transparent);
+  --mia-bg: var(--vscode-sideBar-background, var(--vscode-editor-background, #f6f5f2));
+  --mia-line: color-mix(in srgb, var(--mia-fg) 10%, transparent);
+  --mia-fill: color-mix(in srgb, var(--mia-fg) 5%, var(--mia-bg));
+  --mia-shadow: 0 10px 30px color-mix(in srgb, #000 8%, transparent);
+  color-scheme: light dark;
+}
+
+html[data-theme="light"],
+body[data-theme="light"],
+.mia-root[data-theme="light"] {
+  color-scheme: light;
+  --mia-fg: #1d1c19;
+  --mia-bg: #f4f2ee;
+  --mia-fill: #fffcf8;
+  --mia-line: rgba(29, 28, 25, 0.1);
+  --mia-muted: rgba(29, 28, 25, 0.55);
+  --mia-accent: #5b67e6;
+  --mia-user-bg: rgba(91, 103, 230, 0.12);
+  --mia-assistant-bg: rgba(29, 28, 25, 0.05);
+  --mia-shadow: 0 12px 32px rgba(40, 32, 20, 0.08);
+}
+
+html[data-theme="dark"],
+body[data-theme="dark"],
+.mia-root[data-theme="dark"] {
+  color-scheme: dark;
+  --mia-fg: #eceae4;
+  --mia-bg: #161513;
+  --mia-fill: #1e1d1a;
+  --mia-line: rgba(236, 234, 228, 0.1);
+  --mia-muted: rgba(236, 234, 228, 0.55);
+  --mia-accent: #9aa3ff;
+  --mia-user-bg: rgba(154, 163, 255, 0.16);
+  --mia-assistant-bg: rgba(236, 234, 228, 0.06);
+  --mia-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
 }
 
 html, body {
   margin: 0;
   padding: 0;
   height: 100%;
-  font-family: var(--vscode-font-family, sans-serif);
-  font-size: var(--vscode-font-size, 13px);
-  color: var(--vscode-foreground);
-  background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+  font-family: "Segoe UI", "SF Pro Text", "IBM Plex Sans", system-ui, sans-serif;
+  font-size: var(--mia-font-size);
+  color: var(--mia-fg);
+  background: var(--mia-bg);
+  letter-spacing: 0.01em;
 }
 
 #app, .mia-root {
   display: flex;
   flex-direction: column;
   height: 100%;
-}
-
-.mia-root {
   position: relative;
+  background: var(--mia-bg);
+  color: var(--mia-fg);
 }
 
 .mia-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--vscode-panel-border, #333);
+  gap: 10px;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid transparent;
+  background: color-mix(in srgb, var(--mia-bg) 88%, transparent);
+  backdrop-filter: blur(12px);
 }
 
 .mia-icon-btn {
-  background: transparent;
-  color: inherit;
-  border: 1px solid var(--vscode-panel-border, #555);
-  border-radius: 4px;
+  background: var(--mia-fill);
+  color: var(--mia-fg);
+  border: 1px solid var(--mia-line);
+  border-radius: 999px;
   cursor: pointer;
-  padding: 2px 8px;
-  font-size: 14px;
-  line-height: 1.4;
+  width: calc(var(--mia-icon-size) + 14px);
+  height: calc(var(--mia-icon-size) + 14px);
+  padding: 0;
+  font-size: var(--mia-icon-size);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.22s var(--mia-ease), background 0.22s var(--mia-ease), border-color 0.22s var(--mia-ease);
+}
+
+.mia-icon-btn:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--mia-accent) 45%, var(--mia-line));
+}
+
+.mia-icon-btn:active {
+  transform: scale(0.96);
 }
 
 .mia-toolbar {
   display: flex;
-  gap: 6px;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--vscode-panel-border, #333);
+  gap: 8px;
+  padding: 4px 12px 10px;
   flex-wrap: wrap;
 }
 
 .mia-field {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  font-size: 10px;
-  opacity: 0.9;
+  gap: 4px;
+  font-size: 0.72em;
+  color: var(--mia-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .mia-field-grow {
@@ -63,13 +124,27 @@ html, body {
 }
 
 .mia-field select,
+.mia-header select,
+.mia-toolbar select,
 .mia-settings input,
 .mia-settings select {
-  background: var(--vscode-dropdown-background);
-  color: var(--vscode-dropdown-foreground);
-  border: 1px solid var(--vscode-dropdown-border, #555);
-  padding: 3px 6px;
+  background: var(--mia-fill);
+  color: var(--mia-fg);
+  border: 1px solid var(--mia-line);
+  padding: 7px 10px;
   width: 100%;
+  border-radius: 12px;
+  font-size: 0.95em;
+  outline: none;
+  transition: border-color 0.22s var(--mia-ease), box-shadow 0.22s var(--mia-ease);
+}
+
+.mia-field select:focus,
+.mia-settings input:focus,
+.mia-settings select:focus,
+.mia-composer textarea:focus {
+  border-color: color-mix(in srgb, var(--mia-accent) 55%, var(--mia-line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mia-accent) 18%, transparent);
 }
 
 .mia-settings {
@@ -77,110 +152,138 @@ html, body {
   inset: 0;
   overflow: auto;
   z-index: 6;
-  background: var(--vscode-sideBar-background, var(--vscode-editor-background));
-  padding: 12px;
+  background: color-mix(in srgb, var(--mia-bg) 94%, transparent);
+  backdrop-filter: blur(16px);
+  padding: 18px 16px 28px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  pointer-events: none;
+  transition: opacity 0.28s var(--mia-ease), transform 0.28s var(--mia-ease), visibility 0.28s;
 }
 
-.mia-settings[hidden] {
-  display: none;
+.mia-settings.is-open {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  pointer-events: auto;
 }
 
 .mia-settings h2 {
   margin: 0;
-  font-size: 14px;
+  font-size: 1.15em;
+  font-weight: 560;
+  letter-spacing: -0.02em;
 }
 
 .mia-settings label,
 .mia-set-block label {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  font-size: 11px;
+  gap: 4px;
+  font-size: 0.85em;
+  color: var(--mia-muted);
+}
+
+.mia-check {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px !important;
+  color: var(--mia-fg) !important;
 }
 
 .mia-set-block {
-  border: 1px solid var(--vscode-panel-border, #444);
-  border-radius: 6px;
-  padding: 8px;
+  border: 1px solid var(--mia-line);
+  border-radius: var(--mia-radius);
+  padding: 12px;
   margin: 0;
+  background: var(--mia-fill);
 }
 
 .mia-set-actions {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
-.mia-set-actions button,
-.mia-edit button,
-.mia-composer button {
-  background: var(--vscode-button-background);
-  color: var(--vscode-button-foreground);
-  border: none;
-  padding: 4px 10px;
-  cursor: pointer;
-  border-radius: 4px;
-}
-
 .mia-header h1 {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 0.95em;
+  font-weight: 560;
   margin: 0;
+  letter-spacing: -0.02em;
 }
 
 .mia-auth {
   flex: 1;
-  font-size: 11px;
-  opacity: 0.75;
+  font-size: 0.78em;
+  color: var(--mia-muted);
   text-align: right;
-}
-
-.mia-header select,
-.mia-toolbar select {
-  background: var(--vscode-dropdown-background);
-  color: var(--vscode-dropdown-foreground);
-  border: 1px solid var(--vscode-dropdown-border, #555);
-  padding: 3px 6px;
 }
 
 .mia-messages {
   flex: 1;
   overflow: auto;
-  padding: 10px;
+  padding: 8px 12px 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
 .mia-msg {
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: 10px 12px;
+  border-radius: var(--mia-radius);
   white-space: pre-wrap;
   word-break: break-word;
+  line-height: 1.45;
+  animation: mia-in 0.32s var(--mia-ease);
 }
 
 .mia-msg.user {
-  background: var(--vscode-input-background);
+  background: var(--mia-user-bg);
   align-self: flex-end;
-  max-width: 90%;
+  max-width: 88%;
+  border-bottom-right-radius: 6px;
 }
 
 .mia-msg.assistant {
-  background: var(--vscode-editor-inactiveSelectionBackground, rgba(127,127,127,.15));
+  background: var(--mia-assistant-bg);
+  align-self: flex-start;
+  max-width: 94%;
+  border-bottom-left-radius: 6px;
+}
+
+.mia-msg.assistant.streaming::after {
+  content: "";
+  display: inline-block;
+  width: 0.42em;
+  height: 1em;
+  margin-left: 0.2em;
+  vertical-align: -0.15em;
+  border-radius: 99px;
+  background: var(--mia-accent);
+  animation: mia-caret 1s ease-in-out infinite;
 }
 
 .mia-msg.system, .mia-msg.error {
-  color: var(--vscode-errorForeground, #f88);
-  font-size: 12px;
+  color: var(--mia-muted);
+  font-size: 0.88em;
+  background: transparent;
+  padding: 2px 4px;
+}
+
+.mia-msg.error {
+  color: #c45c5c;
 }
 
 .mia-edit {
-  border: 1px solid var(--vscode-panel-border, #444);
-  border-radius: 8px;
-  padding: 8px;
+  border: 1px solid var(--mia-line);
+  border-radius: var(--mia-radius);
+  padding: 10px;
+  background: var(--mia-fill);
+  animation: mia-in 0.32s var(--mia-ease);
 }
 
 .mia-edit header {
@@ -188,53 +291,95 @@ html, body {
   gap: 6px;
   align-items: center;
   margin-bottom: 6px;
-  font-family: var(--vscode-editor-font-family, monospace);
-  font-size: 12px;
+  font-family: var(--vscode-editor-font-family, ui-monospace, monospace);
+  font-size: 0.82em;
+  color: var(--mia-muted);
 }
 
 .mia-edit pre {
   margin: 0 0 8px;
   max-height: 220px;
   overflow: auto;
-  font-size: 11px;
-  background: var(--vscode-textCodeBlock-background, #111);
+  font-size: 0.82em;
+  background: color-mix(in srgb, var(--mia-bg) 70%, #000 8%);
   padding: 8px;
+  border-radius: 10px;
 }
 
-.mia-edit button, .mia-composer button, .mia-set-actions button {
-  background: var(--vscode-button-background);
-  color: var(--vscode-button-foreground);
+.mia-edit button,
+.mia-composer button,
+.mia-set-actions button {
+  background: var(--mia-accent);
+  color: #fff;
   border: none;
-  padding: 4px 10px;
+  padding: 7px 12px;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 999px;
+  font-size: 0.9em;
+  transition: transform 0.2s var(--mia-ease), opacity 0.2s var(--mia-ease);
 }
 
-.mia-edit button.secondary {
-  background: var(--vscode-button-secondaryBackground, #444);
-  color: var(--vscode-button-secondaryForeground, #fff);
+.mia-edit button:hover,
+.mia-composer button:hover,
+.mia-set-actions button:hover {
+  transform: translateY(-1px);
+}
+
+.mia-edit button.secondary,
+.mia-set-actions button.secondary {
+  background: transparent;
+  color: var(--mia-fg);
+  border: 1px solid var(--mia-line);
 }
 
 .mia-composer {
   display: flex;
-  gap: 6px;
-  padding: 8px;
-  border-top: 1px solid var(--vscode-panel-border, #333);
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--mia-line);
+  background: color-mix(in srgb, var(--mia-bg) 92%, transparent);
 }
 
 .mia-composer textarea {
   flex: 1;
   resize: none;
-  min-height: 52px;
-  background: var(--vscode-input-background);
-  color: var(--vscode-input-foreground);
-  border: 1px solid var(--vscode-input-border, #555);
-  padding: 6px;
+  min-height: 56px;
+  background: var(--mia-fill);
+  color: var(--mia-fg);
+  border: 1px solid var(--mia-line);
+  padding: 10px 12px;
   font-family: inherit;
+  font-size: 1em;
+  border-radius: 18px;
+  outline: none;
+  transition: border-color 0.22s var(--mia-ease), box-shadow 0.22s var(--mia-ease);
 }
 
 .mia-hint {
-  padding: 0 10px 8px;
-  font-size: 11px;
-  opacity: 0.75;
+  padding: 0 14px 8px;
+  font-size: 0.78em;
+  color: var(--mia-muted);
+}
+
+@keyframes mia-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes mia-caret {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }

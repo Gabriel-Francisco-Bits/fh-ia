@@ -1,25 +1,35 @@
-# Abrir este archivo e instalar fh-ia
+# Instalar fh-ia
 
-## En este PC (más fácil)
+Repo público: no hace falta clonar ni bajar archivos a mano.
 
-Doble clic en el escritorio: **Instalar fh-ia**
-
-Si Ubuntu pregunta “¿Confías en este launcher?”, elige **Permitir iniciar**.
-
-## Desde GitHub (un archivo)
-
-1. Descarga solo esto:  
-   https://raw.githubusercontent.com/Gabriel-Francisco-Bits/fh-ia/main/Instalar-fh-ia.sh
-2. Hazlo ejecutable y ábrelo:
+## Un comando
 
 ```bash
-chmod +x Instalar-fh-ia.sh
+curl -fsSL https://raw.githubusercontent.com/Gabriel-Francisco-Bits/fh-ia/main/Instalar-fh-ia.sh | bash
+```
+
+Eso descarga el VSIX del último release e instala la extensión en **VS Code**, **Cursor** y **VSCodium** si están en el PATH.
+
+## En este PC (si ya tienes el repo)
+
+Doble clic en **Instalar fh-ia** o:
+
+```bash
 ./Instalar-fh-ia.sh
 ```
 
-El script instala el VSIX **0.1.3** (chats independientes, modos Preguntar/Plan/Autónomo, selector de IA y modelo) en **VS Code**, **Cursor** y **VSCodium** si están instalados.
+Si Ubuntu pregunta “¿Confías en este launcher?”, elige **Permitir iniciar**.
 
-Failover (activo por defecto): si Grok/Claude/OpenAI falla, fh-ia prueba la siguiente IA (`fhIa.failover.order`).
+## Después de instalar
+
+Abre VS Code → icono **fh-ia** a la izquierda.
+
+- **IA**: Claude, Grok, OpenAI o **Free Claude Code** (`fcc-server` en localhost:8082)
+- **Modo**: Preguntar / Plan / Autónomo
+- **+**: chat independiente (pestaña)
+- **⚙**: claves, failover, tema blanco/oscuro, tamaño de texto e iconos, colores
+
+Free Claude Code: https://github.com/Alishahryar1/free-claude-code — arranca `fcc-server` y elige esa IA en el panel.
 
 ## Repo y release
 

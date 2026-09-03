@@ -1,4 +1,12 @@
+import type { ProviderSettings } from "../providers/types";
 import http from "node:http";
+
+export const FCC_STUB: ProviderSettings = {
+  id: "fcc",
+  apiKey: "",
+  baseUrl: "http://127.0.0.1:9",
+  model: "fcc-test",
+};
 import type { AddressInfo } from "node:net";
 
 export interface CapturedRequest {

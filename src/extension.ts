@@ -26,6 +26,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("fhIa.selectClaude", () => provider.setProvider("claude")),
     vscode.commands.registerCommand("fhIa.selectGrok", () => provider.setProvider("grok")),
     vscode.commands.registerCommand("fhIa.selectOpenAI", () => provider.setProvider("openai")),
+    vscode.commands.registerCommand("fhIa.selectFcc", () => provider.setProvider("fcc")),
   );
 }
 

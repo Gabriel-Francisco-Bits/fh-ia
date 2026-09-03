@@ -2,7 +2,7 @@
   "name": "fh-ia",
   "displayName": "fh-ia",
   "description": "Panel de agente tipo Claude Code para VS Code, conmutando Claude, Grok y un endpoint OpenAI-compatible.",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "publisher": "gfh",
   "repository": {
     "type": "git",
@@ -76,6 +76,11 @@
         "command": "fhIa.selectOpenAI",
         "title": "fh-ia: Use OpenAI-compatible",
         "category": "fh-ia"
+      },
+      {
+        "command": "fhIa.selectFcc",
+        "title": "fh-ia: Use Free Claude Code",
+        "category": "fh-ia"
       }
     ],
     "menus": {
@@ -138,12 +143,14 @@
           "enum": [
             "claude",
             "grok",
-            "openai"
+            "openai",
+            "fcc"
           ],
           "enumDescriptions": [
             "Anthropic Claude (api.anthropic.com)",
             "xAI Grok (api.x.ai)",
-            "OpenAI-compatible endpoint (ChatGPT, local, Azure-compatible, etc.)"
+            "OpenAI-compatible endpoint (ChatGPT, local, Azure-compatible, etc.)",
+            "Free Claude Code local proxy (fcc-server on localhost:8082)"
           ],
           "default": "grok",
           "description": "IA activa. Cambiar esto enruta el siguiente prompt al backend elegido, sin recargar la extensión."
@@ -217,6 +224,66 @@
           "type": "string",
           "default": "gpt-4o",
           "description": "Modelo OpenAI-compatible."
+        },
+        "fhIa.fcc.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Mostrar Free Claude Code (https://github.com/Alishahryar1/free-claude-code) como IA en el panel."
+        },
+        "fhIa.fcc.apiKey": {
+          "type": "string",
+          "default": "freecc",
+          "description": "Token del proxy FCC (Authorization Bearer). Por defecto freecc. Vacío = ANTHROPIC_AUTH_TOKEN o freecc."
+        },
+        "fhIa.fcc.baseUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8082",
+          "description": "Base URL de fcc-server (Anthropic-compatible, sin /v1/messages)."
+        },
+        "fhIa.fcc.model": {
+          "type": "string",
+          "default": "claude-sonnet-4-20250514",
+          "description": "Modelo enviado a FCC. Puede ser un id Claude (mapea a MODEL_SONNET/OPUS/HAIKU) o un ref directo tipo nvidia_nim/..."
+        },
+        "fhIa.ui.theme": {
+          "type": "string",
+          "enum": ["auto", "light", "dark"],
+          "enumDescriptions": [
+            "Seguir el tema de VS Code",
+            "Modo blanco, fondos claros",
+            "Modo oscuro, fondos suaves"
+          ],
+          "default": "auto",
+          "description": "Tema visual del panel fh-ia."
+        },
+        "fhIa.ui.fontSize": {
+          "type": "number",
+          "default": 13,
+          "minimum": 11,
+          "maximum": 22,
+          "description": "Tamaño base del texto del panel (px)."
+        },
+        "fhIa.ui.iconSize": {
+          "type": "number",
+          "default": 16,
+          "minimum": 12,
+          "maximum": 28,
+          "description": "Tamaño de iconos y botones redondos (px)."
+        },
+        "fhIa.ui.accent": {
+          "type": "string",
+          "default": "",
+          "description": "Color de acento (hex). Vacío = paleta suave por tema."
+        },
+        "fhIa.ui.userBubble": {
+          "type": "string",
+          "default": "",
+          "description": "Color de burbuja del usuario. Vacío = derivado del acento."
+        },
+        "fhIa.ui.assistantBubble": {
+          "type": "string",
+          "default": "",
+          "description": "Color de burbuja del asistente. Vacío = derivado del tema."
         }
       }
     }
@@ -225,7 +292,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "clean": "rm -rf out",
-    "test": "npm run compile && node --test --test-reporter spec ./out/test/providers.test.js ./out/test/edits.test.js ./out/test/context.test.js ./out/test/webview-sandbox.test.js ./out/test/contributions.test.js ./out/test/auth.test.js ./out/test/failover.test.js ./out/test/chats.test.js ./out/test/modes.test.js",
+    "test": "npm run compile && node --test --test-reporter spec ./out/test/providers.test.js ./out/test/edits.test.js ./out/test/context.test.js ./out/test/webview-sandbox.test.js ./out/test/contributions.test.js ./out/test/auth.test.js ./out/test/failover.test.js ./out/test/chats.test.js ./out/test/modes.test.js ./out/test/fcc.test.js",
     "package": "npm run compile && npx --yes @vscode/vsce package --no-dependencies",
     "vscode:prepublish": "npm run compile",
     "launch-test": "npm run compile && node out/test/runLaunch.js"

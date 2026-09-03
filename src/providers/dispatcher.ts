@@ -9,6 +9,7 @@ import { chatOpenAiCompatible } from "./openaiCompatible";
 import {
   defaultHttp,
   isProviderId,
+  PROVIDER_IDS,
   type ChatCall,
   type ChatMessage,
   type HttpTransport,
@@ -25,6 +26,7 @@ const DEFAULT_CLIENTS: Record<ProviderId, ChatFn> = {
   claude: chatClaude,
   grok: chatOpenAiCompatible,
   openai: chatOpenAiCompatible,
+  fcc: chatClaude,
 };
 
 export class ProviderDispatcher {
@@ -84,8 +86,9 @@ export class ProviderDispatcher {
   }
 
   async chat(messages: ChatMessage[], onEvent: StreamSink, signal?: AbortSignal): Promise<string> {
+    const available = this.failover.available ?? PROVIDER_IDS;
     const chain = this.failover.enabled
-      ? failoverChain(this.selected, this.failover.order)
+      ? failoverChain(this.selected, this.failover.order, available)
       : [this.selected];
     const errors: string[] = [];
 

@@ -22,12 +22,14 @@ export const ENV_KEYS: Record<ProviderId, string> = {
   claude: "ANTHROPIC_API_KEY",
   grok: "XAI_API_KEY",
   openai: "OPENAI_API_KEY",
+  fcc: "ANTHROPIC_AUTH_TOKEN",
 };
 
 export const LOGIN_HINT: Record<ProviderId, string> = {
   claude: "Run `claude` in a terminal and log in, or set fhIa.claude.apiKey / ANTHROPIC_API_KEY.",
   grok: "Run `grok login` in a terminal, or set fhIa.grok.apiKey / XAI_API_KEY.",
   openai: "Log in with Codex (`codex`) or set fhIa.openai.apiKey / OPENAI_API_KEY.",
+  fcc: "Start `fcc-server` (Free Claude Code) and set fhIa.fcc.apiKey (default freecc).",
 };
 
 export function isAuthMode(value: string): value is AuthMode {
@@ -108,6 +110,9 @@ async function loadTerminalSession(
         extraHeaders: { "anthropic-beta": "oauth-2025-04-08" },
       };
     }
+    return undefined;
+  }
+  if (id === "fcc") {
     return undefined;
   }
   const openai = await loadOpenAiSession(ctx);
