@@ -2,7 +2,7 @@
   "name": "fh-ia",
   "displayName": "fh-ia",
   "description": "Panel de agente tipo Claude Code para VS Code, conmutando Claude, Grok y un endpoint OpenAI-compatible.",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "publisher": "gfh",
   "repository": {
     "type": "git",
@@ -299,7 +299,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "clean": "rm -rf out",
-    "test": "npm run compile && node --test --test-reporter spec ./out/test/providers.test.js ./out/test/edits.test.js ./out/test/context.test.js ./out/test/webview-sandbox.test.js ./out/test/contributions.test.js ./out/test/auth.test.js ./out/test/failover.test.js ./out/test/chats.test.js ./out/test/modes.test.js ./out/test/fcc.test.js",
+    "test": "npm run compile && node --test --test-reporter spec ./out/test/providers.test.js ./out/test/edits.test.js ./out/test/context.test.js ./out/test/webview-sandbox.test.js ./out/test/contributions.test.js ./out/test/auth.test.js ./out/test/failover.test.js ./out/test/chats.test.js ./out/test/modes.test.js ./out/test/fcc.test.js ./out/test/skills.test.js",
     "package": "npm run compile && npx --yes @vscode/vsce package --no-dependencies",
     "vscode:prepublish": "npm run compile",
     "launch-test": "npm run compile && node out/test/runLaunch.js"

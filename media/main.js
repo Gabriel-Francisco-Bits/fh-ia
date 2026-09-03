@@ -108,7 +108,7 @@
     var messages = el("div", { className: "mia-messages", id: "mia-messages" });
     var hint = el("div", {
       className: "mia-hint",
-      text: "La carpeta abierta y el árbol del repo se envían solos. + chat nuevo. Preguntar / Plan / Autónomo. @archivo adjunta ficheros.",
+      text: "Repo, skills (SKILL.md de Claude/Grok/Cursor/Codex/…) y editores van en cada prompt, en cualquier IA. + chat nuevo. /skill para forzar una skill.",
     });
 
     var input = el("textarea", {
@@ -523,7 +523,7 @@
 
   global.__FH_IA__ = {
     ready: true,
-    version: "0.1.8",
+    version: "0.1.9",
     mount: mount,
     post: post,
     state: state,
