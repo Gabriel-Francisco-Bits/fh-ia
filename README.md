@@ -2,6 +2,16 @@
 
 A Visual Studio Code extension with a sidebar agent chat panel (same idea as the Claude Code IDE panel) that can talk to **Claude** (Anthropic), **Grok** (xAI), or any **OpenAI-compatible** endpoint.
 
+## fh-code
+
+Editor de código estilo Cursor / OpenCode en este repo: **Monaco** (motor de VS Code) + explorador + chat **fh-ia** (Claude, Grok, OpenAI, FCC, skills).
+
+```bash
+npm run fh-code
+```
+
+Abre http://127.0.0.1:3847 — ver [fh-code/README.md](fh-code/README.md).
+
 ## Install (one command)
 
 Public repo — same command installs and updates.

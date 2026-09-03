@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>fh-code</title>
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+  <header class="titlebar">
+    <span class="brand">fh-code</span>
+    <span id="ws-name" class="ws"></span>
+    <span class="hint">Monaco · VS Code · fh-ia</span>
+  </header>
+  <div class="shell">
+    <aside class="files">
+      <div class="pane-label">Explorador</div>
+      <div id="tree" class="tree"></div>
+    </aside>
+    <section class="main">
+      <div id="tabs" class="tabs"></div>
+      <div id="editor" class="editor"></div>
+    </section>
+    <aside class="chat">
+      <div class="chat-head">
+        <strong>fh-ia</strong>
+        <div class="row">
+          <label>IA
+            <select id="provider">
+              <option value="claude">Claude</option>
+              <option value="grok">Grok</option>
+              <option value="openai">OpenAI</option>
+              <option value="fcc">FCC</option>
+            </select>
+          </label>
+          <label class="grow">Modelo
+            <select id="model"></select>
+          </label>
+          <label>Modo
+            <select id="mode">
+              <option value="ask">Preguntar</option>
+              <option value="plan">Plan</option>
+              <option value="autonomous">Autónomo</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <div id="messages" class="messages"></div>
+      <div class="composer">
+        <textarea id="input" placeholder="Pregunta con el archivo activo y las skills del repo…"></textarea>
+        <button id="send" type="button">Enviar</button>
+      </div>
+    </aside>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

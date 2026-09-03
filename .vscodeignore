@@ -16,3 +16,5 @@ fh-ia-*/
 Instalar-fh-ia.sh
 Instalar-fh-ia.desktop
 install/**
+fh-code/**
+editor/**
