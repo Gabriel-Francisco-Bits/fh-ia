@@ -299,10 +299,11 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "clean": "rm -rf out",
-    "test": "npm run compile && node --test --test-reporter spec ./out/test/providers.test.js ./out/test/edits.test.js ./out/test/context.test.js ./out/test/webview-sandbox.test.js ./out/test/contributions.test.js ./out/test/auth.test.js ./out/test/failover.test.js ./out/test/chats.test.js ./out/test/modes.test.js ./out/test/fcc.test.js ./out/test/skills.test.js",
+    "test": "npm run compile && node --test --test-reporter spec ./out/test/providers.test.js ./out/test/edits.test.js ./out/test/context.test.js ./out/test/webview-sandbox.test.js ./out/test/contributions.test.js ./out/test/auth.test.js ./out/test/failover.test.js ./out/test/chats.test.js ./out/test/modes.test.js ./out/test/fcc.test.js ./out/test/skills.test.js ./fh-code/paths.test.js",
     "package": "npm run compile && npx --yes @vscode/vsce package --no-dependencies",
     "vscode:prepublish": "npm run compile",
-    "launch-test": "npm run compile && node out/test/runLaunch.js"
+    "launch-test": "npm run compile && node out/test/runLaunch.js",
+    "fh-code": "npm run compile && node fh-code/server.js"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
