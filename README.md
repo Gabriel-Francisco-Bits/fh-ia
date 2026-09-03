@@ -34,6 +34,7 @@ If the selected IA fails (network, 429/5xx, or missing credentials), **failover*
 - **Free Claude Code** (`fcc-server` at `http://127.0.0.1:8082`) as a selectable IA — [Alishahryar1/free-claude-code](https://github.com/Alishahryar1/free-claude-code)
 - Streamed replies in the panel
 - Open folder, repo tree, and open editors are attached on every prompt
+- Project **skills** (`SKILL.md` from Claude, Grok, Cursor, Codex, OpenCode, Copilot, …) load for every IA; `/skill-name` or a matching task follows that skill
 - Active editor file and current selection are attached automatically
 - Extra files via `@path/to/file` in the prompt
 - Proposed file edits as a reviewable diff with **Accept** (writes to disk) and **Reject** (leaves the original file unchanged)

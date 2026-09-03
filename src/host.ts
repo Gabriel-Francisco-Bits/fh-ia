@@ -181,7 +181,7 @@ export class ChatApp {
   private agentFor(id: string): AgentSession {
     let agent = this.agents.get(id);
     if (!agent) {
-      agent = new AgentSession(this.dispatcher, vscodeFilePort(), vscodeEditorPort);
+      agent = new AgentSession(this.dispatcher, vscodeFilePort(), vscodeEditorPort, os.homedir());
       const rec = this.sessions.get(id);
       if (rec) {
         agent.setHistory(rec.history);

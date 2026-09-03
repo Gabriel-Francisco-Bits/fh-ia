@@ -8,6 +8,7 @@ import {
   type EditorPort,
 } from "../workspace/context";
 import type { FilePort } from "../workspace/files";
+import { discoverSkills, renderSkillsForPrompt } from "../workspace/skills";
 import { capHistory } from "../chats";
 import { systemPromptForMode, type AgentMode } from "./modes";
 
@@ -26,6 +27,7 @@ export class AgentSession {
     private readonly dispatcher: ProviderDispatcher,
     private readonly files: FilePort,
     private readonly editor: () => EditorPort,
+    private readonly home?: string,
   ) {}
 
   getHistory(): ChatMessage[] {
@@ -45,15 +47,22 @@ export class AgentSession {
     onEvent: StreamSink,
     mode: AgentMode = "ask",
   ): Promise<SessionResult> {
-    const ctx = await gatherContext(userText, this.editor(), this.files);
-    const outbound = buildOutboundMessages(
-      userText,
-      ctx,
-      systemPromptForMode(mode, DEFAULT_SYSTEM_PROMPT),
-    );
-    const system = outbound[0];
+    const editor = this.editor();
+    const ctx = await gatherContext(userText, editor, this.files);
+    let system = systemPromptForMode(mode, DEFAULT_SYSTEM_PROMPT);
+    try {
+      const bundle = await discoverSkills({ workspaceRoot: editor.workspaceRoot, home: this.home });
+      const skillBlock = renderSkillsForPrompt(bundle, userText);
+      if (skillBlock) {
+        system = `${system}\n\n${skillBlock}`;
+      }
+    } catch {
+      // skills are optional; never fail a turn because a skill file is unreadable
+    }
+    const outbound = buildOutboundMessages(userText, ctx, system);
+    const systemMsg = outbound[0];
     const user = outbound[1];
-    const messages: ChatMessage[] = [system, ...this.history, user];
+    const messages: ChatMessage[] = [systemMsg, ...this.history, user];
     const text = await this.dispatcher.chat(messages, onEvent);
     this.history = capHistory([...this.history, user, { role: "assistant", content: text }]);
     const originals: Record<string, string> = {};
