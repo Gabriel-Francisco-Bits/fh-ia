@@ -37,6 +37,7 @@ function bundle(): ProviderBundle {
     claude: { id: "claude", apiKey: "sk-ant-test", baseUrl: claude.url, model: "claude-test" },
     grok: { id: "grok", apiKey: "xai-test", baseUrl: grok.url, model: "grok-test" },
     openai: { id: "openai", apiKey: "sk-openai-test", baseUrl: openai.url, model: "gpt-test" },
+    fcc: { id: "fcc", apiKey: "freecc", baseUrl: "http://127.0.0.1:9", model: "fcc-test" },
   };
 }
 

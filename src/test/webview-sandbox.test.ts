@@ -17,7 +17,8 @@ test("webview script evaluates in a browser-like sandbox without Node require", 
       textContent: "",
       innerHTML: "",
       children: [] as unknown[],
-      style: {},
+      style: { setProperty: () => undefined },
+      checked: false,
       value: tag === "select" ? "grok" : "",
       addEventListener: () => undefined,
       appendChild(child: unknown) {
@@ -46,6 +47,7 @@ test("webview script evaluates in a browser-like sandbox without Node require", 
     createElement: (tag: string) => fakeNode(tag),
     addEventListener: () => undefined,
     body: fakeNode("body"),
+    documentElement: fakeNode("html"),
   };
 
   const sandbox = {
@@ -66,5 +68,5 @@ test("webview script evaluates in a browser-like sandbox without Node require", 
   assert.ok(api, "expected window.__FH_IA__");
   assert.equal(api.ready, true);
   assert.equal(typeof api.mount, "function");
-  assert.equal(api.version, "0.1.3");
+  assert.equal(api.version, "0.1.4");
 });

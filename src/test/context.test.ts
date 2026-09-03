@@ -40,6 +40,7 @@ test("outbound prompt payload includes active file path and selected span", asyn
       claude: { id: "claude", apiKey: "unused", baseUrl: "http://127.0.0.1:9", model: "x" },
       grok: { id: "grok", apiKey: "xai-test", baseUrl: grok.url, model: "grok-test" },
       openai: { id: "openai", apiKey: "unused", baseUrl: "http://127.0.0.1:9", model: "x" },
+      fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "x" },
     },
   });
 
@@ -82,6 +83,7 @@ test("@file mention is attached into the outbound payload", async () => {
       claude: { id: "claude", apiKey: "unused", baseUrl: "http://127.0.0.1:9", model: "x" },
       grok: { id: "grok", apiKey: "xai-test", baseUrl: grok.url, model: "grok-test" },
       openai: { id: "openai", apiKey: "unused", baseUrl: "http://127.0.0.1:9", model: "x" },
+      fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "x" },
     },
   });
 

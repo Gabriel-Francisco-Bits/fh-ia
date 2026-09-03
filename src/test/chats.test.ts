@@ -41,6 +41,7 @@ test("independent sessions keep separate histories", async () => {
         claude: { id: "claude", apiKey: "x", baseUrl: "http://127.0.0.1:9", model: "x" },
         grok: { id: "grok", apiKey: "k", baseUrl: grok.url, model: "grok-test" },
         openai: { id: "openai", apiKey: "x", baseUrl: "http://127.0.0.1:9", model: "x" },
+        fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "x" },
       },
     });
     const files = {
@@ -82,6 +83,7 @@ test("plan mode returns planned edits without applying edits", async () => {
         claude: { id: "claude", apiKey: "x", baseUrl: "http://127.0.0.1:9", model: "x" },
         grok: { id: "grok", apiKey: "k", baseUrl: grok.url, model: "grok-test" },
         openai: { id: "openai", apiKey: "x", baseUrl: "http://127.0.0.1:9", model: "x" },
+        fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "x" },
       },
     });
     const files = {

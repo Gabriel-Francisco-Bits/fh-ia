@@ -6,7 +6,7 @@ import type { ProviderBundle, StreamEvent } from "../providers/types";
 import { startFailingServer, startSseServer } from "./helpers";
 
 test("failover chain starts with preferred then configured order", () => {
-  assert.deepEqual(failoverChain("openai", parseFailoverOrder("grok,claude")), [
+  assert.deepEqual(failoverChain("openai", parseFailoverOrder("grok,claude"), ["claude", "grok", "openai"]), [
     "openai",
     "grok",
     "claude",
@@ -22,6 +22,7 @@ test("when preferred provider returns 503, dispatcher fails over to the next IA"
       grok: { id: "grok", apiKey: "xai-test", baseUrl: down.url, model: "grok-test" },
       claude: { id: "claude", apiKey: "sk-ant-test", baseUrl: claude.url, model: "claude-test" },
       openai: { id: "openai", apiKey: "sk-test", baseUrl: "http://127.0.0.1:9", model: "gpt-test" },
+      fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "fcc-test" },
     };
     const dispatcher = new ProviderDispatcher({
       bundle,
@@ -55,6 +56,7 @@ test("failover disabled does not call the next provider", async () => {
         grok: { id: "grok", apiKey: "xai-test", baseUrl: down.url, model: "g" },
         claude: { id: "claude", apiKey: "sk-ant-test", baseUrl: claude.url, model: "c" },
         openai: { id: "openai", apiKey: "sk", baseUrl: "http://127.0.0.1:9", model: "o" },
+        fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "f" },
       },
       failover: { enabled: false, order: ["grok", "claude"] },
     });
@@ -76,6 +78,7 @@ test("missing credential on preferred IA fails over to a configured backend", as
         claude: { id: "claude", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "c" },
         grok: { id: "grok", apiKey: "xai-test", baseUrl: grok.url, model: "g" },
         openai: { id: "openai", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "o" },
+        fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "f" },
       },
       failover: { enabled: true, order: ["claude", "grok", "openai"] },
     });

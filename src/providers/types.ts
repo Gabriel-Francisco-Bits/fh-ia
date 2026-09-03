@@ -1,4 +1,4 @@
-export const PROVIDER_IDS = ["claude", "grok", "openai"] as const;
+export const PROVIDER_IDS = ["claude", "grok", "openai", "fcc"] as const;
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 
 export function isProviderId(value: string): value is ProviderId {
@@ -23,6 +23,7 @@ export interface ProviderBundle {
   claude: ProviderSettings;
   grok: ProviderSettings;
   openai: ProviderSettings;
+  fcc: ProviderSettings;
 }
 
 export interface ChatMessage {

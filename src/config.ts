@@ -1,8 +1,9 @@
 import { isAgentMode, type AgentMode } from "./agent/modes";
 import { isAuthMode, type AuthMode } from "./auth/resolve";
+import { FCC_DEFAULT_BASE, FCC_DEFAULT_TOKEN } from "./providers/fcc";
 import { parseFailoverOrder, type FailoverPolicy } from "./providers/failover";
 import type { ProviderBundle, ProviderId, ProviderSettings } from "./providers/types";
-import { isProviderId } from "./providers/types";
+import { isProviderId, PROVIDER_IDS } from "./providers/types";
 
 export interface RawConfig {
   get<T>(key: string): T | undefined;
@@ -18,11 +19,46 @@ export function resolveAgentMode(config: RawConfig): AgentMode {
   return isAgentMode(raw) ? raw : "ask";
 }
 
+export type UiTheme = "auto" | "light" | "dark";
+
+export interface UiSettings {
+  theme: UiTheme;
+  fontSize: number;
+  iconSize: number;
+  accent: string;
+  userBubble: string;
+  assistantBubble: string;
+}
+
+export function resolveUi(config: RawConfig): UiSettings {
+  const themeRaw = String(config.get("fhIa.ui.theme") ?? "auto");
+  const theme: UiTheme = themeRaw === "light" || themeRaw === "dark" ? themeRaw : "auto";
+  const fontSize = Number(config.get("fhIa.ui.fontSize") ?? 13);
+  const iconSize = Number(config.get("fhIa.ui.iconSize") ?? 16);
+  return {
+    theme,
+    fontSize: Number.isFinite(fontSize) && fontSize > 0 ? fontSize : 13,
+    iconSize: Number.isFinite(iconSize) && iconSize > 0 ? iconSize : 16,
+    accent: String(config.get("fhIa.ui.accent") ?? ""),
+    userBubble: String(config.get("fhIa.ui.userBubble") ?? ""),
+    assistantBubble: String(config.get("fhIa.ui.assistantBubble") ?? ""),
+  };
+}
+
+export function resolveFccEnabled(config: RawConfig): boolean {
+  return config.get<boolean>("fhIa.fcc.enabled") !== false;
+}
+
+export function resolveAvailableProviders(config: RawConfig): ProviderId[] {
+  return PROVIDER_IDS.filter((id) => (id === "fcc" ? resolveFccEnabled(config) : true));
+}
+
 export function resolveFailover(config: RawConfig): FailoverPolicy {
   const enabled = config.get<boolean>("fhIa.failover.enabled");
   return {
     enabled: enabled !== false,
     order: parseFailoverOrder(config.get<string>("fhIa.failover.order")),
+    available: resolveAvailableProviders(config),
   };
 }
 
@@ -37,6 +73,10 @@ export function resolveProviderBundle(
     claude: settings("claude", "https://api.anthropic.com", "claude-sonnet-4-20250514", config),
     grok: settings("grok", "https://api.x.ai", "grok-4", config),
     openai: settings("openai", "https://api.openai.com/v1", "gpt-4o", config),
+    fcc: {
+      ...settings("fcc", FCC_DEFAULT_BASE, "claude-sonnet-4-20250514", config),
+      apiKey: String(config.get("fhIa.fcc.apiKey") || FCC_DEFAULT_TOKEN),
+    },
   };
 }
 

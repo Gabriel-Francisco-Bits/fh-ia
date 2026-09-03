@@ -4,14 +4,27 @@
 # Fecha: 2026-09-02
 # Solicitado por: gfh
 #
-# Un solo archivo: descárgalo, dale doble clic o ejecútalo.
-# Si no hay VSIX al lado, lo baja del release público de GitHub.
+# Un comando (repo público, sin descargar a mano):
+#   curl -fsSL https://raw.githubusercontent.com/Gabriel-Francisco-Bits/fh-ia/main/Instalar-fh-ia.sh | bash
 # ============================================================
 set -euo pipefail
 
 echo "[INFO] Iniciando instalación de fh-ia..."
 
-HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]:-$0}")")" && pwd)"
+if ! command -v curl >/dev/null 2>&1; then
+  echo "[ERROR] Se necesita curl."
+  exit 1
+fi
+
+src="${BASH_SOURCE[0]:-$0}"
+HERE=""
+if [ -f "$src" ] && [ -s "$src" ]; then
+  resolved="$(readlink -f "$src" 2>/dev/null || printf '%s' "$src")"
+  HERE="$(cd "$(dirname "$resolved")" 2>/dev/null && pwd)" || HERE=""
+fi
+case "$HERE" in
+  /dev/* | /proc/* | "") HERE="" ;;
+esac
 REPO_SLUG="${FH_IA_REPO:-Gabriel-Francisco-Bits/fh-ia}"
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/fh-ia"
 mkdir -p "$CACHE"
@@ -68,7 +81,7 @@ for a in data.get('assets', []):
 }
 
 VSIX=""
-if VSIX="$(find_local_vsix)"; then
+if [ -n "$HERE" ] && VSIX="$(find_local_vsix)"; then
   echo "[INFO] VSIX: $VSIX"
 else
   VSIX="$(download_vsix)"

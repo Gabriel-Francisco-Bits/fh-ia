@@ -5,7 +5,15 @@ import type { AgentMode } from "./agent/modes";
 import { isAgentMode } from "./agent/modes";
 import { createTerminalCredentialResolver } from "./auth/resolve";
 import { capHistory, createChatRecord, titleFromFirstMessage, type ChatRecord } from "./chats";
-import { resolveAgentMode, resolveAuthMode, resolveFailover, resolveProviderBundle } from "./config";
+import {
+  resolveAgentMode,
+  resolveAuthMode,
+  resolveFailover,
+  resolveFccEnabled,
+  resolveProviderBundle,
+  resolveUi,
+} from "./config";
+import { probeFcc } from "./providers/fcc";
 import { MODEL_CATALOG, modelsFor } from "./models";
 import { renderWebviewHtml } from "./panelHtml";
 import { ProviderDispatcher } from "./providers/dispatcher";
@@ -242,6 +250,9 @@ export class ChatApp {
       claude: { ...bundle.claude, apiKey: bundle.claude.apiKey ? "••••••••" : "" },
       grok: { ...bundle.grok, apiKey: bundle.grok.apiKey ? "••••••••" : "" },
       openai: { ...bundle.openai, apiKey: bundle.openai.apiKey ? "••••••••" : "" },
+      fccEnabled: resolveFccEnabled(this.vscodeConfig()),
+      fcc: { ...bundle.fcc, apiKey: bundle.fcc.apiKey ? "••••••••" : "" },
+      ui: resolveUi(this.vscodeConfig()),
     };
   }
 
@@ -305,6 +316,7 @@ export class ChatApp {
         catalog: MODEL_CATALOG,
       });
       await this.postAuthStatus(sessionId);
+      void this.postFccStatus(sessionId);
       return;
     }
     if (msg.type === "newChat") {
@@ -343,6 +355,7 @@ export class ChatApp {
       this.post(sessionId, { type: "config", config: this.configSnapshot() });
       this.post(sessionId, { type: "settingsSaved" });
       await this.postAuthStatus(sessionId);
+      void this.postFccStatus(sessionId);
       return;
     }
     if (msg.type === "send" && msg.text) {
@@ -396,7 +409,28 @@ export class ChatApp {
     if (typeof raw.failoverOrder === "string") {
       await set("fhIa.failover.order", raw.failoverOrder);
     }
-    for (const id of ["claude", "grok", "openai"] as const) {
+    if (typeof raw.fccEnabled === "boolean") {
+      await set("fhIa.fcc.enabled", raw.fccEnabled);
+    }
+    if (typeof raw.theme === "string") {
+      await set("fhIa.ui.theme", raw.theme);
+    }
+    if (typeof raw.fontSize === "number" || (typeof raw.fontSize === "string" && raw.fontSize.trim())) {
+      await set("fhIa.ui.fontSize", Number(raw.fontSize));
+    }
+    if (typeof raw.iconSize === "number" || (typeof raw.iconSize === "string" && raw.iconSize.trim())) {
+      await set("fhIa.ui.iconSize", Number(raw.iconSize));
+    }
+    if (typeof raw.accent === "string") {
+      await set("fhIa.ui.accent", raw.accent);
+    }
+    if (typeof raw.userBubble === "string") {
+      await set("fhIa.ui.userBubble", raw.userBubble);
+    }
+    if (typeof raw.assistantBubble === "string") {
+      await set("fhIa.ui.assistantBubble", raw.assistantBubble);
+    }
+    for (const id of ["claude", "grok", "openai", "fcc"] as const) {
       const block = raw[id];
       if (!block || typeof block !== "object") {
         continue;
@@ -412,6 +446,30 @@ export class ChatApp {
         await set(`fhIa.${id}.apiKey`, b.apiKey.trim());
       }
     }
+  }
+
+  private async postFccStatus(sessionId: string): Promise<void> {
+    const enabled = resolveFccEnabled(this.vscodeConfig());
+    const fcc = this.readBundle().fcc;
+    if (!enabled) {
+      this.post(sessionId, { type: "fccStatus", ok: false, enabled: false, models: [] });
+      return;
+    }
+    const probe = await probeFcc({ baseUrl: fcc.baseUrl, apiKey: fcc.apiKey });
+    if (probe.models.length) {
+      this.post(sessionId, {
+        type: "models",
+        provider: "fcc",
+        models: modelsFor("fcc", fcc.model).concat(probe.models.filter((m) => m !== fcc.model)),
+      });
+    }
+    this.post(sessionId, {
+      type: "fccStatus",
+      ok: probe.ok,
+      enabled: true,
+      models: probe.models,
+      error: probe.error,
+    });
   }
 
   private attachEditor(panel: vscode.WebviewPanel, sessionId: string): void {

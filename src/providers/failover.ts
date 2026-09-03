@@ -3,6 +3,7 @@ import { isProviderId, PROVIDER_IDS, type ProviderId } from "./types";
 export interface FailoverPolicy {
   enabled: boolean;
   order: ProviderId[];
+  available?: ProviderId[];
 }
 
 export const DEFAULT_FAILOVER_ORDER: ProviderId[] = ["grok", "claude", "openai"];
@@ -16,10 +17,14 @@ export function parseFailoverOrder(raw: string | undefined): ProviderId[] {
 }
 
 /** Preferred provider first, then configured order, then any remaining IAs. */
-export function failoverChain(preferred: ProviderId, order: ProviderId[]): ProviderId[] {
+export function failoverChain(
+  preferred: ProviderId,
+  order: ProviderId[],
+  available: readonly ProviderId[] = PROVIDER_IDS,
+): ProviderId[] {
   const chain: ProviderId[] = [];
   const push = (id: ProviderId) => {
-    if (!chain.includes(id)) {
+    if (!chain.includes(id) && (available.includes(id) || id === preferred)) {
       chain.push(id);
     }
   };
@@ -27,7 +32,7 @@ export function failoverChain(preferred: ProviderId, order: ProviderId[]): Provi
   for (const id of order) {
     push(id);
   }
-  for (const id of PROVIDER_IDS) {
+  for (const id of available) {
     push(id);
   }
   return chain;
