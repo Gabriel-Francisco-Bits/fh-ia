@@ -1,0 +1,19 @@
+appId: do.bits.fhcode
+productName: fh-code
+directories:
+  output: fh-code/dist
+files:
+  - fh-code/**/*
+  - out/**/*
+  - package.json
+  - "!fh-code/dist/**"
+linux:
+  target:
+    - dir
+  category: Development
+win:
+  target:
+    - dir
+mac:
+  target:
+    - dir

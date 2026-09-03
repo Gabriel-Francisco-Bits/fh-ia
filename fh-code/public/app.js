@@ -15,6 +15,18 @@
   let catalog = {};
   let streaming = false;
 
+  function applyShellLayout() {
+    const spec = (globalThis.FhCodeLayout && globalThis.FhCodeLayout.layoutForWidth)
+      ? globalThis.FhCodeLayout.layoutForWidth(window.innerWidth)
+      : { columns: "240px minmax(0, 1fr) 360px", chatDisplay: "flex" };
+    const shell = document.querySelector(".shell");
+    const chat = document.querySelector(".chat");
+    if (shell) shell.style.gridTemplateColumns = spec.columns;
+    if (chat) chat.style.display = spec.chatDisplay;
+  }
+  window.addEventListener("resize", applyShellLayout);
+  applyShellLayout();
+
   function langOf(p) {
     const ext = (p.split(".").pop() || "").toLowerCase();
     const map = {

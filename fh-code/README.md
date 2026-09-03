@@ -12,7 +12,15 @@ Desde la raíz del repo:
 npm run fh-code
 ```
 
-Abre [http://127.0.0.1:3847](http://127.0.0.1:3847). Carpeta y puerto opcionales:
+Abre la ventana de escritorio **fh-code** (Electron, Linux / Windows / macOS). Si Electron no está disponible, el servidor local queda en [http://127.0.0.1:3847](http://127.0.0.1:3847).
+
+Empaquetado multiplataforma (directorios de app):
+
+```bash
+npm run fh-code:dist
+```
+
+Carpeta y puerto opcionales:
 
 ```bash
 npm run compile

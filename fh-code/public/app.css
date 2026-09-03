@@ -1,38 +1,72 @@
 :root {
-  --bg: #1b1a18;
-  --bg2: #141312;
-  --pane: #201f1c;
-  --line: rgba(255, 255, 255, 0.08);
-  --fg: #eceae4;
-  --muted: rgba(236, 234, 228, 0.55);
-  --accent: #8b93ff;
-  --chat: #181714;
-  font-family: "Segoe UI", "SF Pro Text", system-ui, sans-serif;
+  --bg: #181818;
+  --bg2: #141414;
+  --pane: #1e1e1e;
+  --line: rgba(255, 255, 255, 0.07);
+  --fg: #e4e4e4;
+  --muted: #8a8a8a;
+  --accent: #7c83ff;
+  --chat: #1b1b1b;
+  --activity: #121212;
+  font-family: ui-sans-serif, "Segoe UI", system-ui, sans-serif;
   color: var(--fg);
   background: var(--bg);
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
 
 .titlebar {
-  height: 36px;
+  height: 38px;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 14px;
+  padding: 0 14px 0 78px;
   background: var(--bg2);
   border-bottom: 1px solid var(--line);
   font-size: 12px;
+  -webkit-app-region: drag;
+  user-select: none;
 }
-.brand { font-weight: 650; letter-spacing: 0.04em; }
-.ws { color: var(--muted); }
+.titlebar select, .titlebar button { -webkit-app-region: no-drag; }
+.brand { font-weight: 650; letter-spacing: 0.02em; }
+.ws { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hint { margin-left: auto; color: var(--muted); }
 
-.shell {
+.workbench {
+  display: flex;
+  height: calc(100% - 38px);
+  min-height: 0;
+}
+
+.activity {
+  width: 48px;
+  flex-shrink: 0;
+  background: var(--activity);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0;
+  gap: 8px;
+}
+.activity .dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(124, 131, 255, 0.18);
+  color: var(--accent);
   display: grid;
-  grid-template-columns: 240px 1fr 360px;
-  height: calc(100% - 36px);
+  place-items: center;
+  font-size: 13px;
+}
+
+.shell {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr) 360px;
+  min-width: 0;
+  min-height: 0;
 }
 
 .files, .chat {
@@ -41,8 +75,13 @@ html, body { margin: 0; height: 100%; }
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
 }
-.chat { border-right: none; border-left: 1px solid var(--line); background: var(--chat); }
+.chat {
+  border-right: none;
+  border-left: 1px solid var(--line);
+  background: var(--chat);
+}
 
 .pane-label, .chat-head {
   padding: 10px 12px 8px;
@@ -53,20 +92,20 @@ html, body { margin: 0; height: 100%; }
   border-bottom: 1px solid var(--line);
 }
 .chat-head { text-transform: none; letter-spacing: 0; }
-.chat-head strong { display: block; font-size: 13px; color: var(--fg); margin-bottom: 8px; }
+.chat-head strong { display: block; font-size: 13px; color: var(--fg); margin-bottom: 8px; font-weight: 600; }
 
 .row { display: flex; gap: 6px; flex-wrap: wrap; }
 .row label { display: flex; flex-direction: column; gap: 3px; font-size: 10px; color: var(--muted); }
-.row .grow { flex: 1; min-width: 110px; }
+.row .grow { flex: 1; min-width: 90px; }
 select, textarea, button {
-  background: #2a2824;
+  background: #2a2a2a;
   color: var(--fg);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 6px 8px;
   font: inherit;
 }
-button { background: var(--accent); color: #111; border: none; cursor: pointer; font-weight: 600; }
+button.send { background: var(--accent); color: #111; border: none; cursor: pointer; font-weight: 600; }
 
 .tree { flex: 1; overflow: auto; padding: 8px; font-size: 13px; }
 .tree button {
@@ -77,37 +116,50 @@ button { background: var(--accent); color: #111; border: none; cursor: pointer; 
   color: var(--fg);
   border: none;
   padding: 4px 6px;
-  border-radius: 6px;
+  border-radius: 4px;
   font-weight: 400;
+  cursor: pointer;
 }
-.tree button:hover, .tree button.active { background: rgba(139, 147, 255, 0.14); }
+.tree button:hover, .tree button.active { background: rgba(124, 131, 255, 0.14); }
 .tree .dir { color: var(--muted); }
 .tree .nested { padding-left: 12px; }
 
-.main { display: flex; flex-direction: column; min-width: 0; background: var(--bg); }
-.tabs { display: flex; gap: 2px; padding: 6px 8px 0; min-height: 36px; border-bottom: 1px solid var(--line); overflow: auto; }
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: #1a1a1a; }
+.tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 0 0 0;
+  min-height: 35px;
+  border-bottom: 1px solid var(--line);
+  overflow: auto;
+  background: var(--bg2);
+}
 .tab {
   background: transparent;
   color: var(--muted);
   border: none;
-  padding: 8px 12px;
-  border-radius: 8px 8px 0 0;
+  border-right: 1px solid var(--line);
+  padding: 8px 14px;
+  border-radius: 0;
   cursor: pointer;
 }
-.tab.active { background: #23211e; color: var(--fg); }
-.editor { flex: 1; }
+.tab.active { background: #1a1a1a; color: var(--fg); }
+.editor { flex: 1; min-height: 0; }
 
 .messages { flex: 1; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
-.msg { padding: 10px 12px; border-radius: 14px; line-height: 1.45; font-size: 14px; white-space: pre-wrap; }
-.msg.user { align-self: flex-end; background: rgba(139, 147, 255, 0.16); max-width: 92%; }
+.msg { padding: 10px 12px; border-radius: 10px; line-height: 1.45; font-size: 13.5px; white-space: pre-wrap; }
+.msg.user { align-self: flex-end; background: rgba(124, 131, 255, 0.16); max-width: 92%; }
 .msg.assistant { background: rgba(255, 255, 255, 0.04); }
 .msg.system, .msg.error { color: var(--muted); font-size: 12px; background: transparent; }
 .msg.error { color: #e08b8b; }
 .composer { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); }
-.composer textarea { flex: 1; min-height: 72px; resize: none; }
+.composer textarea { flex: 1; min-height: 64px; resize: none; }
 .composer button { align-self: flex-end; }
 
 @media (max-width: 980px) {
-  .shell { grid-template-columns: 180px 1fr; }
-  .chat { display: none; }
+  .shell {
+    grid-template-columns: minmax(120px, 26vw) minmax(160px, 1fr) minmax(200px, 38vw);
+  }
+  .titlebar { padding-left: 14px; }
+  .activity { width: 40px; }
 }
