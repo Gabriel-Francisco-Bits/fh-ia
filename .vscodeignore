@@ -18,3 +18,4 @@ Instalar-fh-ia.desktop
 install/**
 fh-code/**
 editor/**
+electron-builder.yml

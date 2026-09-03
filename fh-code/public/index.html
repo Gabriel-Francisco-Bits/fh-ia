@@ -12,6 +12,11 @@
     <span id="ws-name" class="ws"></span>
     <span class="hint">Monaco · VS Code · fh-ia</span>
   </header>
+  <div class="workbench">
+  <nav class="activity" aria-label="Activity">
+    <div class="dot" title="Files">☰</div>
+    <div class="dot" title="fh-ia">✦</div>
+  </nav>
   <div class="shell">
     <aside class="files">
       <div class="pane-label">Explorador</div>
@@ -48,10 +53,12 @@
       <div id="messages" class="messages"></div>
       <div class="composer">
         <textarea id="input" placeholder="Pregunta con el archivo activo y las skills del repo…"></textarea>
-        <button id="send" type="button">Enviar</button>
+        <button id="send" class="send" type="button">Enviar</button>
       </div>
     </aside>
   </div>
+  </div>
+  <script src="/static/layout.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
   <script src="/static/app.js"></script>
 </body>

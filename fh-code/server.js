@@ -136,7 +136,11 @@ async function listDir(rel) {
   const names = await fs.readdir(abs, { withFileTypes: true });
   const entries = [];
   for (const ent of names.sort((a, b) => a.name.localeCompare(b.name))) {
-    if (SKIP_DIRS.has(ent.name) || (ent.name.startsWith(".") && ent.name !== ".github" && ent.name !== ".claude" && ent.name !== ".grok")) {
+    if (
+      SKIP_DIRS.has(ent.name) ||
+      ent.name.endsWith(".vsix") ||
+      (ent.name.startsWith(".") && ![".github", ".claude", ".grok", ".agents", ".cursor", ".codex"].includes(ent.name))
+    ) {
       continue;
     }
     entries.push({
@@ -159,7 +163,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname.startsWith("/static/")) {
       const file = path.basename(url.pathname);
-      const abs = path.join(PUBLIC, file);
+      const abs = file === "layout.js" ? path.join(__dirname, "layout.js") : path.join(PUBLIC, file);
       const data = await fs.readFile(abs);
       res.writeHead(200, { "content-type": mime(file) });
       res.end(data);
@@ -240,8 +244,25 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, "127.0.0.1", () => {
-  console.log(`fh-code (Monaco / VS Code engine + fh-ia)`);
-  console.log(`workspace: ${WORKSPACE}`);
-  console.log(`open:      http://127.0.0.1:${PORT}`);
-});
+function startServer(listenPort = PORT, host = "127.0.0.1") {
+  return new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(listenPort, host, () => {
+      const addr = server.address();
+      const port = typeof addr === "object" && addr ? addr.port : listenPort;
+      console.log(`fh-code (Monaco / VS Code engine + fh-ia)`);
+      console.log(`workspace: ${WORKSPACE}`);
+      console.log(`open:      http://127.0.0.1:${port}`);
+      resolve({ server, port, workspace: WORKSPACE });
+    });
+  });
+}
+
+if (require.main === module) {
+  startServer().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
+
+module.exports = { startServer, PORT, WORKSPACE };
