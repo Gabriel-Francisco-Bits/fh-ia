@@ -30,6 +30,8 @@ node fh-code/server.js /ruta/al/proyecto
 
 Autenticación: la misma que la extensión (`grok login`, `claude`, API keys en `~/.fh-ia/settings.json` o `XAI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`). FCC: `fcc-server` en `localhost:8082`.
 
+Qué falta y issues: [ROADMAP.md](ROADMAP.md).
+
 ## Atajos
 
 - `Ctrl+S` / `Cmd+S` guardar

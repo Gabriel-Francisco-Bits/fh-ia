@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+SRC="$0"
+if command -v readlink >/dev/null 2>&1; then
+  SRC="$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")"
+fi
+ROOT="$(cd "$(dirname "$SRC")/../.." && pwd)"
+cd "$ROOT"
+if [ ! -f "$ROOT/out/agent/session.js" ]; then
+  npm run compile
+fi
+if [ "${1:-}" != "" ] && [ -d "$1" ]; then
+  export FH_IA_WORKSPACE="$1"
+  shift
+fi
+export FH_IA_WORKSPACE="${FH_IA_WORKSPACE:-$ROOT}"
+exec node "$ROOT/fh-code/launch.js" "$@"
