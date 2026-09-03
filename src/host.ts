@@ -6,6 +6,7 @@ import { isAgentMode } from "./agent/modes";
 import { createTerminalCredentialResolver } from "./auth/resolve";
 import { capHistory, createChatRecord, titleFromFirstMessage, type ChatRecord } from "./chats";
 import {
+  resetFhIaConfiguration,
   resolveAgentMode,
   resolveAuthMode,
   resolveFailover,
@@ -349,6 +350,15 @@ export class ChatApp {
       this.post(sessionId, { type: "session", session: this.publicSession(rec) });
       return;
     }
+    if (msg.type === "resetSettings") {
+      await this.resetSettings();
+      this.syncDispatcher(rec);
+      this.post(sessionId, { type: "config", config: this.configSnapshot() });
+      this.post(sessionId, { type: "settingsReset" });
+      await this.postAuthStatus(sessionId);
+      void this.postFccStatus(sessionId);
+      return;
+    }
     if (msg.type === "saveSettings" && msg.settings) {
       await this.saveSettings(msg.settings);
       this.syncDispatcher(rec);
@@ -384,6 +394,14 @@ export class ChatApp {
       this.pending.delete(msg.id);
       this.post(sessionId, { type: "editResolved", id: msg.id, action: "reject" });
     }
+  }
+
+  async resetSettings(): Promise<void> {
+    const cfg = vscode.workspace.getConfiguration();
+    await resetFhIaConfiguration(async (key) => {
+      await cfg.update(key, undefined, vscode.ConfigurationTarget.Global);
+      await cfg.update(key, undefined, vscode.ConfigurationTarget.Workspace);
+    });
   }
 
   private async saveSettings(raw: Record<string, unknown>): Promise<void> {

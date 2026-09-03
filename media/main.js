@@ -227,6 +227,7 @@
 
       var save = el("button", { text: "Guardar", type: "button" });
       var vscodeBtn = el("button", { text: "Settings de VS Code", type: "button", className: "secondary" });
+      var resetBtn = el("button", { text: "Restablecer", type: "button", className: "secondary" });
       var close = el("button", { text: "Cerrar", type: "button", className: "secondary" });
 
       save.addEventListener("click", function () {
@@ -262,6 +263,12 @@
       });
       vscodeBtn.addEventListener("click", function () {
         post({ type: "openVsCodeSettings" });
+      });
+      resetBtn.addEventListener("click", function () {
+        if (typeof confirm === "function" && !confirm("¿Restablecer todos los ajustes de fh-ia a los valores por defecto?")) {
+          return;
+        }
+        post({ type: "resetSettings" });
       });
       close.addEventListener("click", function () {
         setSettingsOpen(false);
@@ -311,7 +318,7 @@
       settings.appendChild(providerBlock("grok", "Grok", cfg.grok));
       settings.appendChild(providerBlock("openai", "OpenAI-compatible", cfg.openai));
       settings.appendChild(providerBlock("fcc", "Free Claude Code (localhost:8082)", cfg.fcc));
-      settings.appendChild(el("div", { className: "mia-set-actions" }, [save, vscodeBtn, close]));
+      settings.appendChild(el("div", { className: "mia-set-actions" }, [save, resetBtn, vscodeBtn, close]));
     }
 
     newBtn.addEventListener("click", function () {
@@ -443,6 +450,11 @@
       } else if (msg.type === "settingsSaved") {
         append("system", "Ajustes guardados.", "system");
         setSettingsOpen(false);
+      } else if (msg.type === "settingsReset") {
+        applyAppearance(state.config && state.config.ui);
+        fillProviders();
+        renderSettings();
+        append("system", "Ajustes restablecidos.", "system");
       } else if (msg.type === "provider") {
         state.provider = msg.provider;
         providerSelect.value = msg.provider;
@@ -511,7 +523,7 @@
 
   global.__FH_IA__ = {
     ready: true,
-    version: "0.1.7",
+    version: "0.1.8",
     mount: mount,
     post: post,
     state: state,

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
+import { FHIA_CONFIG_KEYS, resetFhIaConfiguration } from "../config";
 
 test("package.json declares vscode engine, chat view container, and open-panel command", () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..", "package.json"), "utf8")) as {
@@ -22,6 +23,7 @@ test("package.json declares vscode engine, chat view container, and open-panel c
   assert.ok(commands.includes("fhIa.openSettings"));
   assert.ok(commands.includes("fhIa.openInTab"));
   assert.ok(commands.includes("fhIa.selectFcc"));
+  assert.ok(commands.includes("fhIa.resetSettings"));
   const containers = pkg.contributes?.viewsContainers?.activitybar ?? [];
   assert.ok(containers.some((c) => c.id === "fhIa"));
   const views = pkg.contributes?.views?.fhIa ?? [];
@@ -48,4 +50,16 @@ test("package.json declares vscode engine, chat view container, and open-panel c
   assert.ok(props["fhIa.ui.fontSize"]);
   assert.ok(props["fhIa.ui.iconSize"]);
   assert.ok(props["fhIa.fcc.enabled"]);
+  for (const key of Object.keys(props)) {
+    assert.ok((FHIA_CONFIG_KEYS as readonly string[]).includes(key), "reset list missing " + key);
+  }
+});
+
+test("resetFhIaConfiguration writes undefined for every known key", async () => {
+  const seen: string[] = [];
+  await resetFhIaConfiguration(async (key, value) => {
+    assert.equal(value, undefined);
+    seen.push(key);
+  });
+  assert.deepEqual(seen, [...FHIA_CONFIG_KEYS]);
 });

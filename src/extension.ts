@@ -23,6 +23,18 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("fhIa.openSettings", () => {
       app.openSettingsUi();
     }),
+    vscode.commands.registerCommand("fhIa.resetSettings", async () => {
+      const pick = await vscode.window.showWarningMessage(
+        "¿Restablecer todos los ajustes de fh-ia a los valores por defecto?",
+        { modal: true },
+        "Restablecer",
+      );
+      if (pick !== "Restablecer") {
+        return;
+      }
+      await app.resetSettings();
+      void vscode.window.showInformationMessage("fh-ia: ajustes restablecidos.");
+    }),
     vscode.commands.registerCommand("fhIa.selectClaude", () => provider.setProvider("claude")),
     vscode.commands.registerCommand("fhIa.selectGrok", () => provider.setProvider("grok")),
     vscode.commands.registerCommand("fhIa.selectOpenAI", () => provider.setProvider("openai")),
