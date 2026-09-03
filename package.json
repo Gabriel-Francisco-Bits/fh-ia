@@ -2,7 +2,7 @@
   "name": "fh-ia",
   "displayName": "fh-ia",
   "description": "Panel de agente tipo Claude Code para VS Code, conmutando Claude, Grok y un endpoint OpenAI-compatible.",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "publisher": "gfh",
   "repository": {
     "type": "git",
@@ -30,6 +30,7 @@
     "onView:fhIa.chatView",
     "onCommand:fhIa.openPanel",
     "onCommand:fhIa.newChat",
+    "onCommand:fhIa.resetSettings",
     "onWebviewPanel:fhIa.chatTab"
   ],
   "extensionKind": [
@@ -61,6 +62,12 @@
         "title": "fh-ia: Ajustes",
         "category": "fh-ia",
         "icon": "$(gear)"
+      },
+      {
+        "command": "fhIa.resetSettings",
+        "title": "fh-ia: Restablecer ajustes",
+        "category": "fh-ia",
+        "icon": "$(discard)"
       },
       {
         "command": "fhIa.selectClaude",

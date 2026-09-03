@@ -9,6 +9,42 @@ export interface RawConfig {
   get<T>(key: string): T | undefined;
 }
 
+/** All fh-ia configuration keys. Passing `undefined` to VS Code restores the default. */
+export const FHIA_CONFIG_KEYS = [
+  "fhIa.authMode",
+  "fhIa.provider",
+  "fhIa.agentMode",
+  "fhIa.failover.enabled",
+  "fhIa.failover.order",
+  "fhIa.claude.apiKey",
+  "fhIa.claude.baseUrl",
+  "fhIa.claude.model",
+  "fhIa.grok.apiKey",
+  "fhIa.grok.baseUrl",
+  "fhIa.grok.model",
+  "fhIa.openai.apiKey",
+  "fhIa.openai.baseUrl",
+  "fhIa.openai.model",
+  "fhIa.fcc.enabled",
+  "fhIa.fcc.apiKey",
+  "fhIa.fcc.baseUrl",
+  "fhIa.fcc.model",
+  "fhIa.ui.theme",
+  "fhIa.ui.fontSize",
+  "fhIa.ui.iconSize",
+  "fhIa.ui.accent",
+  "fhIa.ui.userBubble",
+  "fhIa.ui.assistantBubble",
+] as const;
+
+export async function resetFhIaConfiguration(
+  update: (key: string, value: undefined) => Promise<void>,
+): Promise<void> {
+  for (const key of FHIA_CONFIG_KEYS) {
+    await update(key, undefined);
+  }
+}
+
 export function resolveAuthMode(config: RawConfig): AuthMode {
   const raw = String(config.get("fhIa.authMode") ?? "auto");
   return isAuthMode(raw) ? raw : "auto";
