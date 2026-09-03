@@ -545,14 +545,27 @@ export class ChatApp {
 }
 
 function vscodeEditorPort(): EditorPort {
+  const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  const openFiles = [
+    ...new Set(
+      vscode.window.tabGroups.all
+        .flatMap((g) => g.tabs)
+        .map((tab) => {
+          const input = tab.input as { uri?: vscode.Uri } | undefined;
+          return input?.uri?.scheme === "file" ? vscode.workspace.asRelativePath(input.uri) : "";
+        })
+        .filter(Boolean),
+    ),
+  ];
   const ed = vscode.window.activeTextEditor;
   if (!ed) {
-    return { workspaceRoot: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath };
+    return { workspaceRoot: root, openFiles };
   }
   const path = vscode.workspace.asRelativePath(ed.document.uri);
   const sel = ed.selection;
   const port: EditorPort = {
-    workspaceRoot: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+    workspaceRoot: root,
+    openFiles,
     activeFile: { path, content: ed.document.getText() },
   };
   if (!sel.isEmpty) {
@@ -581,6 +594,25 @@ function vscodeFilePort(): FilePort {
     },
     async write(p, contents) {
       await vscode.workspace.fs.writeFile(resolve(p), new TextEncoder().encode(contents));
+    },
+    async list(max = 180) {
+      if (!root) {
+        return [];
+      }
+      const uris = await vscode.workspace.findFiles(
+        "**/*",
+        "{**/node_modules/**,**/.git/**,**/out/**,**/dist/**,**/coverage/**,**/.vscode-test/**,**/.cache/**}",
+        max,
+      );
+      const files = uris.map((u) => vscode.workspace.asRelativePath(u));
+      const dirs = new Set<string>();
+      for (const file of files) {
+        const parts = file.split(/[\\/]/);
+        for (let i = 0; i < parts.length - 1; i++) {
+          dirs.add(`${parts.slice(0, i + 1).join("/")}/`);
+        }
+      }
+      return [...dirs, ...files].sort((a, b) => a.localeCompare(b));
     },
     async exists(p) {
       try {

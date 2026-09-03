@@ -99,7 +99,7 @@
     var messages = el("div", { className: "mia-messages", id: "mia-messages" });
     var hint = el("div", {
       className: "mia-hint",
-      text: "Chats independientes con +. Preguntar espera confirmación; Plan no escribe; Autónomo aplica cambios. @archivo adjunta ficheros.",
+      text: "La carpeta abierta y el árbol del repo se envían solos. + chat nuevo. Preguntar / Plan / Autónomo. @archivo adjunta ficheros.",
     });
 
     var input = el("textarea", {
@@ -494,7 +494,7 @@
 
   global.__FH_IA__ = {
     ready: true,
-    version: "0.1.4",
+    version: "0.1.5",
     mount: mount,
     post: post,
     state: state,
