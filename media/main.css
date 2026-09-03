@@ -1,6 +1,6 @@
 :root {
-  --mia-font-size: 13px;
-  --mia-icon-size: 16px;
+  --mia-font-size: 16px;
+  --mia-icon-size: 18px;
   --mia-radius: 16px;
   --mia-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --mia-accent: #7c8aff;
@@ -119,8 +119,9 @@ html, body {
 }
 
 .mia-field-grow {
-  flex: 1;
-  min-width: 90px;
+  flex: 1 1 140px;
+  min-width: 120px;
+  max-width: 260px;
 }
 
 .mia-field select,

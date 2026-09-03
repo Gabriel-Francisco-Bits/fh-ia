@@ -24,6 +24,8 @@ test("model catalog keeps a custom current model at the front", () => {
   const list = modelsFor("grok", "grok-custom-lab");
   assert.equal(list[0], "grok-custom-lab");
   assert.ok(list.includes("grok-4"));
+  assert.equal(list.includes("gpt-4o"), false);
+  assert.equal(modelsFor("claude")[0].startsWith("claude"), true);
 });
 
 test("config agentMode defaults to ask", () => {

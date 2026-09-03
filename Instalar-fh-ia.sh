@@ -19,7 +19,13 @@ fi
 src="${BASH_SOURCE[0]:-$0}"
 HERE=""
 if [ -f "$src" ] && [ -s "$src" ]; then
-  resolved="$(readlink -f "$src" 2>/dev/null || printf '%s' "$src")"
+  if command -v greadlink >/dev/null 2>&1; then
+    resolved="$(greadlink -f "$src")"
+  elif resolved="$(readlink -f "$src" 2>/dev/null)"; then
+    :
+  else
+    resolved="$(cd "$(dirname "$src")" && pwd)/$(basename "$src")"
+  fi
   HERE="$(cd "$(dirname "$resolved")" 2>/dev/null && pwd)" || HERE=""
 fi
 case "$HERE" in
@@ -112,7 +118,14 @@ editors=()
 for name in code cursor codium; do
   add_editor "$(command -v "$name" 2>/dev/null || true)"
 done
-for path in /usr/bin/code /bin/code /usr/bin/cursor /usr/bin/codium; do
+for path in \
+  /usr/bin/code /bin/code /usr/local/bin/code /opt/homebrew/bin/code \
+  "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" \
+  /usr/bin/cursor /usr/local/bin/cursor /opt/homebrew/bin/cursor \
+  "/Applications/Cursor.app/Contents/Resources/app/bin/cursor" \
+  /usr/bin/codium /usr/local/bin/codium /opt/homebrew/bin/codium \
+  "/Applications/VSCodium.app/Contents/Resources/app/bin/codium"
+do
   add_editor "$path"
 done
 
@@ -145,6 +158,8 @@ echo "o Command Palette → fh-ia: Open Chat Panel"
 
 if command -v notify-send >/dev/null 2>&1; then
   notify-send "fh-ia" "Extensión instalada. Ábrela desde la barra de VS Code." || true
+elif command -v osascript >/dev/null 2>&1; then
+  osascript -e 'display notification "Extensión instalada. Ábrela desde la barra de VS Code." with title "fh-ia"' || true
 fi
 
 if [ -t 0 ] && [ -t 1 ]; then

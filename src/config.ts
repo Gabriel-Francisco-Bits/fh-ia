@@ -33,12 +33,12 @@ export interface UiSettings {
 export function resolveUi(config: RawConfig): UiSettings {
   const themeRaw = String(config.get("fhIa.ui.theme") ?? "auto");
   const theme: UiTheme = themeRaw === "light" || themeRaw === "dark" ? themeRaw : "auto";
-  const fontSize = Number(config.get("fhIa.ui.fontSize") ?? 13);
-  const iconSize = Number(config.get("fhIa.ui.iconSize") ?? 16);
+  const fontSize = Number(config.get("fhIa.ui.fontSize") ?? 16);
+  const iconSize = Number(config.get("fhIa.ui.iconSize") ?? 18);
   return {
     theme,
-    fontSize: Number.isFinite(fontSize) && fontSize > 0 ? fontSize : 13,
-    iconSize: Number.isFinite(iconSize) && iconSize > 0 ? iconSize : 16,
+    fontSize: Number.isFinite(fontSize) && fontSize > 0 ? fontSize : 16,
+    iconSize: Number.isFinite(iconSize) && iconSize > 0 ? iconSize : 18,
     accent: String(config.get("fhIa.ui.accent") ?? ""),
     userBubble: String(config.get("fhIa.ui.userBubble") ?? ""),
     assistantBubble: String(config.get("fhIa.ui.assistantBubble") ?? ""),
