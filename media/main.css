@@ -312,10 +312,12 @@ html, body {
   background: var(--mia-accent);
   color: #fff;
   border: none;
-  padding: 7px 12px;
+  padding: 8px 14px;
   cursor: pointer;
-  border-radius: 999px;
+  border-radius: 12px;
   font-size: 0.9em;
+  height: fit-content;
+  flex-shrink: 0;
   transition: transform 0.2s var(--mia-ease), opacity 0.2s var(--mia-ease);
 }
 
@@ -334,6 +336,7 @@ html, body {
 
 .mia-composer {
   display: flex;
+  align-items: flex-end;
   gap: 8px;
   padding: 10px 12px 12px;
   border-top: 1px solid var(--mia-line);

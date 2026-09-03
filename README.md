@@ -25,6 +25,7 @@ If the selected IA fails (network, 429/5xx, or missing credentials), **failover*
 - **Ajustes** gear: API keys, URLs, failover, **Free Claude Code**, light/dark theme, font/icon size, colors
 - **Free Claude Code** (`fcc-server` at `http://127.0.0.1:8082`) as a selectable IA — [Alishahryar1/free-claude-code](https://github.com/Alishahryar1/free-claude-code)
 - Streamed replies in the panel
+- Open folder, repo tree, and open editors are attached on every prompt
 - Active editor file and current selection are attached automatically
 - Extra files via `@path/to/file` in the prompt
 - Proposed file edits as a reviewable diff with **Accept** (writes to disk) and **Reject** (leaves the original file unchanged)
@@ -38,10 +39,10 @@ npm ci
 npm run package
 ```
 
-That produces `fh-ia-0.1.4.vsix`. Then in VS Code:
+That produces `fh-ia-0.1.5.vsix`. Then in VS Code:
 
 1. Command Palette → **Extensions: Install from VSIX…**
-2. Select `fh-ia-0.1.4.vsix`
+2. Select `fh-ia-0.1.5.vsix`
 3. Open the **fh-ia** icon in the activity bar
 
 ## Extension Development Host
