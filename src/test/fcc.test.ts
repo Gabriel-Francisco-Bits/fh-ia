@@ -26,8 +26,8 @@ test("FCC is enabled by default and can be turned off", () => {
 test("UI theme and sizes have sane defaults", () => {
   const ui = resolveUi({ get: () => undefined });
   assert.equal(ui.theme, "auto");
-  assert.equal(ui.fontSize, 13);
-  assert.equal(ui.iconSize, 16);
+  assert.equal(ui.fontSize, 16);
+  assert.equal(ui.iconSize, 18);
   assert.equal(resolveUi({ get: <T>(k: string) => (k === "fhIa.ui.theme" ? ("dark" as T) : undefined) }).theme, "dark");
 });
 

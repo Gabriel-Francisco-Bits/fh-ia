@@ -14,7 +14,7 @@ import {
   resolveUi,
 } from "./config";
 import { probeFcc } from "./providers/fcc";
-import { MODEL_CATALOG, modelsFor } from "./models";
+import { MODEL_CATALOG, modelsFor, uniqueModels } from "./models";
 import { renderWebviewHtml } from "./panelHtml";
 import { ProviderDispatcher } from "./providers/dispatcher";
 import { isProviderId, type ProviderId } from "./providers/types";
@@ -456,18 +456,11 @@ export class ChatApp {
       return;
     }
     const probe = await probeFcc({ baseUrl: fcc.baseUrl, apiKey: fcc.apiKey });
-    if (probe.models.length) {
-      this.post(sessionId, {
-        type: "models",
-        provider: "fcc",
-        models: modelsFor("fcc", fcc.model).concat(probe.models.filter((m) => m !== fcc.model)),
-      });
-    }
     this.post(sessionId, {
       type: "fccStatus",
       ok: probe.ok,
       enabled: true,
-      models: probe.models,
+      models: uniqueModels(modelsFor("fcc", fcc.model).concat(probe.models)),
       error: probe.error,
     });
   }

@@ -4,13 +4,21 @@ A Visual Studio Code extension with a sidebar agent chat panel (same idea as the
 
 ## Install (one command)
 
-Public repo — no manual download:
+Public repo — same command installs and updates.
+
+Linux / macOS:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Gabriel-Francisco-Bits/fh-ia/main/Instalar-fh-ia.sh | bash
 ```
 
-See **[INSTALAR.md](INSTALAR.md)**. If you already have the folder, double-click **`Instalar-fh-ia.desktop`** or run `./Instalar-fh-ia.sh`. The script installs the latest GitHub Release VSIX into VS Code, Cursor, and/or VSCodium.
+Windows PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/Gabriel-Francisco-Bits/fh-ia/main/Instalar-fh-ia.ps1 | iex
+```
+
+See **[INSTALAR.md](INSTALAR.md)**. Local files: `Instalar-fh-ia.sh` (Linux), `Instalar-fh-ia.command` (macOS), `Instalar-fh-ia.cmd` / `Instalar-fh-ia.ps1` (Windows).
 
 Switching the IA in the panel dropdown routes the next prompt to that backend. You do not need to reload the extension host.
 

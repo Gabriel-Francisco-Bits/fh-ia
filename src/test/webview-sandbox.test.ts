@@ -68,5 +68,5 @@ test("webview script evaluates in a browser-like sandbox without Node require", 
   assert.ok(api, "expected window.__FH_IA__");
   assert.equal(api.ready, true);
   assert.equal(typeof api.mount, "function");
-  assert.equal(api.version, "0.1.5");
+  assert.equal(api.version, "0.1.7");
 });

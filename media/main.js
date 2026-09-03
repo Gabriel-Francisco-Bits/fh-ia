@@ -48,18 +48,27 @@
     }
   }
 
-  function fillSelect(select, values, current) {
-    select.innerHTML = "";
+  function uniqueList(values) {
+    var out = [];
     (values || []).forEach(function (v) {
+      if (v && out.indexOf(v) < 0) out.push(v);
+    });
+    return out;
+  }
+
+  function fillSelect(select, values, current) {
+    var list = uniqueList(values);
+    select.innerHTML = "";
+    list.forEach(function (v) {
       var opt = el("option", { value: v, text: v });
       select.appendChild(opt);
     });
-    if (current) {
-      if ((values || []).indexOf(current) < 0) {
-        select.insertBefore(el("option", { value: current, text: current }), select.firstChild);
-      }
-      select.value = current;
+    if (current && list.indexOf(current) < 0) {
+      select.insertBefore(el("option", { value: current, text: current }), select.firstChild);
+      list.unshift(current);
     }
+    if (current && list.indexOf(current) >= 0) select.value = current;
+    else if (list.length) select.value = list[0];
   }
 
   function mount(root) {
@@ -104,7 +113,7 @@
 
     var input = el("textarea", {
       id: "mia-input",
-      placeholder: "Pregunta a Claude, Grok u otra IA…",
+      placeholder: "Pregunta a Claude, Grok, FCC u otra IA…",
     });
     var sendBtn = el("button", { id: "mia-send", text: "Enviar" });
     var composer = el("div", { className: "mia-composer" }, [input, sendBtn]);
@@ -125,14 +134,12 @@
         ["claude", "Claude"],
         ["grok", "Grok"],
         ["openai", "OpenAI"],
+        ["fcc", "FCC"],
       ].forEach(function (pair) {
         providerSelect.appendChild(el("option", { value: pair[0], text: pair[1] }));
       });
-      if (state.fccEnabled !== false) {
-        providerSelect.appendChild(el("option", { value: "fcc", text: "Free Claude Code" }));
-      }
-      if (current === "fcc" && state.fccEnabled === false) current = "grok";
       providerSelect.value = current;
+      if (providerSelect.value !== current) providerSelect.value = "grok";
       state.provider = providerSelect.value;
     }
 
@@ -144,8 +151,8 @@
       root.setAttribute("data-theme", theme);
       if (document.documentElement) document.documentElement.setAttribute("data-theme", theme);
       if (document.body) document.body.setAttribute("data-theme", theme);
-      root.style.setProperty("--mia-font-size", (ui.fontSize || 13) + "px");
-      root.style.setProperty("--mia-icon-size", (ui.iconSize || 16) + "px");
+      root.style.setProperty("--mia-font-size", (ui.fontSize || 16) + "px");
+      root.style.setProperty("--mia-icon-size", (ui.iconSize || 18) + "px");
       if (ui.accent) root.style.setProperty("--mia-accent", ui.accent);
       if (ui.userBubble) root.style.setProperty("--mia-user-bg", ui.userBubble);
       if (ui.assistantBubble) root.style.setProperty("--mia-assistant-bg", ui.assistantBubble);
@@ -206,7 +213,7 @@
         el("option", { value: "claude", text: "Claude" }),
         el("option", { value: "grok", text: "Grok" }),
         el("option", { value: "openai", text: "OpenAI" }),
-        el("option", { value: "fcc", text: "Free Claude Code" }),
+        el("option", { value: "fcc", text: "FCC" }),
       ]);
       provSel.value = cfg.provider || state.provider;
       var fccOn = el("input", { type: "checkbox", "data-key": "fccEnabled" });
@@ -241,8 +248,8 @@
             failoverOrder: val("failoverOrder"),
             fccEnabled: fccBox ? !!fccBox.checked : true,
             theme: val("theme"),
-            fontSize: Number(val("fontSize") || 13),
-            iconSize: Number(val("iconSize") || 16),
+            fontSize: Number(val("fontSize") || 16),
+            iconSize: Number(val("iconSize") || 18),
             accent: val("accent"),
             userBubble: val("userBubble"),
             assistantBubble: val("assistantBubble"),
@@ -274,11 +281,11 @@
         el("label", {}, [el("span", { text: "Tema" }), themeSel]),
         el("label", {}, [
           el("span", { text: "Tamaño del texto (px)" }),
-          el("input", { type: "number", min: "11", max: "22", "data-key": "fontSize", value: String(ui.fontSize || 13) }),
+          el("input", { type: "number", min: "11", max: "22", "data-key": "fontSize", value: String(ui.fontSize || 16) }),
         ]),
         el("label", {}, [
           el("span", { text: "Tamaño de iconos (px)" }),
-          el("input", { type: "number", min: "12", max: "28", "data-key": "iconSize", value: String(ui.iconSize || 16) }),
+          el("input", { type: "number", min: "12", max: "28", "data-key": "iconSize", value: String(ui.iconSize || 18) }),
         ]),
         el("label", {}, [
           el("span", { text: "Color de acento" }),
@@ -293,7 +300,7 @@
           el("input", { type: "color", "data-key": "assistantBubble", value: ui.assistantBubble || "#eceae4" }),
         ]),
       ]));
-      settings.appendChild(el("label", { className: "mia-check" }, [fccOn, el("span", { text: "Habilitar Free Claude Code" })]));
+      settings.appendChild(el("label", { className: "mia-check" }, [fccOn, el("span", { text: "FCC (Free Claude Code) como IA" })]));
       settings.appendChild(fccStatus);
       settings.appendChild(el("label", {}, [el("span", { text: "IA por defecto" }), provSel]));
       settings.appendChild(el("label", {}, [el("span", { text: "Modo por defecto" }), modeSel]));
@@ -317,8 +324,10 @@
 
     providerSelect.addEventListener("change", function () {
       state.provider = providerSelect.value;
-      var list = (state.catalog && state.catalog[state.provider]) || state.models || [];
-      fillSelect(modelSelect, list, modelSelect.value);
+      var list = modelsForProvider(state.provider);
+      var keep = list.indexOf(state.model) >= 0 ? state.model : list[0];
+      fillSelect(modelSelect, list, keep);
+      state.model = modelSelect.value;
       post({ type: "setProvider", provider: providerSelect.value });
     });
     modelSelect.addEventListener("change", function () {
@@ -374,9 +383,9 @@
 
     function modelsForProvider(id) {
       if (state.catalog && state.catalog[id] && state.catalog[id].length) {
-        return state.catalog[id];
+        return uniqueList(state.catalog[id]);
       }
-      return state.models || [];
+      return [];
     }
 
     function replayTranscript(items) {
@@ -392,8 +401,10 @@
         state.config = msg.config || state.config;
         if (state.config && state.config.fccEnabled === false) state.fccEnabled = false;
         else state.fccEnabled = true;
-        state.catalog = msg.catalog || state.catalog;
-        state.models = msg.models || state.models;
+        state.catalog = msg.catalog || state.catalog || {};
+        if (msg.session && msg.session.provider && msg.models) {
+          state.catalog[msg.session.provider] = uniqueList(msg.models);
+        }
         applyAppearance(state.config && state.config.ui);
         fillProviders();
         applySession(msg.session);
@@ -418,8 +429,14 @@
         }
         if (state.settingsOpen) renderSettings();
       } else if (msg.type === "models") {
-        state.models = msg.models || state.models;
-        fillSelect(modelSelect, msg.models || modelsForProvider(state.provider), state.model);
+        var owner = msg.provider || state.provider;
+        state.catalog = state.catalog || {};
+        if (msg.models && msg.models.length) {
+          state.catalog[owner] = uniqueList(msg.models);
+        }
+        if (owner === state.provider) {
+          fillSelect(modelSelect, modelsForProvider(state.provider), state.model);
+        }
       } else if (msg.type === "showSettings") {
         renderSettings();
         setSettingsOpen(true);
@@ -494,7 +511,7 @@
 
   global.__FH_IA__ = {
     ready: true,
-    version: "0.1.5",
+    version: "0.1.7",
     mount: mount,
     post: post,
     state: state,

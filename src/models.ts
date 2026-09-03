@@ -17,8 +17,18 @@ export const MODEL_CATALOG: Record<ProviderId, string[]> = {
   ],
 };
 
+export function uniqueModels(values: string[]): string[] {
+  const out: string[] = [];
+  for (const v of values) {
+    if (v && !out.includes(v)) {
+      out.push(v);
+    }
+  }
+  return out;
+}
+
 export function modelsFor(provider: ProviderId, current?: string): string[] {
-  const list = [...MODEL_CATALOG[provider]];
+  const list = uniqueModels([...MODEL_CATALOG[provider]]);
   if (current && !list.includes(current)) {
     list.unshift(current);
   }
