@@ -139,11 +139,12 @@
   <div id="folder-modal" class="modal-overlay" style="display: none;">
     <div class="dialog-box">
       <h3>Abrir carpeta en el workspace</h3>
-      <p>Introduce la ruta absoluta del directorio que deseas abrir:</p>
+      <p>Introduce la ruta del directorio o selecciónalo en el explorador del sistema:</p>
       <input id="folder-input" type="text" placeholder="/ruta/a/tu/proyecto" />
       <div class="dialog-buttons">
-        <button id="btn-folder-cancel" class="dialog-btn">Cancelar</button>
-        <button id="btn-folder-confirm" class="dialog-btn primary">Abrir</button>
+        <button id="btn-folder-native" class="dialog-btn" style="margin-right: auto;" type="button">📂 Explorador del sistema…</button>
+        <button id="btn-folder-cancel" class="dialog-btn" type="button">Cancelar</button>
+        <button id="btn-folder-confirm" class="dialog-btn primary" type="button">Abrir</button>
       </div>
     </div>
   </div>

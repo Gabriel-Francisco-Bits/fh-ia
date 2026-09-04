@@ -4,6 +4,7 @@
 const http = require("node:http");
 const fs = require("node:fs/promises");
 const fssync = require("node:fs");
+const { execFile } = require("node:child_process");
 const os = require("node:os");
 const path = require("node:path");
 const { SKIP_DIRS, safeResolve, toPosix } = require("./paths");
@@ -266,6 +267,56 @@ const server = http.createServer(async (req, res) => {
         json(res, 400, { error: "Directory does not exist: " + (err.message || target) });
         return;
       }
+    }
+
+    // Native System Folder Picker Dialog (Issue #9)
+    if (req.method === "POST" && url.pathname === "/api/workspace/choose-dialog") {
+      const picked = await new Promise((resolve) => {
+        const platform = process.platform;
+        if (platform === "linux") {
+          execFile("zenity", ["--file-selection", "--directory", "--title=Abrir carpeta en fh-code"], (err, stdout) => {
+            if (!err && stdout && stdout.trim()) {
+              return resolve(stdout.trim());
+            }
+            execFile("kdialog", ["--getexistingdirectory", "."], (kerr, kout) => {
+              if (!kerr && kout && kout.trim()) return resolve(kout.trim());
+              resolve(null);
+            });
+          });
+        } else if (platform === "darwin") {
+          execFile("osascript", ["-e", 'POSIX path of (choose folder with prompt "Abrir carpeta en fh-code")'], (err, stdout) => {
+            if (!err && stdout && stdout.trim()) return resolve(stdout.trim());
+            resolve(null);
+          });
+        } else if (platform === "win32") {
+          const ps = `Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; if($f.ShowDialog() -eq 'OK'){ $f.SelectedPath }`;
+          execFile("powershell", ["-Command", ps], (err, stdout) => {
+            if (!err && stdout && stdout.trim()) return resolve(stdout.trim());
+            resolve(null);
+          });
+        } else {
+          resolve(null);
+        }
+      });
+
+      if (picked) {
+        try {
+          const stat = await fs.stat(picked);
+          if (stat.isDirectory()) {
+            setWorkspace(picked);
+            json(res, 200, {
+              ok: true,
+              workspace: WORKSPACE,
+              name: path.basename(WORKSPACE),
+            });
+            return;
+          }
+        } catch {
+          // ignore
+        }
+      }
+      json(res, 200, { ok: false });
+      return;
     }
 
     // File Tree

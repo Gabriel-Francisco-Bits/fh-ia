@@ -477,16 +477,8 @@
     }
   }
 
-  // Open Folder Modal (Issue #9)
-  function showOpenFolderModal() {
-    folderModal.style.display = "flex";
-    folderInput.value = "";
-    folderInput.focus();
-  }
-
-  async function confirmOpenFolder() {
-    const target = folderInput.value.trim();
-    if (!target) return;
+  // Open Folder (Issue #9)
+  async function switchWorkspace(target) {
     try {
       const res = await fetch("/api/workspace/open", {
         method: "POST",
@@ -501,7 +493,7 @@
         renderTabs();
         await loadMeta();
         if (editor) {
-          const empty = monaco.editor.createModel("// Workspace cambiado: " + data.workspace, "plaintext");
+          const empty = monaco.editor.createModel("// Carpeta abierta: " + data.workspace, "plaintext");
           editor.setModel(empty);
         }
       } else {
@@ -510,6 +502,54 @@
     } catch (err) {
       alert("Error: " + err.message);
     }
+  }
+
+  async function showOpenFolderModal() {
+    // 1. Electron Native Folder Picker Dialog
+    if (window.electronAPI && typeof window.electronAPI.openFolderDialog === "function") {
+      try {
+        const chosen = await window.electronAPI.openFolderDialog();
+        if (chosen) {
+          await switchWorkspace(chosen);
+          return;
+        } else {
+          // User canceled native picker
+          return;
+        }
+      } catch (err) {
+        console.warn("Electron dialog failed:", err);
+      }
+    }
+
+    // 2. System Native Picker Dialog via server (zenity on Linux, osascript on Mac, powershell on Windows)
+    try {
+      const res = await (await fetch("/api/workspace/choose-dialog", { method: "POST" })).json();
+      if (res.ok && res.workspace) {
+        folderModal.style.display = "none";
+        openTabs.length = 0;
+        activePath = "";
+        renderTabs();
+        await loadMeta();
+        if (editor) {
+          const empty = monaco.editor.createModel("// Carpeta abierta: " + res.workspace, "plaintext");
+          editor.setModel(empty);
+        }
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
+    // 3. Fallback: Show manual input modal if native dialog was not available
+    folderModal.style.display = "flex";
+    folderInput.value = "";
+    folderInput.focus();
+  }
+
+  async function confirmOpenFolder() {
+    const target = folderInput.value.trim();
+    if (!target) return;
+    await switchWorkspace(target);
   }
 
   // Terminal Panel (Issue #10)
@@ -1096,6 +1136,13 @@
   // Folder modal
   btnFolderCancel.addEventListener("click", () => { folderModal.style.display = "none"; });
   btnFolderConfirm.addEventListener("click", confirmOpenFolder);
+  const btnFolderNative = document.getElementById("btn-folder-native");
+  if (btnFolderNative) {
+    btnFolderNative.addEventListener("click", () => {
+      folderModal.style.display = "none";
+      showOpenFolderModal();
+    });
+  }
   folderInput.addEventListener("keydown", (ev) => {
     if (ev.key === "Enter") confirmOpenFolder();
   });
