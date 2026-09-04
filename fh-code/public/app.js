@@ -1385,6 +1385,52 @@
         continue;
       }
 
+      // Markdown Tables
+      if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
+        closeList();
+        const tableLines = [trimmed];
+        while (i + 1 < lines.length && lines[i + 1].trim().startsWith("|") && lines[i + 1].trim().endsWith("|")) {
+          i++;
+          tableLines.push(lines[i].trim());
+        }
+        if (tableLines.length >= 2 && /^\|[\s-:]+\|$/.test(tableLines[1].replace(/\|/g, "|").trim())) {
+          const headerCells = tableLines[0].slice(1, -1).split("|").map(c => c.trim());
+          let tableHtml = '<div class="md-table-wrap"><table class="md-table"><thead><tr>';
+          headerCells.forEach(h => {
+            tableHtml += `<th>${formatInline(h)}</th>`;
+          });
+          tableHtml += '</tr></thead><tbody>';
+          for (let r = 2; r < tableLines.length; r++) {
+            const rowCells = tableLines[r].slice(1, -1).split("|").map(c => c.trim());
+            tableHtml += '<tr>';
+            rowCells.forEach(cell => {
+              tableHtml += `<td>${formatInline(cell)}</td>`;
+            });
+            tableHtml += '</tr>';
+          }
+          tableHtml += '</tbody></table></div>';
+          out.push(tableHtml);
+          continue;
+        } else {
+          for (const tl of tableLines) {
+            out.push(`<p class="md-p">${formatInline(tl)}</p>`);
+          }
+          continue;
+        }
+      }
+
+      // Task list item (- [ ] or - [x])
+      const taskMatch = line.match(/^(\s*)[-*+]\s+\[([ xX])\]\s+(.*)$/);
+      if (taskMatch) {
+        if (inList !== "ul") {
+          closeList();
+          inList = "ul";
+        }
+        const checked = taskMatch[2].toLowerCase() === "x";
+        listItems.push(`<li class="md-li md-task-item"><input type="checkbox" disabled ${checked ? "checked" : ""} /> <span>${formatInline(taskMatch[3])}</span></li>`);
+        continue;
+      }
+
       // Unordered list item (- or *)
       const ulMatch = line.match(/^(\s*)[-*+]\s+(.*)$/);
       if (ulMatch) {
