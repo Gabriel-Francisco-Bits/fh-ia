@@ -12,27 +12,27 @@
 <body>
   <header class="titlebar">
     <span class="brand"><img src="/static/logo.png" alt="FH Logo" class="brand-logo" />fh-code</span>
-    <button id="btn-toggle-view" class="tb-btn tb-view-toggle" title="Alternar entre Modo IDE y Modo Claude Desktop">🔀 <span class="btn-text">Modo Claude</span></button>
-    <button id="btn-open-folder" class="tb-btn" title="Abrir carpeta en el workspace">📁 <span class="btn-text">Abrir carpeta</span></button>
-    <button id="btn-quick-open" class="tb-btn" title="Abrir archivo rápidamente (Ctrl+P)">🔍 <span class="btn-text">Buscar archivo (Ctrl+P)</span></button>
-    <button id="btn-cmd-palette" class="tb-btn" title="Paleta de comandos (Ctrl+Shift+P)">⌘ <span class="btn-text">Comandos</span></button>
+    <button id="btn-toggle-view" class="tb-btn tb-view-toggle" title="Alternar entre Modo IDE y Modo Claude Desktop"><svg class="tb-icon" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="2"></rect><line x1="9" y1="2" x2="9" y2="14"></line></svg> <span class="btn-text">Modo Claude</span></button>
+    <button id="btn-open-folder" class="tb-btn" title="Abrir carpeta en el workspace"><svg class="tb-icon" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3.5A1.5 1.5 0 0 1 3.5 2h2.88a1.5 1.5 0 0 1 1.06.44L8.88 3.88A1.5 1.5 0 0 0 9.94 4.32H12.5A1.5 1.5 0 0 1 14 5.82v6.68a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5v-9z"></path></svg> <span class="btn-text">Abrir carpeta</span></button>
+    <button id="btn-quick-open" class="tb-btn" title="Abrir archivo rápidamente (Ctrl+P)"><svg class="tb-icon" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="4.5"></circle><line x1="13.5" y1="13.5" x2="10.2" y2="10.2"></line></svg> <span class="btn-text">Buscar archivo (Ctrl+P)</span></button>
+    <button id="btn-cmd-palette" class="tb-btn" title="Paleta de comandos (Ctrl+Shift+P)"><svg class="tb-icon" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="2"></rect><path d="M5 8h6M5 5l2 3-2 3"></path></svg> <span class="btn-text">Comandos</span></button>
     <span id="ws-name" class="ws" title="Ruta del workspace"></span>
     <div class="tb-actions">
-      <button id="btn-toggle-terminal" class="tb-btn" title="Alternar terminal integrada (Ctrl+`)">⌨ <span class="btn-text">Terminal</span></button>
-      <button id="btn-open-settings" class="tb-btn" title="Ajustes de fh-code (Ctrl+,)">⚙ <span class="btn-text">Ajustes</span></button>
-      <button id="btn-logout" class="tb-btn tb-logout" title="Cerrar sesión de la PC">🚪 <span class="btn-text">Salir</span></button>
+      <button id="btn-toggle-terminal" class="tb-btn" title="Alternar terminal integrada (Ctrl+`)"><svg class="tb-icon" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5l3 3-3 3M9 11h3"></path></svg> <span class="btn-text">Terminal</span></button>
+      <button id="btn-open-settings" class="tb-btn" title="Ajustes de fh-code (Ctrl+,)"><svg class="tb-icon" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2.2"></circle><path d="M8 1.5v1.2M8 13.3v1.2M1.5 8h1.2M13.3 8h1.2M3.4 3.4l.85.85M11.75 11.75l.85.85M3.4 12.6l.85-.85M11.75 4.25l.85-.85"></path></svg> <span class="btn-text">Ajustes</span></button>
+      <button id="btn-logout" class="tb-btn tb-logout" title="Cerrar sesión de la PC"><svg class="tb-icon" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 14H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h3M10 11l3-3-3-3M13 8H5"></path></svg> <span class="btn-text">Salir</span></button>
       <span class="hint">Monaco · VS Code · fh-ia</span>
     </div>
   </header>
 
   <div class="workbench">
     <nav class="activity" aria-label="Activity">
-      <div id="act-files" class="dot active" title="Explorador de archivos">☰</div>
-      <div id="act-search" class="dot" title="Buscar en el workspace (Ctrl+Shift+F)">🔍</div>
-      <div id="act-git" class="dot" title="Control de versiones Git">⎇</div>
-      <div id="act-terminal" class="dot" title="Terminal integrada (Ctrl+`)">⌨</div>
-      <div id="act-settings" class="dot" title="Ajustes (Ctrl+,)">⚙</div>
-      <div id="act-chat" class="dot" title="fh-ia Agente de IA">✦</div>
+      <div id="act-files" class="dot active" title="Explorador de archivos"><svg class="act-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 2H6a2 2 0 0 0-2 2v13"></path><path d="M8 6h10a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"></path></svg></div>
+      <div id="act-search" class="dot" title="Buscar en el workspace (Ctrl+Shift+F)"><svg class="act-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></div>
+      <div id="act-git" class="dot" title="Control de versiones Git"><svg class="act-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="9" r="3"></circle><path d="M6 9v6"></path><path d="M9 18h3a3 3 0 0 0 3-3V9"></path></svg></div>
+      <div id="act-terminal" class="dot" title="Terminal integrada (Ctrl+`)"><svg class="act-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg></div>
+      <div id="act-settings" class="dot" title="Ajustes (Ctrl+,)"><svg class="act-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></div>
+      <div id="act-chat" class="dot" title="fh-ia Agente de IA"><svg class="act-icon cursor-sparkle" viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C12 7.52 7.52 12 2 12C7.52 12 12 16.48 12 22C12 16.48 16.48 12 22 12C16.48 12 12 7.52 12 2Z"></path></svg></div>
     </nav>
 
     <div class="shell">
@@ -40,10 +40,10 @@
         <div class="pane-head">
           <span id="sidebar-title" class="pane-label">EXPLORADOR</span>
           <div class="pane-actions">
-            <button id="btn-new-file" class="icon-btn" title="Nuevo archivo">📄+</button>
-            <button id="btn-new-folder" class="icon-btn" title="Nueva carpeta">📁+</button>
-            <button id="btn-refresh-tree" class="icon-btn" title="Recargar archivos">↻</button>
-            <button id="btn-collapse-all" class="icon-btn" title="Colapsar carpetas">⇲</button>
+            <button id="btn-new-file" class="icon-btn" title="Nuevo archivo"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M9 1H3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h7v-1H3V2h5v4h4v3h1V5L9 1zm4 10h-2v2h2v2h1v-2h2v-1h-2V9h-1v2z"/></svg></button>
+            <button id="btn-new-folder" class="icon-btn" title="Nueva carpeta"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M7.5 3H1.5A1.5 1.5 0 0 0 0 4.5v8A1.5 1.5 0 0 0 1.5 14h8v-1h-8a.5.5 0 0 1-.5-.5v-6h13v1h1V6a1 1 0 0 0-1-1H8.5L7.5 3zM1 4.5a.5.5 0 0 1 .5-.5h5.5l1 1h-7a.5.5 0 0 1-.5-.5zm11 7.5h-2v1h2v2h1v-2h2v-1h-2v-2h-1v2z"/></svg></button>
+            <button id="btn-refresh-tree" class="icon-btn" title="Recargar archivos"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M13.65 2.35A7.96 7.96 0 0 0 8 0C3.58 0 0 3.58 0 8s3.58 8 8 8c3.73 0 6.84-2.55 7.73-6h-1.55a6.5 6.5 0 1 1-.41-5.17L11 7h5V2l-2.35.35z"/></svg></button>
+            <button id="btn-collapse-all" class="icon-btn" title="Colapsar carpetas"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M2.5 4h11a.5.5 0 0 0 0-1h-11a.5.5 0 0 0 0 1zm0 9h11a.5.5 0 0 0 0-1h-11a.5.5 0 0 0 0 1zm2.15-2.65L7.29 7.71a1 1 0 0 1 1.42 0l2.64 2.64a.5.5 0 0 0 .71-.71L9.41 7a2 2 0 0 0-2.83 0l-2.65 2.65a.5.5 0 0 0 .71.7z"/></svg></button>
           </div>
         </div>
 
@@ -70,11 +70,11 @@
           <div id="chat-doc-view" class="chat-doc-view" style="display: none;">
             <div class="chat-doc-header">
               <div class="chat-doc-info">
-                <span class="chat-doc-icon">💬</span>
+                <span class="chat-doc-icon"><svg class="cursor-sparkle" viewBox="0 0 16 16" width="16" height="16" fill="var(--accent)"><path d="M8 0C8 4.418 4.418 8 0 8C4.418 8 8 11.582 8 16C8 11.582 11.582 8 16 8C11.582 8 8 4.418 8 0Z"/></svg></span>
                 <span id="chat-doc-title" class="chat-doc-title" title="Doble clic para renombrar">Nuevo chat</span>
-                <button id="btn-rename-chat-doc" class="icon-btn chat-edit-btn" title="Renombrar conversación">✏️</button>
-                <button id="btn-delete-chat-doc" class="icon-btn chat-del-btn" title="Eliminar conversación">🗑</button>
-                <span id="chat-project-badge" class="chat-project-badge" title="Proyecto asignado">📁 General</span>
+                <button id="btn-rename-chat-doc" class="icon-btn chat-edit-btn" title="Renombrar conversación"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2l3 3L5 14H2v-3L11 2z"/></svg></button>
+                <button id="btn-delete-chat-doc" class="icon-btn chat-del-btn" title="Eliminar conversación"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h10M5 4V2h6v2M6 7v5M10 7v5M4 4l.8 9.5a1 1 0 0 0 1 .5h4.4a1 1 0 0 0 1-.5L12 4"/></svg></button>
+                <span id="chat-project-badge" class="chat-project-badge" title="Proyecto asignado"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M2 3.5A1.5 1.5 0 0 1 3.5 2h2.88a1.5 1.5 0 0 1 1.06.44L8.88 3.88A1.5 1.5 0 0 0 9.94 4.32H12.5A1.5 1.5 0 0 1 14 5.82v6.68a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5v-9z"></path></svg>General</span>
                 <div id="agent-thinking-pill" class="agent-thinking-pill" style="display: none;">
                   <span class="pulsing-orbit"></span>
                   <span id="agent-status-label">Procesando…</span>
@@ -82,7 +82,7 @@
               </div>
 
               <div class="chat-doc-right-actions">
-                <button id="btn-clear-chat" class="icon-btn-text" title="Limpiar mensajes del chat">🧹 Limpiar</button>
+                <button id="btn-clear-chat" class="icon-btn-text" title="Limpiar mensajes del chat"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M2 3h12M4 7h8M6 11h4"/></svg>Limpiar</button>
               </div>
             </div>
 
@@ -100,7 +100,7 @@
               <div class="composer-toolbar">
                 <div class="composer-selectors">
                   <div class="selector-chip" title="Proveedor de Inteligencia Artificial">
-                    <span class="chip-icon">🤖</span>
+                    <span class="chip-icon"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="10" height="8" rx="1.5"></rect><path d="M6 8h.01M10 8h.01M8 1v3M8 12v3M1 8h2M13 8h2"></path></svg></span>
                     <select id="provider">
                       <option value="claude">Claude</option>
                       <option value="grok">Grok</option>
@@ -110,12 +110,12 @@
                   </div>
 
                   <div class="selector-chip" title="Modelo de IA seleccionado">
-                    <span class="chip-icon">🧠</span>
+                    <span class="chip-icon"><svg class="cursor-sparkle" viewBox="0 0 16 16" width="13" height="13" fill="currentColor"><path d="M8 0C8 4.418 4.418 8 0 8C4.418 8 8 11.582 8 16C8 11.582 11.582 8 16 8C11.582 8 8 4.418 8 0Z"/></svg></span>
                     <select id="model"></select>
                   </div>
 
                   <div class="selector-chip" title="Modo de ejecución del agente">
-                    <span class="chip-icon">⚡</span>
+                    <span class="chip-icon"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="9 1 3 9 8 9 7 15 13 7 8 7 9 1"></polygon></svg></span>
                     <select id="mode">
                       <option value="ask">Preguntar</option>
                       <option value="plan">Plan</option>
@@ -127,7 +127,7 @@
                 </div>
 
                 <div class="composer-actions">
-                  <button id="send" class="send" type="button">Enviar ↵</button>
+                  <button id="send" class="send" type="button"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" style="margin-right: 4px; vertical-align: -2px;"><path d="M15.85 7.15l-14-6A1 1 0 0 0 .55 2.45L3.4 8 .55 13.55a1 1 0 0 0 1.3 1.3l14-6a1 1 0 0 0 0-1.7zM3.8 9L2.4 12.2 12.1 8 2.4 3.8 3.8 7h5.7v2H3.8z"/></svg>Enviar ↵</button>
                 </div>
               </div>
             </div>
@@ -141,8 +141,8 @@
               <button id="ptab-git" class="ptab">Git</button>
             </div>
             <div class="panel-actions">
-              <button id="btn-clear-term" class="icon-btn" title="Limpiar terminal">🗑</button>
-              <button id="btn-close-panel" class="icon-btn" title="Cerrar panel">✕</button>
+              <button id="btn-clear-term" class="icon-btn" title="Limpiar terminal"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h10M5 4V2h6v2M6 7v5M10 7v5M4 4l.8 9.5a1 1 0 0 0 1 .5h4.4a1 1 0 0 0 1-.5L12 4"/></svg></button>
+              <button id="btn-close-panel" class="icon-btn" title="Cerrar panel"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg></button>
             </div>
           </div>
 

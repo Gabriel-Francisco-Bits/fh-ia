@@ -144,58 +144,85 @@
     scanAllFiles();
   }
 
-  function getFileIcon(name, isDir, isOpen) {
+  const SVGS = {
+    chevronRight: `<svg class="tree-chevron-svg" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>`,
+    chevronDown: `<svg class="tree-chevron-svg down" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>`,
+    folderClosed: `<svg class="tree-folder-icon" viewBox="0 0 16 16" width="16" height="16" fill="#c5c5c5"><path d="M14.5 4H7.88a1.5 1.5 0 0 1-1.06-.44L5.38 2.12A1.5 1.5 0 0 0 4.32 1.68H1.5A1.5 1.5 0 0 0 0 3.18v9.64A1.5 1.5 0 0 0 1.5 14.32h13a1.5 1.5 0 0 0 1.5-1.5V5.5A1.5 1.5 0 0 0 14.5 4z"/></svg>`,
+    folderOpen: `<svg class="tree-folder-icon" viewBox="0 0 16 16" width="16" height="16" fill="#e5c07b"><path d="M1.5 2A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H7.88L6.44 3.06A1.5 1.5 0 0 0 5.38 2.5H1.5zM1 5h14v1.5l-1.8 6H2.8L1 6.5V5z"/></svg>`,
+    fileTs: `<svg class="file-icon-svg" viewBox="0 0 16 16" width="16" height="16"><rect width="16" height="16" rx="3" fill="#3178c6"/><text x="3" y="11.5" font-family="system-ui, -apple-system, sans-serif" font-size="8.5" font-weight="900" fill="#ffffff" letter-spacing="-0.5">TS</text></svg>`,
+    fileJs: `<svg class="file-icon-svg" viewBox="0 0 16 16" width="16" height="16"><rect width="16" height="16" rx="3" fill="#f7df1e"/><text x="3.5" y="11.5" font-family="system-ui, -apple-system, sans-serif" font-size="8.5" font-weight="900" fill="#111111" letter-spacing="-0.5">JS</text></svg>`,
+    fileJson: `<svg class="file-icon-svg" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="#eab308" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3c-.9 0-1.5.6-1.5 1.5v2c0 .8-.8 1.5-1.5 1.5.7 0 1.5.7 1.5 1.5v2c0 .9.6 1.5 1.5 1.5M11 3c.9 0 1.5.6 1.5 1.5v2c0 .8.8 1.5 1.5 1.5-.7 0-1.5.7-1.5 1.5v2c0 .9-.6 1.5-1.5 1.5"/></svg>`,
+    fileMd: `<svg class="file-icon-svg" viewBox="0 0 16 16" width="16" height="16" fill="#38bdf8"><path d="M1 3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3zm2 2v6h1.6V7.7L6 9.3l1.4-1.6V11H9V5H7.4L6 6.8 4.6 5H3zm8 0v3.6h-1.2L11.5 11l1.7-2.4H12V5h-1z"/></svg>`,
+    fileHtml: `<svg class="file-icon-svg" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="#f97316" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5L1.5 8l3 3M11.5 5l3 3-3 3M9.5 3.5l-3 9"/></svg>`,
+    fileCss: `<svg class="file-icon-svg" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="#38bdf8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h10M3 10h10M6.5 3l-1 10M10.5 3l-1 10"/></svg>`,
+    filePy: `<svg class="file-icon-svg" viewBox="0 0 16 16" width="16" height="16"><path fill="#38bdf8" d="M7.9 1a3.9 3.9 0 0 0-3.9 3.9v1.6h4.7v.8H3.2A2.2 2.2 0 0 0 1 9.5a2.2 2.2 0 0 0 2.2 2.2h.9V10a2.2 2.2 0 0 1 2.2-2.2h4.7a1.6 1.6 0 0 0 1.6-1.6V3.9A2.9 2.9 0 0 0 7.9 1zm-1.2 1.2a.6.6 0 1 1 0 1.2.6.6 0 0 1 0-1.2z"/><path fill="#facc15" d="M8.1 15a3.9 3.9 0 0 0 3.9-3.9V9.5H7.3v-.8h5.5A2.2 2.2 0 0 0 15 6.5a2.2 2.2 0 0 0-2.2-2.2h-.9V6a2.2 2.2 0 0 1-2.2 2.2H5.1A1.6 1.6 0 0 0 3.5 9.8v2.3A2.9 2.9 0 0 0 8.1 15zm1.2-1.2a.6.6 0 1 1 0-1.2.6.6 0 0 1 0 1.2z"/></svg>`,
+    fileGit: `<svg class="file-icon-svg" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="#f34f29" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="4" cy="4" r="2"/><circle cx="4" cy="12" r="2"/><circle cx="12" cy="6" r="2"/><path d="M4 6v4M6 12h2a3 3 0 0 0 3-3V7"/></svg>`,
+    fileSh: `<svg class="file-icon-svg" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="#4ade80" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5l3.5 3.5L3 11.5M8 12h5"/></svg>`,
+    fileImg: `<svg class="file-icon-svg" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="#c084fc" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="2"/><circle cx="5.5" cy="5.5" r="1.2" fill="#c084fc"/><path d="M14 10l-4-4-6 6"/></svg>`,
+    fileYml: `<svg class="file-icon-svg" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="#f87171" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><path d="M10 2v3h3M5 8h6M5 11h4"/></svg>`,
+    fileDefault: `<svg class="file-icon-svg" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><path d="M10 2v3h3"/></svg>`,
+    sparkle: `<svg class="cursor-sparkle" viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 0C8 4.418 4.418 8 0 8C4.418 8 8 11.582 8 16C8 11.582 11.582 8 16 8C11.582 8 8 4.418 8 0Z"/></svg>`,
+    close: `<svg class="tab-close-svg" viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>`,
+    edit: `<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2l3 3L5 14H2v-3L11 2z"/></svg>`,
+    trash: `<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h10M5 4V2h6v2M6 7v5M10 7v5M4 4l.8 9.5a1 1 0 0 0 1 .5h4.4a1 1 0 0 0 1-.5L12 4"/></svg>`,
+    eye: `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2.5"/><path d="M1.5 8s2.5-4.5 6.5-4.5 6.5 4.5 6.5 4.5-2.5 4.5-6.5 4.5-6.5-4.5-6.5-4.5z"/></svg>`,
+    eyeOff: `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l12 12M6.5 6.6A2.5 2.5 0 0 0 9.4 9.5M4 4.5C2.7 5.5 1.8 7 1.5 8c0 0 2.5 4.5 6.5 4.5 1.5 0 2.8-.5 4-1.3M7 3.5c.3 0 .7 0 1 .1 4 0 6.5 4.4 6.5 4.4a11.8 11.8 0 0 1-2.2 2.7"/></svg>`,
+  };
+
+  function getFileIconHtml(name, isDir, isOpen) {
     if (isDir) {
-      if (name === ".git" || name === ".github") return { text: "⎇", color: "#f34f29", isBadge: false };
-      if (name === "node_modules") return { text: "📦", color: "#cb3837", isBadge: false };
-      if (name === "src" || name === "app") return { text: isOpen ? "📂" : "📁", color: "#60a5fa", isBadge: false };
-      if (name === "public" || name === "static") return { text: isOpen ? "📂" : "📁", color: "#34d399", isBadge: false };
-      if (name === "test" || name === "tests") return { text: isOpen ? "📂" : "📁", color: "#a78bfa", isBadge: false };
-      return { text: isOpen ? "📂" : "📁", color: "#fbbf24", isBadge: false };
+      if (name === ".git" || name === ".github") return SVGS.fileGit;
+      return isOpen ? SVGS.folderOpen : SVGS.folderClosed;
     }
     const ext = (name.split(".").pop() || "").toLowerCase();
     switch (ext) {
       case "ts":
       case "tsx":
-        return { text: "TS", color: "#3178c6", isBadge: true };
+        return SVGS.fileTs;
       case "js":
       case "jsx":
       case "mjs":
       case "cjs":
-        return { text: "JS", color: "#f7df1e", isBadge: true, darkText: true };
+        return SVGS.fileJs;
       case "json":
-        return { text: "{}", color: "#eab308", isBadge: true, darkText: true };
+        return SVGS.fileJson;
       case "md":
-        return { text: "📝", color: "#38bdf8", isBadge: false };
+        return SVGS.fileMd;
       case "html":
-        return { text: "🌐", color: "#f97316", isBadge: false };
+      case "htm":
+        return SVGS.fileHtml;
       case "css":
       case "scss":
       case "less":
-        return { text: "🎨", color: "#38bdf8", isBadge: false };
-      case "sql":
-        return { text: "🗄️", color: "#c084fc", isBadge: false };
+        return SVGS.fileCss;
+      case "py":
+        return SVGS.filePy;
+      case "git":
+      case "gitignore":
+      case "gitattributes":
+        return SVGS.fileGit;
       case "sh":
       case "bash":
-        return { text: "💻", color: "#4ade80", isBadge: false };
-      case "py":
-        return { text: "🐍", color: "#38bdf8", isBadge: false };
+      case "zsh":
+        return SVGS.fileSh;
       case "png":
       case "jpg":
       case "jpeg":
       case "svg":
       case "ico":
-        return { text: "🖼️", color: "#f472b6", isBadge: false };
+      case "gif":
+      case "webp":
+        return SVGS.fileImg;
       case "yml":
       case "yaml":
-        return { text: "📄", color: "#f87171", isBadge: false };
+        return SVGS.fileYml;
       default:
-        return { text: "📄", color: "#94a3b8", isBadge: false };
+        return SVGS.fileDefault;
     }
   }
 
   // File Tree
-  async function loadTree(dir, into) {
+  async function loadTree(dir = ".", into = treeEl) {
     const data = await (await fetch("/api/tree?dir=" + encodeURIComponent(dir))).json();
     into.innerHTML = "";
     for (const ent of data.entries || []) {
@@ -204,14 +231,11 @@
       if (!ent.dir && ent.path === activePath) itemRow.classList.add("active");
       itemRow.setAttribute("data-path", ent.path);
 
-      const iconInfo = getFileIcon(ent.name, ent.dir, false);
       let chevronHtml = ent.dir
-        ? '<span class="tree-chevron">▸</span>'
+        ? `<span class="tree-chevron">${SVGS.chevronRight}</span>`
         : '<span class="tree-indent-spacer"></span>';
 
-      let iconHtml = iconInfo.isBadge
-        ? `<span class="tree-file-badge" style="background:${iconInfo.color};color:${iconInfo.darkText ? "#111" : "#fff"}">${iconInfo.text}</span>`
-        : `<span class="tree-file-icon" style="color:${iconInfo.color}">${iconInfo.text}</span>`;
+      let iconHtml = `<span class="tree-file-icon">${getFileIconHtml(ent.name, ent.dir, false)}</span>`;
 
       itemRow.innerHTML = `
         <div class="tree-item-left">
@@ -231,12 +255,12 @@
           open = !open;
           const chev = itemRow.querySelector(".tree-chevron");
           if (chev) {
-            chev.textContent = open ? "▾" : "▸";
+            chev.innerHTML = open ? SVGS.chevronDown : SVGS.chevronRight;
             chev.classList.toggle("open", open);
           }
           const iconEl = itemRow.querySelector(".tree-file-icon");
-          if (iconEl && !iconInfo.isBadge) {
-            iconEl.textContent = open ? "📂" : "📁";
+          if (iconEl) {
+            iconEl.innerHTML = getFileIconHtml(ent.name, true, open);
           }
           if (open) {
             nested.style.display = "block";
@@ -285,8 +309,13 @@
       b.className = "tab" + (isActive ? " active" : "");
 
       const icon = document.createElement("span");
+      icon.className = "tab-icon";
+      icon.style.display = "inline-flex";
+      icon.style.alignItems = "center";
       icon.style.marginRight = "6px";
-      icon.textContent = isChat ? "💬" : "📄";
+      icon.innerHTML = isChat
+        ? `<span style="color: var(--accent); display: inline-flex;">${SVGS.sparkle}</span>`
+        : getFileIconHtml(t.path || "");
       b.appendChild(icon);
 
       const label = document.createElement("span");
@@ -302,7 +331,7 @@
 
       const closeBtn = document.createElement("span");
       closeBtn.className = "tab-close";
-      closeBtn.textContent = "✕";
+      closeBtn.innerHTML = SVGS.close;
       closeBtn.title = "Cerrar pestaña (Ctrl+W)";
       closeBtn.addEventListener("click", (ev) => {
         ev.stopPropagation();
@@ -1173,10 +1202,10 @@
       const actions = document.createElement("div");
       actions.className = "chat-item-actions";
 
-      // Edit title button (✏️)
+      // Edit title button
       const editBtn = document.createElement("button");
       editBtn.className = "chat-item-btn";
-      editBtn.textContent = "✏️";
+      editBtn.innerHTML = SVGS.edit;
       editBtn.title = "Renombrar conversación";
       editBtn.addEventListener("click", (ev) => {
         ev.stopPropagation();
@@ -1184,10 +1213,10 @@
       });
       actions.appendChild(editBtn);
 
-      // Delete button (🗑)
+      // Delete button
       const delBtn = document.createElement("button");
       delBtn.className = "chat-item-btn btn-del";
-      delBtn.textContent = "🗑";
+      delBtn.innerHTML = SVGS.trash;
       delBtn.title = "Eliminar conversación";
       delBtn.addEventListener("click", (ev) => {
         ev.stopPropagation();
@@ -1659,10 +1688,11 @@
     const input = wrap.querySelector("input");
     const toggleBtn = wrap.querySelector(".btn-toggle-peek");
     if (input && toggleBtn) {
+      toggleBtn.innerHTML = SVGS.eye;
       toggleBtn.addEventListener("click", () => {
         const isPassword = input.type === "password";
         input.type = isPassword ? "text" : "password";
-        toggleBtn.textContent = isPassword ? "🙈" : "👁";
+        toggleBtn.innerHTML = isPassword ? SVGS.eyeOff : SVGS.eye;
       });
     }
   });
@@ -1677,7 +1707,7 @@
       const sec = (meta.durationMs / 1000).toFixed(1);
       const chip = document.createElement("span");
       chip.className = "meta-chip time";
-      chip.textContent = `⚡ ${sec}s`;
+      chip.innerHTML = `<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" style="margin-right: 4px; display: inline-flex;"><path d="M8.5 1.5l-5 7h4l-1 6 6-8h-4l1-5z"/></svg>${sec}s`;
       chip.title = `Tiempo de respuesta: ${meta.durationMs}ms`;
       bar.appendChild(chip);
     }
@@ -1687,7 +1717,7 @@
       const total = meta.usage.totalTokens || meta.usage.completionTokens;
       const chip = document.createElement("span");
       chip.className = "meta-chip tokens";
-      chip.textContent = `✦ ${total} tokens`;
+      chip.innerHTML = `<svg class="cursor-sparkle" viewBox="0 0 16 16" width="12" height="12" fill="currentColor" style="margin-right: 4px; display: inline-flex;"><path d="M8 0C8 4.418 4.418 8 0 8C4.418 8 8 11.582 8 16C8 11.582 11.582 8 16 8C11.582 8 8 4.418 8 0Z"/></svg>${total} tokens`;
       chip.title = meta.usage.promptTokens ? `Prompt: ${meta.usage.promptTokens} | Salida: ${meta.usage.completionTokens}` : "Tokens calculados";
       bar.appendChild(chip);
     }
@@ -1700,7 +1730,7 @@
       if (pct >= 85) statusClass = "quota danger";
       else if (pct >= 60) statusClass = "quota warning";
       chip.className = `meta-chip ${statusClass}`;
-      chip.textContent = `📊 Límite: ${pct}% usado`;
+      chip.innerHTML = `<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" style="margin-right: 4px; display: inline-flex;"><path d="M1 14h14v1H1v-1zm2-3h2v2H3v-2zm4-4h2v6H7V7zm4-4h2v10h-2V3z"/></svg>Límite: ${pct}% usado`;
       if (meta.rateLimit.remaining != null && meta.rateLimit.limit != null) {
         chip.title = `Restante: ${meta.rateLimit.remaining} / ${meta.rateLimit.limit} (${meta.rateLimit.kind || "cuota"})`;
       }
@@ -2442,7 +2472,7 @@
                 filesTree.style.display = "flex";
                 filesList.innerHTML = ev.edits.map(ed => `
                   <div class="composer-file-row">
-                    <span>📄 <strong>${escapeHtml(ed.path)}</strong> (${ed.kind || "modificado"})</span>
+                    <span style="display: flex; align-items: center; gap: 6px;">${getFileIconHtml(ed.path)} <strong>${escapeHtml(ed.path)}</strong> (${ed.kind || "modificado"})</span>
                     <button class="btn-action-accept" onclick="openPath('${escapeHtml(ed.path)}')">Abrir</button>
                   </div>
                 `).join("");
