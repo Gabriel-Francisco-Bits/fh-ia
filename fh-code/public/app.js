@@ -1,5 +1,6 @@
-/* fh-code — Monaco (VS Code engine) + fh-ia chat */
+/* fh-code — Monaco (VS Code engine) + fh-ia (Claude, Grok, OpenAI, FCC) */
 (function () {
+  // Elements
   const treeEl = document.getElementById("tree");
   const tabsEl = document.getElementById("tabs");
   const messagesEl = document.getElementById("messages");
@@ -9,12 +10,77 @@
   const modeEl = document.getElementById("mode");
   const wsName = document.getElementById("ws-name");
 
+  // Titlebar & Actions
+  const btnOpenFolder = document.getElementById("btn-open-folder");
+  const btnQuickOpen = document.getElementById("btn-quick-open");
+  const btnCmdPalette = document.getElementById("btn-cmd-palette");
+  const btnToggleTerminal = document.getElementById("btn-toggle-terminal");
+  const btnOpenSettings = document.getElementById("btn-open-settings");
+  const btnRefreshTree = document.getElementById("btn-refresh-tree");
+
+  // Activity Bar & Sidebar
+  const actFiles = document.getElementById("act-files");
+  const actSearch = document.getElementById("act-search");
+  const actGit = document.getElementById("act-git");
+  const actTerminal = document.getElementById("act-terminal");
+  const actSettings = document.getElementById("act-settings");
+  const actChat = document.getElementById("act-chat");
+  const sidebarTitle = document.getElementById("sidebar-title");
+  const treeContainer = document.getElementById("tree-container");
+  const searchContainer = document.getElementById("search-container");
+  const searchInput = document.getElementById("search-input");
+  const searchCase = document.getElementById("search-case");
+  const searchResults = document.getElementById("search-results");
+
+  // Bottom Panel (Terminal & Git)
+  const bottomPanel = document.getElementById("bottom-panel");
+  const ptabTerminal = document.getElementById("ptab-terminal");
+  const ptabGit = document.getElementById("ptab-git");
+  const btnClearTerm = document.getElementById("btn-clear-term");
+  const btnClosePanel = document.getElementById("btn-close-panel");
+  const panelTerminal = document.getElementById("panel-terminal");
+  const panelGit = document.getElementById("panel-git");
+  const termOutput = document.getElementById("term-output");
+  const termInput = document.getElementById("term-input");
+  const gitBranch = document.getElementById("git-branch");
+  const btnGitRefresh = document.getElementById("btn-git-refresh");
+  const btnGitStageAll = document.getElementById("btn-git-stage-all");
+  const gitMessage = document.getElementById("git-message");
+  const btnGitCommit = document.getElementById("btn-git-commit");
+  const gitFileLists = document.getElementById("git-file-lists");
+
+  // Modals
+  const paletteModal = document.getElementById("palette-modal");
+  const paletteInput = document.getElementById("palette-input");
+  const paletteList = document.getElementById("palette-list");
+  const folderModal = document.getElementById("folder-modal");
+  const folderInput = document.getElementById("folder-input");
+  const btnFolderCancel = document.getElementById("btn-folder-cancel");
+  const btnFolderConfirm = document.getElementById("btn-folder-confirm");
+  const settingsModal = document.getElementById("settings-modal");
+  const btnSettingsClose = document.getElementById("btn-settings-close");
+  const btnSettingsCancel = document.getElementById("btn-settings-cancel");
+  const btnSettingsSave = document.getElementById("btn-settings-save");
+  const btnSettingsReset = document.getElementById("btn-settings-reset");
+
+  // State
   const openTabs = [];
   let activePath = "";
   let editor = null;
+  let diffEditor = null;
+  let isDiffMode = false;
   let catalog = {};
   let streaming = false;
+  let allWorkspaceFiles = [];
+  let paletteMode = "files"; // "files" | "commands"
+  let paletteItems = [];
+  let paletteSelectedIndex = 0;
+  let termHistoryIndex = -1;
+  const termHistory = [];
+  let termEventSource = null;
+  let lspTimeout = null;
 
+  // Responsive Layout
   function applyShellLayout() {
     const spec = (globalThis.FhCodeLayout && globalThis.FhCodeLayout.layoutForWidth)
       ? globalThis.FhCodeLayout.layoutForWidth(window.innerWidth)
@@ -24,7 +90,11 @@
     if (shell) shell.style.gridTemplateColumns = spec.columns;
     if (chat) chat.style.display = spec.chatDisplay;
   }
-  window.addEventListener("resize", applyShellLayout);
+  window.addEventListener("resize", () => {
+    applyShellLayout();
+    if (editor) editor.layout();
+    if (diffEditor) diffEditor.layout();
+  });
   applyShellLayout();
 
   function langOf(p) {
@@ -32,7 +102,8 @@
     const map = {
       ts: "typescript", tsx: "typescript", js: "javascript", jsx: "javascript",
       json: "json", md: "markdown", css: "css", html: "html", py: "python",
-      rs: "rust", go: "go", sh: "shell", yml: "yaml", yaml: "yaml", svg: "xml",
+      rs: "rust", go: "go", sh: "shell", bash: "shell", yml: "yaml", yaml: "yaml", svg: "xml",
+      txt: "plaintext",
     };
     return map[ext] || "plaintext";
   }
@@ -53,18 +124,22 @@
   async function loadMeta() {
     const meta = await (await fetch("/api/meta")).json();
     wsName.textContent = meta.name + " — " + meta.root;
+    wsName.title = meta.root;
     catalog = meta.models || {};
     providerEl.value = meta.provider || "grok";
     fillModels();
+    applySettingsToUi(meta.settings || {});
     await loadTree(".", treeEl);
+    scanAllFiles();
   }
 
+  // File Tree
   async function loadTree(dir, into) {
     const data = await (await fetch("/api/tree?dir=" + encodeURIComponent(dir))).json();
     into.innerHTML = "";
     for (const ent of data.entries || []) {
       const btn = document.createElement("button");
-      btn.textContent = (ent.dir ? "▸ " : "") + ent.name;
+      btn.textContent = (ent.dir ? "▸ " : "  ") + ent.name;
       btn.className = ent.dir ? "dir" : "file";
       const nested = document.createElement("div");
       nested.className = "nested";
@@ -84,41 +159,140 @@
     }
   }
 
+  async function scanAllFiles(dir = ".") {
+    try {
+      const data = await (await fetch("/api/tree?dir=" + encodeURIComponent(dir))).json();
+      if (dir === ".") allWorkspaceFiles = [];
+      for (const ent of data.entries || []) {
+        if (ent.dir) {
+          await scanAllFiles(ent.path);
+        } else {
+          allWorkspaceFiles.push(ent.path);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // Tabs Management (Issue #9)
   function renderTabs() {
     tabsEl.innerHTML = "";
     openTabs.forEach((t) => {
       const b = document.createElement("button");
       b.className = "tab" + (t.path === activePath ? " active" : "");
-      b.textContent = t.path.split("/").pop();
+
+      const label = document.createElement("span");
+      label.textContent = t.path.split("/").pop();
+      b.appendChild(label);
+
+      if (t.isDirty) {
+        const dot = document.createElement("span");
+        dot.className = "dirty-dot";
+        dot.title = "Archivo modificado no guardado";
+        b.appendChild(dot);
+      }
+
+      const closeBtn = document.createElement("span");
+      closeBtn.className = "tab-close";
+      closeBtn.textContent = "✕";
+      closeBtn.title = "Cerrar pestaña (Ctrl+W)";
+      closeBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        closeTab(t.path);
+      });
+      b.appendChild(closeBtn);
+
       b.addEventListener("click", () => openFile(t.path));
       tabsEl.appendChild(b);
     });
   }
 
   async function openFile(p) {
+    if (isDiffMode) closeDiffView();
+
     let tab = openTabs.find((t) => t.path === p);
     if (!tab) {
       const data = await (await fetch("/api/file?path=" + encodeURIComponent(p))).json();
-      tab = { path: p, content: data.content };
+      const content = data.content ?? "";
+      let model = null;
+      if (typeof monaco !== "undefined") {
+        const uri = monaco.Uri.parse(`file:///${p}`);
+        model = monaco.editor.getModel(uri) || monaco.editor.createModel(content, langOf(p), uri);
+      }
+      tab = {
+        path: p,
+        content: content,
+        savedContent: content,
+        model: model,
+        isDirty: false,
+      };
       openTabs.push(tab);
+
+      if (model) {
+        model.onDidChangeContent(() => {
+          const cur = model.getValue();
+          const dirty = cur !== tab.savedContent;
+          if (dirty !== tab.isDirty) {
+            tab.isDirty = dirty;
+            renderTabs();
+          }
+          triggerLspDiagnostics(p, cur, langOf(p), model);
+        });
+      }
     }
+
     activePath = p;
     renderTabs();
-    if (editor) {
-      const model = monaco.editor.createModel(tab.content, langOf(p));
-      editor.setModel(model);
-      editor.updateOptions({ theme: "vs-dark" });
+
+    if (editor && tab.model) {
+      editor.setModel(tab.model);
+      triggerLspDiagnostics(p, tab.model.getValue(), langOf(p), tab.model);
     }
+
     document.querySelectorAll(".tree .file").forEach((el) => {
-      el.classList.toggle("active", el.textContent === p.split("/").pop());
+      const leafName = p.split("/").pop();
+      el.classList.toggle("active", el.textContent.trim() === leafName);
     });
   }
 
+  function closeTab(p) {
+    const idx = openTabs.findIndex((t) => t.path === p);
+    if (idx === -1) return;
+    openTabs.splice(idx, 1);
+
+    if (activePath === p) {
+      if (openTabs.length > 0) {
+        const next = openTabs[Math.max(0, idx - 1)];
+        openFile(next.path);
+      } else {
+        activePath = "";
+        renderTabs();
+        if (editor) {
+          const empty = monaco.editor.createModel("// Abre un archivo desde el explorador (Ctrl+P)", "plaintext");
+          editor.setModel(empty);
+        }
+      }
+    } else {
+      renderTabs();
+    }
+  }
+
+  function closeActiveTab() {
+    if (activePath) closeTab(activePath);
+  }
+
+  // Save File (Ctrl+S)
   async function save() {
     if (!editor || !activePath) return;
     const content = editor.getValue();
     const tab = openTabs.find((t) => t.path === activePath);
-    if (tab) tab.content = content;
+    if (tab) {
+      tab.content = content;
+      tab.savedContent = content;
+      tab.isDirty = false;
+      renderTabs();
+    }
     await fetch("/api/file", {
       method: "PUT",
       headers: { "content-type": "application/json" },
@@ -126,6 +300,575 @@
     });
   }
 
+  // Reload buffer after Accept of an edit (Issue #9 & #13)
+  async function reloadBufferIfOpen(p) {
+    const tab = openTabs.find((t) => t.path === p);
+    if (!tab) return;
+    try {
+      const data = await (await fetch("/api/file?path=" + encodeURIComponent(p))).json();
+      const updated = data.content ?? "";
+      tab.content = updated;
+      tab.savedContent = updated;
+      tab.isDirty = false;
+      if (tab.model) {
+        tab.model.setValue(updated);
+      }
+      renderTabs();
+    } catch {
+      // ignore
+    }
+  }
+
+  // LSP Diagnostics (Issue #11)
+  function triggerLspDiagnostics(filepath, content, language, model) {
+    clearTimeout(lspTimeout);
+    lspTimeout = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/lsp/diagnostics", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ path: filepath, content, language }),
+        });
+        const data = await res.json();
+        const markers = (data.diagnostics || []).map((d) => ({
+          startLineNumber: d.line || 1,
+          startColumn: d.column || 1,
+          endLineNumber: d.endLine || d.line || 1,
+          endColumn: d.endColumn || (d.column ? d.column + 20 : 100),
+          message: d.message,
+          severity: d.severity === "warning" ? monaco.MarkerSeverity.Warning : monaco.MarkerSeverity.Error,
+        }));
+        monaco.editor.setModelMarkers(model, "lsp", markers);
+      } catch {
+        // ignore
+      }
+    }, 400);
+  }
+
+  // Workspace Search (Issue #9)
+  async function performWorkspaceSearch() {
+    const q = searchInput.value.trim();
+    if (!q) {
+      searchResults.innerHTML = '<div style="color: var(--muted); padding: 8px;">Escribe un término y pulsa Enter</div>';
+      return;
+    }
+    searchResults.innerHTML = '<div style="color: var(--muted); padding: 8px;">Buscando…</div>';
+    const caseSens = searchCase.checked ? "1" : "0";
+    const res = await (await fetch(`/api/search?q=${encodeURIComponent(q)}&caseSensitive=${caseSens}`)).json();
+    const matches = res.matches || [];
+    searchResults.innerHTML = "";
+
+    if (matches.length === 0) {
+      searchResults.innerHTML = '<div style="color: var(--muted); padding: 8px;">No se encontraron resultados</div>';
+      return;
+    }
+
+    const countHeader = document.createElement("div");
+    countHeader.style.padding = "6px 8px";
+    countHeader.style.color = "var(--muted)";
+    countHeader.style.fontSize = "11px";
+    countHeader.textContent = `${matches.length} coincidencia${matches.length === 1 ? "" : "s"}`;
+    searchResults.appendChild(countHeader);
+
+    matches.forEach((m) => {
+      const row = document.createElement("div");
+      row.className = "search-match-item";
+      row.innerHTML = `<span class="search-match-file">${m.path}:${m.line}</span><span class="search-match-line">${escapeHtml(m.preview)}</span>`;
+      row.addEventListener("click", async () => {
+        await openFile(m.path);
+        if (editor) {
+          editor.revealLineInCenter(m.line);
+          editor.setPosition({ lineNumber: m.line, column: m.col || 1 });
+          editor.focus();
+        }
+      });
+      searchResults.appendChild(row);
+    });
+  }
+
+  function escapeHtml(str) {
+    return String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  // Palette & Quick Open Modal (Issue #9)
+  function showQuickOpen() {
+    paletteMode = "files";
+    paletteInput.placeholder = "Buscar archivo por nombre…";
+    paletteInput.value = "";
+    openPalette();
+    renderPaletteList();
+  }
+
+  function showCommandPalette() {
+    paletteMode = "commands";
+    paletteInput.placeholder = "Escribe un comando…";
+    paletteInput.value = "";
+    openPalette();
+    renderPaletteList();
+  }
+
+  function openPalette() {
+    paletteModal.style.display = "flex";
+    paletteInput.focus();
+    paletteSelectedIndex = 0;
+  }
+
+  function closePalette() {
+    paletteModal.style.display = "none";
+    if (editor) editor.focus();
+  }
+
+  const COMMAND_LIST = [
+    { id: "quick-open", label: "Abrir archivo...", hint: "Ctrl+P", run: showQuickOpen },
+    { id: "open-folder", label: "Abrir carpeta en el workspace...", hint: "", run: showOpenFolderModal },
+    { id: "save-file", label: "Guardar archivo activo", hint: "Ctrl+S", run: save },
+    { id: "close-tab", label: "Cerrar pestaña activa", hint: "Ctrl+W", run: closeActiveTab },
+    { id: "search-ws", label: "Buscar en el workspace...", hint: "Ctrl+Shift+F", run: () => showSidebarTab("search") },
+    { id: "toggle-term", label: "Alternar terminal integrada", hint: "Ctrl+`", run: toggleTerminalPanel },
+    { id: "toggle-git", label: "Alternar panel Git", hint: "", run: () => openBottomPanel("git") },
+    { id: "open-settings", label: "Ajustes de fh-code...", hint: "Ctrl+,", run: showSettingsModal },
+    { id: "reset-settings", label: "Restablecer ajustes a valores de fábrica", hint: "", run: handleResetSettings },
+    { id: "new-chat", label: "Nuevo chat fh-ia", hint: "", run: () => { messagesEl.innerHTML = ""; append("system", "Nuevo chat iniciado"); } },
+    { id: "select-claude", label: "Usar IA: Claude", hint: "", run: () => { providerEl.value = "claude"; fillModels(); } },
+    { id: "select-grok", label: "Usar IA: Grok", hint: "", run: () => { providerEl.value = "grok"; fillModels(); } },
+    { id: "select-openai", label: "Usar IA: OpenAI-Compatible", hint: "", run: () => { providerEl.value = "openai"; fillModels(); } },
+    { id: "select-fcc", label: "Usar IA: FCC (Free Claude Code)", hint: "", run: () => { providerEl.value = "fcc"; fillModels(); } },
+    { id: "refresh-tree", label: "Recargar árbol de archivos", hint: "", run: () => loadTree(".", treeEl) },
+  ];
+
+  function renderPaletteList() {
+    const q = paletteInput.value.toLowerCase().trim();
+    paletteList.innerHTML = "";
+
+    if (paletteMode === "files") {
+      paletteItems = allWorkspaceFiles
+        .filter((f) => !q || f.toLowerCase().includes(q))
+        .slice(0, 50)
+        .map((f) => ({
+          label: f.split("/").pop(),
+          hint: f,
+          run: () => openFile(f),
+        }));
+    } else {
+      paletteItems = COMMAND_LIST.filter((c) => !q || c.label.toLowerCase().includes(q) || c.id.includes(q));
+    }
+
+    if (paletteItems.length === 0) {
+      paletteList.innerHTML = '<div style="padding: 10px 14px; color: var(--muted); font-size: 13px;">No hay resultados</div>';
+      return;
+    }
+
+    if (paletteSelectedIndex >= paletteItems.length) paletteSelectedIndex = 0;
+
+    paletteItems.forEach((item, idx) => {
+      const row = document.createElement("div");
+      row.className = "palette-item" + (idx === paletteSelectedIndex ? " selected" : "");
+      row.innerHTML = `<span>${escapeHtml(item.label)}</span><span class="palette-item-hint">${escapeHtml(item.hint || "")}</span>`;
+      row.addEventListener("click", () => {
+        closePalette();
+        item.run();
+      });
+      paletteList.appendChild(row);
+    });
+
+    const selectedEl = paletteList.children[paletteSelectedIndex];
+    if (selectedEl && selectedEl.scrollIntoView) {
+      selectedEl.scrollIntoView({ block: "nearest" });
+    }
+  }
+
+  // Open Folder Modal (Issue #9)
+  function showOpenFolderModal() {
+    folderModal.style.display = "flex";
+    folderInput.value = "";
+    folderInput.focus();
+  }
+
+  async function confirmOpenFolder() {
+    const target = folderInput.value.trim();
+    if (!target) return;
+    try {
+      const res = await fetch("/api/workspace/open", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path: target }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        folderModal.style.display = "none";
+        openTabs.length = 0;
+        activePath = "";
+        renderTabs();
+        await loadMeta();
+        if (editor) {
+          const empty = monaco.editor.createModel("// Workspace cambiado: " + data.workspace, "plaintext");
+          editor.setModel(empty);
+        }
+      } else {
+        alert("Error al abrir carpeta: " + (data.error || "Ruta inválida"));
+      }
+    } catch (err) {
+      alert("Error: " + err.message);
+    }
+  }
+
+  // Terminal Panel (Issue #10)
+  function toggleTerminalPanel() {
+    if (bottomPanel.style.display === "none") {
+      openBottomPanel("terminal");
+    } else if (panelTerminal.style.display !== "none") {
+      bottomPanel.style.display = "none";
+    } else {
+      openBottomPanel("terminal");
+    }
+  }
+
+  function openBottomPanel(tab = "terminal") {
+    bottomPanel.style.display = "flex";
+    if (tab === "terminal") {
+      ptabTerminal.classList.add("active");
+      ptabGit.classList.remove("active");
+      panelTerminal.style.display = "flex";
+      panelGit.style.display = "none";
+      termInput.focus();
+      initTerminalStream();
+    } else {
+      ptabGit.classList.add("active");
+      ptabTerminal.classList.remove("active");
+      panelGit.style.display = "flex";
+      panelTerminal.style.display = "none";
+      loadGitStatus();
+    }
+    if (editor) editor.layout();
+  }
+
+  function initTerminalStream() {
+    if (termEventSource) return;
+    fetch("/api/terminal/session", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: "default" }),
+    }).then((r) => r.json()).then((s) => {
+      if (s.history) {
+        termOutput.textContent = s.history;
+        termOutput.scrollTop = termOutput.scrollHeight;
+      }
+    });
+
+    termEventSource = new EventSource("/api/terminal/stream?id=default");
+    termEventSource.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data);
+        if (msg.output) {
+          termOutput.textContent += msg.output;
+          termOutput.scrollTop = termOutput.scrollHeight;
+        }
+      } catch {
+        // ignore
+      }
+    };
+  }
+
+  async function sendTerminalCommand() {
+    const cmd = termInput.value;
+    if (!cmd.trim()) return;
+    termHistory.push(cmd);
+    termHistoryIndex = termHistory.length;
+    termInput.value = "";
+
+    await fetch("/api/terminal/input", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: "default", input: cmd + "\n" }),
+    });
+  }
+
+  // Git Panel (Issue #10)
+  async function loadGitStatus() {
+    try {
+      const res = await (await fetch("/api/git/status")).json();
+      gitBranch.textContent = "⎇ " + (res.branch || "HEAD");
+      gitFileLists.innerHTML = "";
+
+      if (!res.isRepo) {
+        gitFileLists.innerHTML = '<div style="color: var(--muted); padding: 8px;">El workspace actual no es un repositorio Git</div>';
+        return;
+      }
+
+      // Staged
+      if (res.staged && res.staged.length > 0) {
+        const title = document.createElement("div");
+        title.className = "git-section-title";
+        title.textContent = `Cambios preparados (Staged) — ${res.staged.length}`;
+        gitFileLists.appendChild(title);
+
+        res.staged.forEach((item) => {
+          const row = makeGitFileRow(item.file, item.status, "unstage", true);
+          gitFileLists.appendChild(row);
+        });
+      }
+
+      // Unstaged Changes
+      if (res.unstaged && res.unstaged.length > 0) {
+        const title = document.createElement("div");
+        title.className = "git-section-title";
+        title.textContent = `Cambios no preparados — ${res.unstaged.length}`;
+        gitFileLists.appendChild(title);
+
+        res.unstaged.forEach((item) => {
+          const row = makeGitFileRow(item.file, item.status, "stage", false);
+          gitFileLists.appendChild(row);
+        });
+      }
+
+      // Untracked
+      if (res.untracked && res.untracked.length > 0) {
+        const title = document.createElement("div");
+        title.className = "git-section-title";
+        title.textContent = `Archivos sin seguimiento — ${res.untracked.length}`;
+        gitFileLists.appendChild(title);
+
+        res.untracked.forEach((item) => {
+          const row = makeGitFileRow(item.file, "U", "stage", false);
+          gitFileLists.appendChild(row);
+        });
+      }
+
+      if (!res.staged.length && !res.unstaged.length && !res.untracked.length) {
+        gitFileLists.innerHTML = '<div style="color: var(--muted); padding: 8px;">El árbol de trabajo está limpio</div>';
+      }
+    } catch (err) {
+      gitFileLists.innerHTML = `<div style="color: var(--danger); padding: 8px;">Error: ${err.message}</div>`;
+    }
+  }
+
+  function makeGitFileRow(file, status, op, staged) {
+    const row = document.createElement("div");
+    row.className = "git-file-row";
+
+    const left = document.createElement("div");
+    left.style.display = "flex";
+    left.style.alignItems = "center";
+    left.innerHTML = `<span class="git-file-name">${escapeHtml(file)}</span><span class="git-status-badge ${status}">${status}</span>`;
+    left.addEventListener("click", () => showGitDiff(file, staged));
+
+    const ops = document.createElement("div");
+    ops.className = "git-file-ops";
+
+    if (op === "stage") {
+      const addBtn = document.createElement("button");
+      addBtn.textContent = "+";
+      addBtn.title = "Stage file";
+      addBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        await fetch("/api/git/stage", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ path: file }),
+        });
+        loadGitStatus();
+      });
+      ops.appendChild(addBtn);
+
+      const discardBtn = document.createElement("button");
+      discardBtn.textContent = "↺";
+      discardBtn.title = "Descartar cambios";
+      discardBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (confirm(`¿Descartar cambios en ${file}?`)) {
+          await fetch("/api/git/discard", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ path: file }),
+          });
+          loadGitStatus();
+          reloadBufferIfOpen(file);
+        }
+      });
+      ops.appendChild(discardBtn);
+    } else {
+      const minusBtn = document.createElement("button");
+      minusBtn.textContent = "−";
+      minusBtn.title = "Unstage file";
+      minusBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        await fetch("/api/git/unstage", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ path: file }),
+        });
+        loadGitStatus();
+      });
+      ops.appendChild(minusBtn);
+    }
+
+    row.appendChild(left);
+    row.appendChild(ops);
+    return row;
+  }
+
+  async function showGitDiff(file, staged) {
+    try {
+      const res = await (await fetch(`/api/git/diff?path=${encodeURIComponent(file)}&staged=${staged ? "1" : "0"}`)).json();
+      if (!res.diff) {
+        alert("Sin diff disponible para este archivo");
+        return;
+      }
+      openDiffView(file, res.diff);
+    } catch (err) {
+      alert("Error al cargar diff: " + err.message);
+    }
+  }
+
+  function openDiffView(file, diffText) {
+    isDiffMode = true;
+    const editorDiv = document.getElementById("editor");
+    const diffDiv = document.getElementById("diff-editor");
+    editorDiv.style.display = "none";
+    diffDiv.style.display = "block";
+
+    if (!diffEditor) {
+      diffEditor = monaco.editor.create(diffDiv, {
+        value: diffText,
+        language: "diff",
+        theme: "vs-dark",
+        readOnly: true,
+        automaticLayout: true,
+        fontSize: 14,
+      });
+    } else {
+      diffEditor.setValue(diffText);
+    }
+    diffEditor.layout();
+  }
+
+  function closeDiffView() {
+    isDiffMode = false;
+    const editorDiv = document.getElementById("editor");
+    const diffDiv = document.getElementById("diff-editor");
+    diffDiv.style.display = "none";
+    editorDiv.style.display = "block";
+    if (editor) editor.layout();
+  }
+
+  async function commitGit() {
+    const msg = gitMessage.value.trim();
+    if (!msg) {
+      alert("Por favor escribe un mensaje de commit");
+      return;
+    }
+    try {
+      const res = await fetch("/api/git/commit", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message: msg }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        gitMessage.value = "";
+        loadGitStatus();
+      } else {
+        alert("Error al hacer commit: " + (data.error || ""));
+      }
+    } catch (err) {
+      alert("Error: " + err.message);
+    }
+  }
+
+  // Settings Modal (Issue #13)
+  function applySettingsToUi(settings) {
+    const theme = settings["fhIa.ui.theme"] || "auto";
+    if (theme === "light") {
+      document.body.setAttribute("data-theme", "light");
+      if (editor) editor.updateOptions({ theme: "vs" });
+    } else {
+      document.body.removeAttribute("data-theme");
+      if (editor) editor.updateOptions({ theme: "vs-dark" });
+    }
+
+    const fontSize = Number(settings["fhIa.ui.fontSize"] || 15);
+    if (editor) editor.updateOptions({ fontSize });
+  }
+
+  async function showSettingsModal() {
+    const res = await (await fetch("/api/settings")).json();
+    document.getElementById("set-theme").value = res["fhIa.ui.theme"] || "auto";
+    document.getElementById("set-font-size").value = res["fhIa.ui.fontSize"] || 15;
+    document.getElementById("set-auth-mode").value = res["fhIa.authMode"] || "auto";
+    document.getElementById("set-claude-key").value = res["fhIa.claude.apiKey"] || "";
+    document.getElementById("set-claude-model").value = res["fhIa.claude.model"] || "claude-sonnet-4-20250514";
+    document.getElementById("set-grok-key").value = res["fhIa.grok.apiKey"] || "";
+    document.getElementById("set-grok-model").value = res["fhIa.grok.model"] || "grok-4";
+    document.getElementById("set-openai-key").value = res["fhIa.openai.apiKey"] || "";
+    document.getElementById("set-openai-base").value = res["fhIa.openai.baseUrl"] || "https://api.openai.com/v1";
+    document.getElementById("set-openai-model").value = res["fhIa.openai.model"] || "gpt-4o";
+    document.getElementById("set-fcc-base").value = res["fhIa.fcc.baseUrl"] || "http://127.0.0.1:8082";
+    document.getElementById("set-failover-enabled").checked = res["fhIa.failover.enabled"] !== false;
+    document.getElementById("set-failover-order").value = res["fhIa.failover.order"] || "grok,claude,openai";
+    settingsModal.style.display = "flex";
+  }
+
+  async function saveSettingsFromModal() {
+    const payload = {
+      "fhIa.ui.theme": document.getElementById("set-theme").value,
+      "fhIa.ui.fontSize": Number(document.getElementById("set-font-size").value) || 15,
+      "fhIa.authMode": document.getElementById("set-auth-mode").value,
+      "fhIa.claude.apiKey": document.getElementById("set-claude-key").value,
+      "fhIa.claude.model": document.getElementById("set-claude-model").value,
+      "fhIa.grok.apiKey": document.getElementById("set-grok-key").value,
+      "fhIa.grok.model": document.getElementById("set-grok-model").value,
+      "fhIa.openai.apiKey": document.getElementById("set-openai-key").value,
+      "fhIa.openai.baseUrl": document.getElementById("set-openai-base").value,
+      "fhIa.openai.model": document.getElementById("set-openai-model").value,
+      "fhIa.fcc.baseUrl": document.getElementById("set-fcc-base").value,
+      "fhIa.failover.enabled": document.getElementById("set-failover-enabled").checked,
+      "fhIa.failover.order": document.getElementById("set-failover-order").value,
+    };
+
+    const res = await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      applySettingsToUi(data.settings);
+      settingsModal.style.display = "none";
+    } else {
+      alert("Error al guardar ajustes");
+    }
+  }
+
+  async function handleResetSettings() {
+    if (!confirm("¿Restablecer todos los ajustes de fh-code a sus valores por defecto?")) return;
+    const res = await fetch("/api/settings/reset", { method: "POST" });
+    const data = await res.json();
+    if (res.ok) {
+      applySettingsToUi(data.settings);
+      settingsModal.style.display = "none";
+      alert("Ajustes restablecidos correctamente.");
+    }
+  }
+
+  // Sidebar Tab Switcher
+  function showSidebarTab(tab) {
+    if (tab === "files") {
+      actFiles.classList.add("active");
+      actSearch.classList.remove("active");
+      sidebarTitle.textContent = "Explorador";
+      treeContainer.style.display = "block";
+      searchContainer.style.display = "none";
+    } else if (tab === "search") {
+      actSearch.classList.add("active");
+      actFiles.classList.remove("active");
+      sidebarTitle.textContent = "Buscar en workspace";
+      treeContainer.style.display = "none";
+      searchContainer.style.display = "flex";
+      searchInput.focus();
+    }
+  }
+
+  // Chat Section
   function append(role, text) {
     const div = document.createElement("div");
     div.className = "msg " + role;
@@ -176,6 +919,8 @@
             const wrap = append("system", "Edición: " + edit.path);
             const ok = document.createElement("button");
             ok.textContent = "Accept";
+            ok.style.marginLeft = "8px";
+            ok.style.cursor = "pointer";
             ok.addEventListener("click", async () => {
               await fetch("/api/edit/accept", {
                 method: "POST",
@@ -183,7 +928,8 @@
                 body: JSON.stringify({ edit }),
               });
               wrap.textContent = "Aplicado " + edit.path;
-              if (activePath === edit.path) openFile(edit.path);
+              // Reload buffer in Monaco if file is open (Issue #9 & #13)
+              await reloadBufferIfOpen(edit.path);
             });
             wrap.appendChild(ok);
           });
@@ -194,6 +940,7 @@
     streaming = false;
   }
 
+  // Event Listeners
   providerEl.addEventListener("change", fillModels);
   document.getElementById("send").addEventListener("click", send);
   inputEl.addEventListener("keydown", (ev) => {
@@ -202,24 +949,213 @@
       send();
     }
   });
+
+  // Global Shortcuts
   window.addEventListener("keydown", (ev) => {
+    // Ctrl+S / Cmd+S: Save
     if ((ev.ctrlKey || ev.metaKey) && ev.key === "s") {
       ev.preventDefault();
       save();
+      return;
+    }
+    // Ctrl+P / Cmd+P: Quick Open Files
+    if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && (ev.key === "p" || ev.key === "P")) {
+      ev.preventDefault();
+      showQuickOpen();
+      return;
+    }
+    // Ctrl+Shift+P / Cmd+Shift+P: Command Palette
+    if ((ev.ctrlKey || ev.metaKey) && ev.shiftKey && (ev.key === "P" || ev.key === "p")) {
+      ev.preventDefault();
+      showCommandPalette();
+      return;
+    }
+    // Ctrl+Shift+F: Search in Workspace
+    if ((ev.ctrlKey || ev.metaKey) && ev.shiftKey && (ev.key === "F" || ev.key === "f")) {
+      ev.preventDefault();
+      showSidebarTab("search");
+      return;
+    }
+    // Ctrl+W: Close active tab
+    if ((ev.ctrlKey || ev.metaKey) && (ev.key === "w" || ev.key === "W")) {
+      ev.preventDefault();
+      closeActiveTab();
+      return;
+    }
+    // Ctrl+`: Toggle Terminal
+    if ((ev.ctrlKey || ev.metaKey) && ev.key === "`") {
+      ev.preventDefault();
+      toggleTerminalPanel();
+      return;
+    }
+    // Ctrl+,: Open Settings
+    if ((ev.ctrlKey || ev.metaKey) && ev.key === ",") {
+      ev.preventDefault();
+      showSettingsModal();
+      return;
+    }
+    // Escape: Close modals
+    if (ev.key === "Escape") {
+      if (paletteModal.style.display !== "none") closePalette();
+      if (folderModal.style.display !== "none") folderModal.style.display = "none";
+      if (settingsModal.style.display !== "none") settingsModal.style.display = "none";
+      if (isDiffMode) closeDiffView();
     }
   });
 
-  require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs" } });
+  // Titlebar buttons
+  btnOpenFolder.addEventListener("click", showOpenFolderModal);
+  btnQuickOpen.addEventListener("click", showQuickOpen);
+  btnCmdPalette.addEventListener("click", showCommandPalette);
+  btnToggleTerminal.addEventListener("click", toggleTerminalPanel);
+  btnOpenSettings.addEventListener("click", showSettingsModal);
+  btnRefreshTree.addEventListener("click", () => { loadTree(".", treeEl); scanAllFiles(); });
+
+  // Activity Bar
+  actFiles.addEventListener("click", () => showSidebarTab("files"));
+  actSearch.addEventListener("click", () => showSidebarTab("search"));
+  actGit.addEventListener("click", () => openBottomPanel("git"));
+  actTerminal.addEventListener("click", () => openBottomPanel("terminal"));
+  actSettings.addEventListener("click", showSettingsModal);
+
+  // Search input
+  searchInput.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") performWorkspaceSearch();
+  });
+  searchCase.addEventListener("change", performWorkspaceSearch);
+
+  // Bottom panel
+  ptabTerminal.addEventListener("click", () => openBottomPanel("terminal"));
+  ptabGit.addEventListener("click", () => openBottomPanel("git"));
+  btnClosePanel.addEventListener("click", () => {
+    bottomPanel.style.display = "none";
+    if (editor) editor.layout();
+  });
+  btnClearTerm.addEventListener("click", () => { termOutput.textContent = ""; });
+  termInput.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") {
+      sendTerminalCommand();
+    } else if (ev.key === "ArrowUp") {
+      if (termHistory.length && termHistoryIndex > 0) {
+        termHistoryIndex--;
+        termInput.value = termHistory[termHistoryIndex] || "";
+      }
+    } else if (ev.key === "ArrowDown") {
+      if (termHistory.length && termHistoryIndex < termHistory.length - 1) {
+        termHistoryIndex++;
+        termInput.value = termHistory[termHistoryIndex] || "";
+      } else {
+        termHistoryIndex = termHistory.length;
+        termInput.value = "";
+      }
+    }
+  });
+
+  // Git controls
+  btnGitRefresh.addEventListener("click", loadGitStatus);
+  btnGitStageAll.addEventListener("click", async () => {
+    await fetch("/api/git/stage-all", { method: "POST" });
+    loadGitStatus();
+  });
+  btnGitCommit.addEventListener("click", commitGit);
+  gitMessage.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) {
+      ev.preventDefault();
+      commitGit();
+    }
+  });
+
+  // Palette Navigation
+  paletteInput.addEventListener("input", renderPaletteList);
+  paletteInput.addEventListener("keydown", (ev) => {
+    if (ev.key === "ArrowDown") {
+      ev.preventDefault();
+      if (paletteItems.length) {
+        paletteSelectedIndex = (paletteSelectedIndex + 1) % paletteItems.length;
+        renderPaletteList();
+      }
+    } else if (ev.key === "ArrowUp") {
+      ev.preventDefault();
+      if (paletteItems.length) {
+        paletteSelectedIndex = (paletteSelectedIndex - 1 + paletteItems.length) % paletteItems.length;
+        renderPaletteList();
+      }
+    } else if (ev.key === "Enter") {
+      ev.preventDefault();
+      if (paletteItems[paletteSelectedIndex]) {
+        const item = paletteItems[paletteSelectedIndex];
+        closePalette();
+        item.run();
+      }
+    }
+  });
+  paletteModal.addEventListener("click", (ev) => {
+    if (ev.target === paletteModal) closePalette();
+  });
+
+  // Folder modal
+  btnFolderCancel.addEventListener("click", () => { folderModal.style.display = "none"; });
+  btnFolderConfirm.addEventListener("click", confirmOpenFolder);
+  folderInput.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") confirmOpenFolder();
+  });
+  folderModal.addEventListener("click", (ev) => {
+    if (ev.target === folderModal) folderModal.style.display = "none";
+  });
+
+  // Settings modal
+  btnSettingsClose.addEventListener("click", () => { settingsModal.style.display = "none"; });
+  btnSettingsCancel.addEventListener("click", () => { settingsModal.style.display = "none"; });
+  btnSettingsSave.addEventListener("click", saveSettingsFromModal);
+  btnSettingsReset.addEventListener("click", handleResetSettings);
+  settingsModal.addEventListener("click", (ev) => {
+    if (ev.target === settingsModal) settingsModal.style.display = "none";
+  });
+
+  // Initialize Monaco Offline with TypeScript / LSP (Issue #11 & #12)
+  require.config({ paths: { vs: "/static/vendor/monaco/min/vs" } });
   require(["vs/editor/editor.main"], () => {
+    // TypeScript & JavaScript Compiler and Language Services (IntelliSense)
+    if (monaco.languages && monaco.languages.typescript) {
+      monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+        target: monaco.languages.typescript.ScriptTarget.ES2022,
+        allowNonTsExtensions: true,
+        moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+        module: monaco.languages.typescript.ModuleKind.CommonJS,
+        noEmit: true,
+        allowJs: true,
+        checkJs: true,
+      });
+      monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+        target: monaco.languages.typescript.ScriptTarget.ES2022,
+        allowNonTsExtensions: true,
+        allowJs: true,
+        checkJs: true,
+      });
+      monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+        noSemanticValidation: false,
+        noSyntaxValidation: false,
+      });
+      monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+        noSemanticValidation: false,
+        noSyntaxValidation: false,
+      });
+    }
+
     editor = monaco.editor.create(document.getElementById("editor"), {
-      value: "// Abre un archivo del explorador\n",
+      value: "// Abre un archivo desde el explorador (Ctrl+P)\n",
       language: "typescript",
       theme: "vs-dark",
       automaticLayout: true,
       fontSize: 15,
       minimap: { enabled: true },
       smoothScrolling: true,
+      suggestOnTriggerCharacters: true,
+      parameterHints: { enabled: true },
+      quickSuggestions: { other: true, comments: true, strings: true },
+      tabCompletion: "on",
     });
+
     loadMeta();
   });
 })();

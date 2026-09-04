@@ -4,6 +4,7 @@
   "description": "Panel de agente tipo Claude Code para VS Code, conmutando Claude, Grok y un endpoint OpenAI-compatible.",
   "version": "0.1.9",
   "publisher": "gfh",
+  "author": "gfh",
   "repository": {
     "type": "git",
     "url": "https://github.com/Gabriel-Francisco-Bits/fh-ia.git"
@@ -303,7 +304,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "clean": "rm -rf out",
-    "test": "npm run compile && node --test --test-reporter spec ./out/test/providers.test.js ./out/test/edits.test.js ./out/test/context.test.js ./out/test/webview-sandbox.test.js ./out/test/contributions.test.js ./out/test/auth.test.js ./out/test/failover.test.js ./out/test/chats.test.js ./out/test/modes.test.js ./out/test/fcc.test.js ./out/test/skills.test.js ./fh-code/paths.test.js ./fh-code/layout.test.js ./fh-code/io.test.js",
+    "test": "npm run compile && node --test --test-reporter spec ./out/test/providers.test.js ./out/test/edits.test.js ./out/test/context.test.js ./out/test/webview-sandbox.test.js ./out/test/contributions.test.js ./out/test/auth.test.js ./out/test/failover.test.js ./out/test/chats.test.js ./out/test/modes.test.js ./out/test/fcc.test.js ./out/test/skills.test.js ./fh-code/paths.test.js ./fh-code/layout.test.js ./fh-code/io.test.js ./fh-code/features.test.js",
     "package": "npm run compile && npx --yes @vscode/vsce package --no-dependencies",
     "vscode:prepublish": "npm run compile",
     "launch-test": "npm run compile && node out/test/runLaunch.js",
@@ -316,6 +317,8 @@
     "@types/vscode": "^1.90.0",
     "@vscode/test-electron": "^2.4.1",
     "electron": "^33.2.1",
+    "electron-builder": "^26.15.3",
+    "monaco-editor": "^0.52.2",
     "typescript": "^5.7.2"
   }
 }

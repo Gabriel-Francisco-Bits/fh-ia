@@ -9,57 +9,237 @@
 <body>
   <header class="titlebar">
     <span class="brand">fh-code</span>
-    <span id="ws-name" class="ws"></span>
-    <span class="hint">Monaco · VS Code · fh-ia</span>
+    <button id="btn-open-folder" class="tb-btn" title="Abrir carpeta en el workspace">📁 Abrir carpeta</button>
+    <button id="btn-quick-open" class="tb-btn" title="Abrir archivo rápidamente (Ctrl+P)">🔍 Buscar archivo (Ctrl+P)</button>
+    <button id="btn-cmd-palette" class="tb-btn" title="Paleta de comandos (Ctrl+Shift+P)">⌘ Comandos</button>
+    <span id="ws-name" class="ws" title="Ruta del workspace"></span>
+    <div class="tb-actions">
+      <button id="btn-toggle-terminal" class="tb-btn" title="Alternar terminal integrada (Ctrl+`)">⌨ Terminal</button>
+      <button id="btn-open-settings" class="tb-btn" title="Ajustes de fh-code (Ctrl+,)">⚙ Ajustes</button>
+      <span class="hint">Monaco · VS Code · fh-ia</span>
+    </div>
   </header>
+
   <div class="workbench">
-  <nav class="activity" aria-label="Activity">
-    <div class="dot" title="Files">☰</div>
-    <div class="dot" title="fh-ia">✦</div>
-  </nav>
-  <div class="shell">
-    <aside class="files">
-      <div class="pane-label">Explorador</div>
-      <div id="tree" class="tree"></div>
-    </aside>
-    <section class="main">
-      <div id="tabs" class="tabs"></div>
-      <div id="editor" class="editor"></div>
-    </section>
-    <aside class="chat">
-      <div class="chat-head">
-        <strong>fh-ia</strong>
-        <div class="row">
-          <label>IA
-            <select id="provider">
-              <option value="claude">Claude</option>
-              <option value="grok">Grok</option>
-              <option value="openai">OpenAI</option>
-              <option value="fcc">FCC</option>
+    <nav class="activity" aria-label="Activity">
+      <div id="act-files" class="dot active" title="Explorador de archivos">☰</div>
+      <div id="act-search" class="dot" title="Buscar en el workspace (Ctrl+Shift+F)">🔍</div>
+      <div id="act-git" class="dot" title="Control de versiones Git">⎇</div>
+      <div id="act-terminal" class="dot" title="Terminal integrada (Ctrl+`)">⌨</div>
+      <div id="act-settings" class="dot" title="Ajustes (Ctrl+,)">⚙</div>
+      <div id="act-chat" class="dot" title="fh-ia Agente de IA">✦</div>
+    </nav>
+
+    <div class="shell">
+      <aside class="files">
+        <div class="pane-head">
+          <span id="sidebar-title" class="pane-label">Explorador</span>
+          <div class="pane-actions">
+            <button id="btn-refresh-tree" class="icon-btn" title="Recargar archivos">↻</button>
+          </div>
+        </div>
+
+        <div id="tree-container" class="sidebar-content">
+          <div id="tree" class="tree"></div>
+        </div>
+
+        <div id="search-container" class="sidebar-content" style="display: none;">
+          <div class="search-box">
+            <input id="search-input" type="text" placeholder="Buscar en archivos (Enter)…" />
+            <label class="case-label"><input id="search-case" type="checkbox" /> Aa</label>
+          </div>
+          <div id="search-results" class="search-results"></div>
+        </div>
+      </aside>
+
+      <section class="main">
+        <div id="tabs" class="tabs"></div>
+        <div class="editor-container">
+          <div id="editor" class="editor"></div>
+          <div id="diff-editor" class="editor" style="display: none;"></div>
+        </div>
+
+        <div id="bottom-panel" class="bottom-panel" style="display: none;">
+          <div class="panel-header">
+            <div class="panel-tabs">
+              <button id="ptab-terminal" class="ptab active">Terminal</button>
+              <button id="ptab-git" class="ptab">Git</button>
+            </div>
+            <div class="panel-actions">
+              <button id="btn-clear-term" class="icon-btn" title="Limpiar terminal">🗑</button>
+              <button id="btn-close-panel" class="icon-btn" title="Cerrar panel">✕</button>
+            </div>
+          </div>
+
+          <div id="panel-terminal" class="panel-body">
+            <div id="term-output" class="term-output"></div>
+            <div class="term-prompt-line">
+              <span class="term-prompt">$</span>
+              <input id="term-input" class="term-input" type="text" placeholder="Escribe un comando…" autocomplete="off" />
+            </div>
+          </div>
+
+          <div id="panel-git" class="panel-body" style="display: none;">
+            <div class="git-toolbar">
+              <span id="git-branch" class="git-badge">⎇ main</span>
+              <button id="btn-git-refresh" class="git-btn" title="Recargar Git">↻</button>
+              <button id="btn-git-stage-all" class="git-btn" title="Stagear todos">Stage All (+)</button>
+            </div>
+            <div class="git-commit-box">
+              <textarea id="git-message" placeholder="Mensaje de commit (Ctrl+Enter para commit)…" rows="2"></textarea>
+              <button id="btn-git-commit" class="git-commit-btn">Commit</button>
+            </div>
+            <div id="git-file-lists" class="git-file-lists"></div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="chat">
+        <div class="chat-head">
+          <strong>fh-ia</strong>
+          <div class="row">
+            <label>IA
+              <select id="provider">
+                <option value="claude">Claude</option>
+                <option value="grok">Grok</option>
+                <option value="openai">OpenAI</option>
+                <option value="fcc">FCC</option>
+              </select>
+            </label>
+            <label class="grow">Modelo
+              <select id="model"></select>
+            </label>
+            <label>Modo
+              <select id="mode">
+                <option value="ask">Preguntar</option>
+                <option value="plan">Plan</option>
+                <option value="autonomous">Autónomo</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div id="messages" class="messages"></div>
+        <div class="composer">
+          <textarea id="input" placeholder="Pregunta con el archivo activo y las skills del repo…"></textarea>
+          <button id="send" class="send" type="button">Enviar</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Palette Modal (Ctrl+P / Ctrl+Shift+P) -->
+  <div id="palette-modal" class="modal-overlay" style="display: none;">
+    <div class="palette-box">
+      <input id="palette-input" type="text" placeholder="Escribe para buscar archivos o comandos…" autocomplete="off" />
+      <div id="palette-list" class="palette-list"></div>
+    </div>
+  </div>
+
+  <!-- Open Folder Modal -->
+  <div id="folder-modal" class="modal-overlay" style="display: none;">
+    <div class="dialog-box">
+      <h3>Abrir carpeta en el workspace</h3>
+      <p>Introduce la ruta absoluta del directorio que deseas abrir:</p>
+      <input id="folder-input" type="text" placeholder="/ruta/a/tu/proyecto" />
+      <div class="dialog-buttons">
+        <button id="btn-folder-cancel" class="dialog-btn">Cancelar</button>
+        <button id="btn-folder-confirm" class="dialog-btn primary">Abrir</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal (Issue #13) -->
+  <div id="settings-modal" class="modal-overlay" style="display: none;">
+    <div class="dialog-box settings-box">
+      <div class="settings-head">
+        <h3>Ajustes de fh-code</h3>
+        <button id="btn-settings-close" class="icon-btn">✕</button>
+      </div>
+      <div class="settings-body">
+        <div class="settings-section">
+          <h4>General e Interfaz</h4>
+          <div class="settings-row">
+            <label>Tema visual</label>
+            <select id="set-theme">
+              <option value="auto">Automático (Seguir sistema)</option>
+              <option value="dark">Oscuro (Dark mode)</option>
+              <option value="light">Claro (Light mode)</option>
             </select>
-          </label>
-          <label class="grow">Modelo
-            <select id="model"></select>
-          </label>
-          <label>Modo
-            <select id="mode">
-              <option value="ask">Preguntar</option>
-              <option value="plan">Plan</option>
-              <option value="autonomous">Autónomo</option>
+          </div>
+          <div class="settings-row">
+            <label>Tamaño de fuente del editor (px)</label>
+            <input id="set-font-size" type="number" min="11" max="24" value="15" />
+          </div>
+          <div class="settings-row">
+            <label>Modo de autenticación</label>
+            <select id="set-auth-mode">
+              <option value="auto">Auto (API key > Terminal session > Env)</option>
+              <option value="apiKey">Solo API Keys</option>
+              <option value="terminal">Solo Sesión Terminal</option>
             </select>
-          </label>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h4>Proveedores de IA y Modelos</h4>
+          <div class="settings-row">
+            <label>Claude API Key</label>
+            <input id="set-claude-key" type="password" placeholder="sk-ant-..." />
+          </div>
+          <div class="settings-row">
+            <label>Claude Modelo</label>
+            <input id="set-claude-model" type="text" placeholder="claude-sonnet-4-20250514" />
+          </div>
+          <div class="settings-row">
+            <label>Grok API Key</label>
+            <input id="set-grok-key" type="password" placeholder="xai-..." />
+          </div>
+          <div class="settings-row">
+            <label>Grok Modelo</label>
+            <input id="set-grok-model" type="text" placeholder="grok-4" />
+          </div>
+          <div class="settings-row">
+            <label>OpenAI-Compatible API Key</label>
+            <input id="set-openai-key" type="password" placeholder="sk-..." />
+          </div>
+          <div class="settings-row">
+            <label>OpenAI Base URL</label>
+            <input id="set-openai-base" type="text" placeholder="https://api.openai.com/v1" />
+          </div>
+          <div class="settings-row">
+            <label>OpenAI Modelo</label>
+            <input id="set-openai-model" type="text" placeholder="gpt-4o" />
+          </div>
+          <div class="settings-row">
+            <label>FCC Server Base URL</label>
+            <input id="set-fcc-base" type="text" placeholder="http://127.0.0.1:8082" />
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h4>Failover automático</h4>
+          <div class="settings-row checkbox-row">
+            <label><input id="set-failover-enabled" type="checkbox" /> Activar failover si falla la IA seleccionada</label>
+          </div>
+          <div class="settings-row">
+            <label>Orden de failover</label>
+            <input id="set-failover-order" type="text" placeholder="grok,claude,openai" />
+          </div>
         </div>
       </div>
-      <div id="messages" class="messages"></div>
-      <div class="composer">
-        <textarea id="input" placeholder="Pregunta con el archivo activo y las skills del repo…"></textarea>
-        <button id="send" class="send" type="button">Enviar</button>
+
+      <div class="dialog-buttons settings-footer">
+        <button id="btn-settings-reset" class="dialog-btn danger" title="Restablecer a valores de fábrica">Restablecer ajustes</button>
+        <div style="flex: 1"></div>
+        <button id="btn-settings-cancel" class="dialog-btn">Cancelar</button>
+        <button id="btn-settings-save" class="dialog-btn primary">Guardar cambios</button>
       </div>
-    </aside>
+    </div>
   </div>
-  </div>
+
   <script src="/static/layout.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+  <!-- Monaco local offline bundle -->
+  <script src="/static/vendor/monaco/min/vs/loader.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

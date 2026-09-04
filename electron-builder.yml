@@ -1,5 +1,6 @@
 appId: do.bits.fhcode
 productName: fh-code
+executableName: fh-code
 directories:
   output: fh-code/dist
 files:
@@ -9,11 +10,24 @@ files:
   - "!fh-code/dist/**"
 linux:
   target:
+    - deb
+    - AppImage
     - dir
   category: Development
+  icon: fh-code/desktop/icon.png
+  maintainer: gfh
+  synopsis: Editor de codigo tipo Cursor con fh-ia
+  description: Editor de escritorio Monaco con agente de IA integrado (Claude, Grok, OpenAI, FCC).
 win:
   target:
+    - nsis
+    - portable
     - dir
+  icon: fh-code/desktop/icon.png
 mac:
   target:
+    - dmg
+    - zip
     - dir
+  category: public.app-category.developer-tools
+  icon: fh-code/desktop/icon.png

@@ -7,6 +7,24 @@ const fssync = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { SKIP_DIRS, safeResolve, toPosix } = require("./paths");
+const { searchWorkspace } = require("./search");
+const {
+  getGitStatus,
+  getGitDiff,
+  stageFile,
+  unstageFile,
+  stageAll,
+  commit,
+  discardChanges,
+} = require("./git");
+const { TerminalManager } = require("./terminal");
+const { getDiagnostics, extractSymbols } = require("./lsp");
+const {
+  readStore,
+  getMergedSettings,
+  updateSettings,
+  resetSettings,
+} = require("./settings");
 
 const repoRoot = path.join(__dirname, "..");
 const out = path.join(repoRoot, "out");
@@ -26,20 +44,13 @@ const { createNodeFilePort } = require(path.join(out, "workspace", "files.js"));
 const { acceptEdit } = require(path.join(out, "workspace", "edits.js"));
 
 const PORT = Number(process.env.FH_IA_EDITOR_PORT || 3847);
-const WORKSPACE = path.resolve(process.argv[2] || process.env.FH_IA_WORKSPACE || process.cwd());
+let WORKSPACE = path.resolve(process.argv[2] || process.env.FH_IA_WORKSPACE || process.cwd());
 const PUBLIC = path.join(__dirname, "public");
-const SETTINGS_PATH = path.join(os.homedir(), ".fh-ia", "settings.json");
 
-function loadStore() {
-  try {
-    return JSON.parse(fssync.readFileSync(SETTINGS_PATH, "utf8"));
-  } catch {
-    return {};
-  }
-}
+const terminalManager = new TerminalManager();
 
 function fileConfig() {
-  const store = loadStore();
+  const store = readStore();
   return {
     get(key) {
       if (Object.prototype.hasOwnProperty.call(store, key)) {
@@ -73,7 +84,14 @@ function makeDispatcher(provider, model) {
 }
 
 const sessions = new Map();
-const filesPort = createNodeFilePort(WORKSPACE);
+let filesPort = createNodeFilePort(WORKSPACE);
+
+function setWorkspace(nextRoot) {
+  WORKSPACE = path.resolve(nextRoot);
+  filesPort = createNodeFilePort(WORKSPACE);
+  sessions.clear();
+  terminalManager.closeAll();
+}
 
 function sessionFor(id, provider, model) {
   let rec = sessions.get(id);
@@ -113,10 +131,23 @@ function editorPort(rec) {
 }
 
 function mime(file) {
-  if (file.endsWith(".css")) return "text/css; charset=utf-8";
-  if (file.endsWith(".js")) return "text/javascript; charset=utf-8";
-  if (file.endsWith(".svg")) return "image/svg+xml";
-  return "text/html; charset=utf-8";
+  const ext = (file.split(".").pop() || "").toLowerCase();
+  const map = {
+    css: "text/css; charset=utf-8",
+    js: "text/javascript; charset=utf-8",
+    mjs: "text/javascript; charset=utf-8",
+    svg: "image/svg+xml",
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    ico: "image/x-icon",
+    json: "application/json; charset=utf-8",
+    html: "text/html; charset=utf-8",
+    woff: "font/woff",
+    woff2: "font/woff2",
+    ttf: "font/ttf",
+  };
+  return map[ext] || "text/plain; charset=utf-8";
 }
 
 async function readBody(req) {
@@ -155,20 +186,46 @@ async function listDir(rel) {
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url || "/", `http://127.0.0.1:${PORT}`);
+
+    // HTML / Index
     if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
       const html = await fs.readFile(path.join(PUBLIC, "index.html"), "utf8");
       res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
       res.end(html);
       return;
     }
+
+    // Static Assets
     if (req.method === "GET" && url.pathname.startsWith("/static/")) {
-      const file = path.basename(url.pathname);
-      const abs = file === "layout.js" ? path.join(__dirname, "layout.js") : path.join(PUBLIC, file);
-      const data = await fs.readFile(abs);
-      res.writeHead(200, { "content-type": mime(file) });
-      res.end(data);
-      return;
+      const rel = url.pathname.slice("/static/".length);
+      const cleaned = path.normalize(rel).replace(/^(\.\.[\/\\])+/, "");
+      let abs = path.join(PUBLIC, cleaned);
+
+      if (cleaned === "layout.js") {
+        abs = path.join(__dirname, "layout.js");
+      }
+
+      // Check if file exists in PUBLIC, otherwise try local node_modules/monaco-editor
+      if (!fssync.existsSync(abs) && cleaned.startsWith("vendor/monaco/")) {
+        const monacoSub = cleaned.slice("vendor/monaco/".length);
+        const nodeMonaco = path.join(repoRoot, "node_modules", "monaco-editor", monacoSub);
+        if (fssync.existsSync(nodeMonaco)) {
+          abs = nodeMonaco;
+        }
+      }
+
+      try {
+        const data = await fs.readFile(abs);
+        res.writeHead(200, { "content-type": mime(abs) });
+        res.end(data);
+        return;
+      } catch {
+        json(res, 404, { error: "not found" });
+        return;
+      }
     }
+
+    // Meta & Workspace Info
     if (req.method === "GET" && url.pathname === "/api/meta") {
       const cfg = fileConfig();
       const bundle = resolveProviderBundle(cfg);
@@ -183,13 +240,41 @@ const server = http.createServer(async (req, res) => {
           openai: modelsFor("openai", bundle.openai.model),
           fcc: modelsFor("fcc", bundle.fcc.model),
         },
+        settings: getMergedSettings(),
       });
       return;
     }
+
+    // Open / Switch Folder (Issue #9)
+    if (req.method === "POST" && url.pathname === "/api/workspace/open") {
+      const body = await readBody(req);
+      const target = path.resolve(String(body.path || ""));
+      try {
+        const stat = await fs.stat(target);
+        if (!stat.isDirectory()) {
+          json(res, 400, { error: "Path is not a directory" });
+          return;
+        }
+        setWorkspace(target);
+        json(res, 200, {
+          ok: true,
+          workspace: WORKSPACE,
+          name: path.basename(WORKSPACE),
+        });
+        return;
+      } catch (err) {
+        json(res, 400, { error: "Directory does not exist: " + (err.message || target) });
+        return;
+      }
+    }
+
+    // File Tree
     if (req.method === "GET" && url.pathname === "/api/tree") {
       json(res, 200, { entries: await listDir(url.searchParams.get("dir") || ".") });
       return;
     }
+
+    // Read File
     if (req.method === "GET" && url.pathname === "/api/file") {
       const rel = url.searchParams.get("path") || "";
       const abs = safeResolve(WORKSPACE, rel);
@@ -197,6 +282,8 @@ const server = http.createServer(async (req, res) => {
       json(res, 200, { path: rel, content });
       return;
     }
+
+    // Save File
     if (req.method === "PUT" && url.pathname === "/api/file") {
       const body = await readBody(req);
       const abs = safeResolve(WORKSPACE, body.path);
@@ -205,6 +292,162 @@ const server = http.createServer(async (req, res) => {
       json(res, 200, { ok: true });
       return;
     }
+
+    // Search in Workspace (Issue #9)
+    if (req.method === "GET" && url.pathname === "/api/search") {
+      const q = url.searchParams.get("q") || "";
+      const caseSensitive = url.searchParams.get("caseSensitive") === "1";
+      const matches = await searchWorkspace(WORKSPACE, q, { caseSensitive });
+      json(res, 200, { query: q, matches });
+      return;
+    }
+
+    // Git Status & Operations (Issue #10)
+    if (req.method === "GET" && url.pathname === "/api/git/status") {
+      const status = await getGitStatus(WORKSPACE);
+      json(res, 200, status);
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/git/diff") {
+      const file = url.searchParams.get("path") || "";
+      const staged = url.searchParams.get("staged") === "1";
+      const diff = await getGitDiff(WORKSPACE, file, staged);
+      json(res, 200, { file, staged, diff });
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/git/stage") {
+      const body = await readBody(req);
+      const ok = await stageFile(WORKSPACE, body.path);
+      json(res, 200, { ok });
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/git/unstage") {
+      const body = await readBody(req);
+      const ok = await unstageFile(WORKSPACE, body.path);
+      json(res, 200, { ok });
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/git/stage-all") {
+      const ok = await stageAll(WORKSPACE);
+      json(res, 200, { ok });
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/git/commit") {
+      const body = await readBody(req);
+      const result = await commit(WORKSPACE, body.message);
+      json(res, 200, { ok: true, output: result });
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/git/discard") {
+      const body = await readBody(req);
+      const ok = await discardChanges(WORKSPACE, body.path);
+      json(res, 200, { ok });
+      return;
+    }
+
+    // Integrated Terminal (Issue #10)
+    if (req.method === "POST" && url.pathname === "/api/terminal/session") {
+      const body = await readBody(req);
+      const id = String(body.id || "default");
+      const session = terminalManager.getOrCreate(id, WORKSPACE);
+      json(res, 200, { id, history: session.getHistory() });
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/terminal/stream") {
+      const id = url.searchParams.get("id") || "default";
+      const session = terminalManager.getOrCreate(id, WORKSPACE);
+      res.writeHead(200, {
+        "content-type": "text/event-stream; charset=utf-8",
+        "cache-control": "no-cache",
+        connection: "keep-alive",
+      });
+
+      const unsub = session.subscribe((data) => {
+        res.write(`data: ${JSON.stringify({ output: data })}\n\n`);
+      });
+
+      req.on("close", () => {
+        unsub();
+      });
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/terminal/input") {
+      const body = await readBody(req);
+      const id = String(body.id || "default");
+      const session = terminalManager.get(id);
+      if (session) {
+        session.write(String(body.input || ""));
+        json(res, 200, { ok: true });
+      } else {
+        json(res, 404, { error: "Session not found" });
+      }
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/terminal/kill") {
+      const body = await readBody(req);
+      const id = String(body.id || "default");
+      terminalManager.close(id);
+      json(res, 200, { ok: true });
+      return;
+    }
+
+    // LSP & Diagnostics (Issue #11)
+    if (req.method === "POST" && url.pathname === "/api/lsp/diagnostics") {
+      const body = await readBody(req);
+      const diags = await getDiagnostics(String(body.path || ""), String(body.content || ""), String(body.language || ""));
+      json(res, 200, { diagnostics: diags });
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/lsp/symbols") {
+      const body = await readBody(req);
+      const symbols = extractSymbols(String(body.content || ""), String(body.language || ""));
+      json(res, 200, { symbols });
+      return;
+    }
+
+    // Settings API (Issue #13)
+    if (req.method === "GET" && url.pathname === "/api/settings") {
+      json(res, 200, getMergedSettings());
+      return;
+    }
+
+    if (req.method === "PUT" && url.pathname === "/api/settings") {
+      const body = await readBody(req);
+      const updated = await updateSettings(body);
+      // Refresh active dispatchers
+      for (const rec of sessions.values()) {
+        const cfg = fileConfig();
+        const bundle = resolveProviderBundle(cfg);
+        rec.dispatcher.updateBundle(bundle);
+        rec.dispatcher.updateFailover(resolveFailover(cfg));
+      }
+      json(res, 200, { ok: true, settings: updated });
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/settings/reset") {
+      const reset = await resetSettings();
+      for (const rec of sessions.values()) {
+        const cfg = fileConfig();
+        const bundle = resolveProviderBundle(cfg);
+        rec.dispatcher.updateBundle(bundle);
+        rec.dispatcher.updateFailover(resolveFailover(cfg));
+      }
+      json(res, 200, { ok: true, settings: reset });
+      return;
+    }
+
+    // Chat / Agent
     if (req.method === "POST" && url.pathname === "/api/chat") {
       const body = await readBody(req);
       const id = String(body.sessionId || "default");
@@ -232,12 +475,15 @@ const server = http.createServer(async (req, res) => {
       res.end();
       return;
     }
+
+    // Accept Edit (Issue #9 & #13)
     if (req.method === "POST" && url.pathname === "/api/edit/accept") {
       const body = await readBody(req);
       await acceptEdit(body.edit, filesPort);
       json(res, 200, { ok: true });
       return;
     }
+
     json(res, 404, { error: "not found" });
   } catch (err) {
     json(res, 400, { error: err instanceof Error ? err.message : String(err) });
@@ -265,4 +511,9 @@ if (require.main === module) {
   });
 }
 
-module.exports = { startServer, PORT, WORKSPACE };
+module.exports = {
+  startServer,
+  PORT,
+  get WORKSPACE() { return WORKSPACE; },
+  setWorkspace,
+};

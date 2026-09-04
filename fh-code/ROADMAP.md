@@ -1,23 +1,34 @@
-# fh-code — qué hay y qué falta
+# fh-code — Estado del Proyecto y Funcionalidades
 
-Estado actual (main, PR #8): app de escritorio Electron + servidor local, estética Cursor (archivos | Monaco | chat fh-ia), layout que **no** oculta el chat en pantallas estrechas.
+App de escritorio tipo Cursor con Monaco Editor (VS Code engine) + servidor local + agente de IA fh-ia integrado (Claude, Grok, OpenAI, FCC).
 
-## Lo que ya funciona
+## Funcionalidades Completadas
 
-- Ventana nativa (`npm run fh-code` / `fh-code` en PATH)
-- Explorador, pestañas, editor Monaco, guardar (`Ctrl+S`)
-- Chat fh-ia: Claude / Grok / OpenAI / FCC, modelo, Preguntar / Plan / Autónomo
-- Skills del repo y del usuario, en cualquier IA
-- Empaquetado declarado para Linux, Windows y macOS (`electron-builder.yml`, target `dir`)
+1. **IDE Esencial ([#9](https://github.com/Gabriel-Francisco-Bits/fh-ia/issues/9))**:
+   - Paleta de comandos (`Ctrl+Shift+P`) y apertura rápida de archivos (`Ctrl+P`) con navegación por teclado.
+   - Búsqueda en archivo (`Ctrl+F`) y búsqueda recursiva en todo el workspace (`Ctrl+Shift+F`) con navegación por coincidencia y línea.
+   - Pestañas completas con botón de cierre (`✕`), atajo `Ctrl+W` e indicador de archivo modificado no guardado (`●`).
+   - Diálogo modal y API para **Abrir carpeta** (`/api/workspace/open`), permitiendo cambiar dinámicamente de espacio de trabajo.
+   - Recarga automática del buffer de Monaco al aceptar propuestas de edición (`Accept`).
 
-## Lo que falta (para otro día)
+2. **Terminal Integrada y Panel Git ([#10](https://github.com/Gabriel-Francisco-Bits/fh-ia/issues/10))**:
+   - Panel inferior colapsable con pestañas intercambiables `Terminal` y `Git` (`Ctrl+\``).
+   - Terminal interactiva conectada por streaming bidireccional en tiempo real (ejecuta en el workspace con historial y shell del sistema).
+   - Vista Git: estado del repositorio y ramas, cambios staged / unstaged / untracked, staging unitario o total (`Stage All`), commit con mensaje y visor de diffs.
 
-Agrupado en issues:
+3. **IntelliSense con Language Services (LSP) ([#11](https://github.com/Gabriel-Francisco-Bits/fh-ia/issues/11))**:
+   - Soporte completo de TypeScript y JavaScript mediante el compilador integrado de Monaco (autocompletado, sugerencia de parámetros, hover con tipos y documentación, ir a definición).
+   - Diagnósticos en tiempo real de errores sintácticos y semánticos (markers en el editor) mediante `/api/lsp/diagnostics` (JSON, JavaScript, Python, Shell).
+   - Extracción de símbolos de código (`/api/lsp/symbols`).
 
-1. **IDE esencial** — [#9](https://github.com/Gabriel-Francisco-Bits/fh-ia/issues/9) paleta, buscar, pestañas, abrir carpeta.
-2. **Terminal + Git** — [#10](https://github.com/Gabriel-Francisco-Bits/fh-ia/issues/10)
-3. **IntelliSense (LSP)** — [#11](https://github.com/Gabriel-Francisco-Bits/fh-ia/issues/11)
-4. **Instaladores y Monaco offline** — [#12](https://github.com/Gabriel-Francisco-Bits/fh-ia/issues/12)
-5. **Ajustes en la UI y Apply de edits** — [#13](https://github.com/Gabriel-Francisco-Bits/fh-ia/issues/13)
+4. **Instaladores y Monaco Offline ([#12](https://github.com/Gabriel-Francisco-Bits/fh-ia/issues/12))**:
+   - Empaquetado de producción de instaladores `.deb` (Debian/Ubuntu), `.AppImage`, `.exe`/NSIS y `.dmg` configurados en `electron-builder.yml`.
+   - Monaco Editor empaquetado localmente en `fh-code/public/vendor/monaco/`, permitiendo funcionamiento 100% offline sin depender de CDN.
+   - Icono PNG de alta resolución (512x512) integrado en la aplicación de escritorio y en las entradas `.desktop`.
 
-No está en el alcance cercano: fork completo de VS Code, marketplace de extensiones, agentes en la nube, login tipo Cursor.
+5. **Ajustes en la UI y Sincronización de Edits ([#13](https://github.com/Gabriel-Francisco-Bits/fh-ia/issues/13))**:
+   - Modal de Ajustes accesible desde el título, barra de actividad o `Ctrl+,`.
+   - Configuración de IA activa, claves de API, URLs base, modelos y failover.
+   - Personalización de interfaz: tema visual (oscuro / claro / auto) y tamaño de fuente del editor en tiempo real.
+   - Botón de restablecimiento de fábrica (`Restablecer ajustes`).
+   - Sincronización inmediata del buffer en Monaco tras aceptar ediciones de IA.

@@ -6,3 +6,5 @@ fh-ia-*/
 .vscode-test/
 *.log
 .DS_Store
+dist/
+fh-code/dist/
