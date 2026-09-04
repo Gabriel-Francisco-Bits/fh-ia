@@ -4,6 +4,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const fssync = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
+const os = require("node:os");
 const { spawn } = require("node:child_process");
 
 app.commandLine.appendSwitch("no-sandbox");
@@ -34,14 +35,30 @@ async function ensureServer() {
   const isUp = await pingServer(400);
   if (isUp) return;
 
+  try {
+    const { startServer } = require("../server.js");
+    await startServer(port);
+    return;
+  } catch (err) {
+    console.warn("[fh-code] In-process startServer:", err.message);
+  }
+
   const serverScript = path.join(__dirname, "..", "server.js");
   if (!fssync.existsSync(serverScript)) return;
 
-  serverProcess = spawn(process.execPath, [serverScript], {
-    stdio: "inherit",
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
-    cwd: path.join(__dirname, "..", ".."),
-  });
+  const safeCwd = (process.env.FH_IA_WORKSPACE && fssync.existsSync(process.env.FH_IA_WORKSPACE))
+    ? process.env.FH_IA_WORKSPACE
+    : (fssync.existsSync(process.cwd()) ? process.cwd() : os.homedir());
+
+  try {
+    serverProcess = spawn(process.execPath, [serverScript], {
+      stdio: "inherit",
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
+      cwd: safeCwd,
+    });
+  } catch (e) {
+    console.error("[fh-code] Child process spawn failed:", e.message);
+  }
 
   // Wait up to 5s for server to respond
   const start = Date.now();
