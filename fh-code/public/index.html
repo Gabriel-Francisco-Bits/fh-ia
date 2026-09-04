@@ -60,6 +60,50 @@
         <div class="editor-container">
           <div id="editor" class="editor"></div>
           <div id="diff-editor" class="editor" style="display: none;"></div>
+
+          <!-- Chat Document View (Opened as document tabs) -->
+          <div id="chat-doc-view" class="chat-doc-view" style="display: none;">
+            <div class="chat-doc-header">
+              <div class="chat-doc-info">
+                <span class="chat-doc-icon">💬</span>
+                <span id="chat-doc-title" class="chat-doc-title" title="Doble clic para renombrar">Nuevo chat</span>
+                <button id="btn-rename-chat-doc" class="icon-btn chat-edit-btn" title="Renombrar conversación">✏️</button>
+                <button id="btn-delete-chat-doc" class="icon-btn chat-del-btn" title="Eliminar conversación">🗑</button>
+                <div id="agent-thinking-pill" class="agent-thinking-pill" style="display: none;">
+                  <span class="pulsing-orbit"></span>
+                  <span id="agent-status-label">Procesando…</span>
+                </div>
+              </div>
+
+              <div class="chat-doc-options">
+                <label>IA
+                  <select id="provider">
+                    <option value="claude">Claude</option>
+                    <option value="grok">Grok</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="fcc">FCC</option>
+                  </select>
+                </label>
+                <label>Modelo
+                  <select id="model"></select>
+                </label>
+                <label>Modo
+                  <select id="mode">
+                    <option value="ask">Preguntar</option>
+                    <option value="plan">Plan</option>
+                    <option value="autonomous">Autónomo</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div id="messages" class="messages doc-messages"></div>
+
+            <div class="composer doc-composer">
+              <textarea id="input" placeholder="Pregunta a fh-ia sobre el workspace o pide ediciones en el código (Ctrl+Enter para enviar)…"></textarea>
+              <button id="send" class="send" type="button">Enviar</button>
+            </div>
+          </div>
         </div>
 
         <div id="bottom-panel" class="bottom-panel" style="display: none;">
@@ -97,63 +141,18 @@
         </div>
       </section>
 
+      <!-- Sidebar: Historial de Chats (Claude / Cursor style) -->
       <aside class="chat">
-        <div class="chat-head">
-          <div class="chat-title-row">
-            <div class="chat-brand-wrap">
-              <strong>fh-ia</strong>
-              <div id="agent-thinking-pill" class="agent-thinking-pill" style="display: none;">
-                <span class="pulsing-orbit"></span>
-                <span id="agent-status-label">Procesando…</span>
-              </div>
-            </div>
-            <div class="chat-head-actions">
-              <button id="btn-chat-history" class="chat-action-btn chat-hist-btn" title="Historial de conversaciones">💬 Chats (<span id="chat-badge">1</span>)</button>
-              <button id="btn-new-chat" class="chat-action-btn chat-new-btn" title="Iniciar nuevo chat (Ctrl+L)">+ Nuevo chat</button>
-            </div>
+        <div class="chat-sidebar-head">
+          <div class="chat-sidebar-title-row">
+            <span class="chat-sidebar-brand"><span class="chat-brand-icon">✦</span> Historial de chats</span>
+            <button id="btn-new-chat" class="chat-action-btn chat-new-btn" title="Iniciar nuevo chat (Ctrl+L)">+ Nuevo chat</button>
           </div>
-
-          <!-- Chat Threads Drawer (Claude style) -->
-          <div id="chat-threads-drawer" class="chat-threads-drawer" style="display: none;">
-            <div class="threads-drawer-header">
-              <span>Historial de chats</span>
-              <button id="btn-close-threads" class="threads-close-btn" title="Cerrar">✕</button>
-            </div>
-            <div id="chat-threads-list" class="chat-threads-list"></div>
-          </div>
-
-          <!-- Current Chat Strip -->
-          <div class="current-chat-strip">
-            <span class="chat-thread-icon">✦</span>
-            <span id="current-chat-title" class="current-chat-title" title="Doble clic para renombrar">Nuevo chat</span>
-            <button id="btn-delete-current-chat" class="chat-del-btn" title="Eliminar conversación actual">🗑</button>
-          </div>
-          <div class="row">
-            <label>IA
-              <select id="provider">
-                <option value="claude">Claude</option>
-                <option value="grok">Grok</option>
-                <option value="openai">OpenAI</option>
-                <option value="fcc">FCC</option>
-              </select>
-            </label>
-            <label class="grow">Modelo
-              <select id="model"></select>
-            </label>
-            <label>Modo
-              <select id="mode">
-                <option value="ask">Preguntar</option>
-                <option value="plan">Plan</option>
-                <option value="autonomous">Autónomo</option>
-              </select>
-            </label>
+          <div class="chat-search-wrap">
+            <input id="chat-search-input" type="text" placeholder="Buscar conversaciones…" />
           </div>
         </div>
-        <div id="messages" class="messages"></div>
-        <div class="composer">
-          <textarea id="input" placeholder="Pregunta con el archivo activo y las skills del repo…"></textarea>
-          <button id="send" class="send" type="button">Enviar</button>
-        </div>
+        <div id="chat-sidebar-list" class="chat-sidebar-list"></div>
       </aside>
     </div>
   </div>

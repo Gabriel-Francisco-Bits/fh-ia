@@ -65,7 +65,9 @@
 
   // State
   const openTabs = [];
+  let activeTabType = "file"; // "file" | "chat"
   let activePath = "";
+  let activeChatThreadId = "";
   let editor = null;
   let diffEditor = null;
   let isDiffMode = false;
@@ -79,6 +81,15 @@
   const termHistory = [];
   let termEventSource = null;
   let lspTimeout = null;
+
+  // Chat Document View & History Sidebar elements
+  const editorEl = document.getElementById("editor");
+  const chatDocView = document.getElementById("chat-doc-view");
+  const chatDocTitle = document.getElementById("chat-doc-title");
+  const btnRenameChatDoc = document.getElementById("btn-rename-chat-doc");
+  const btnDeleteChatDoc = document.getElementById("btn-delete-chat-doc");
+  const chatSidebarList = document.getElementById("chat-sidebar-list");
+  const chatSearchInput = document.getElementById("chat-search-input");
 
   // Responsive Layout
   function applyShellLayout() {
@@ -175,18 +186,27 @@
     }
   }
 
-  // Tabs Management (Issue #9)
+  // Tabs Management (Issue #9 & Chat Documents)
   function renderTabs() {
     tabsEl.innerHTML = "";
     openTabs.forEach((t) => {
       const b = document.createElement("button");
-      b.className = "tab" + (t.path === activePath ? " active" : "");
+      const isChat = t.type === "chat";
+      const isActive = isChat
+        ? (activeTabType === "chat" && activeChatThreadId === t.threadId)
+        : (activeTabType === "file" && activePath === t.path);
+      b.className = "tab" + (isActive ? " active" : "");
+
+      const icon = document.createElement("span");
+      icon.style.marginRight = "6px";
+      icon.textContent = isChat ? "💬" : "📄";
+      b.appendChild(icon);
 
       const label = document.createElement("span");
-      label.textContent = t.path.split("/").pop();
+      label.textContent = isChat ? (t.title || "Nuevo chat") : (t.path ? t.path.split("/").pop() : "Archivo");
       b.appendChild(label);
 
-      if (t.isDirty) {
+      if (!isChat && t.isDirty) {
         const dot = document.createElement("span");
         dot.className = "dirty-dot";
         dot.title = "Archivo modificado no guardado";
@@ -199,19 +219,27 @@
       closeBtn.title = "Cerrar pestaña (Ctrl+W)";
       closeBtn.addEventListener("click", (ev) => {
         ev.stopPropagation();
-        closeTab(t.path);
+        closeTab(t.id || t.path);
       });
       b.appendChild(closeBtn);
 
-      b.addEventListener("click", () => openFile(t.path));
+      b.addEventListener("click", () => {
+        if (isChat) {
+          openChatTab(t.threadId);
+        } else {
+          openFile(t.path);
+        }
+      });
       tabsEl.appendChild(b);
     });
   }
 
   async function openFile(p) {
     if (isDiffMode) closeDiffView();
+    activeTabType = "file";
+    activePath = p;
 
-    let tab = openTabs.find((t) => t.path === p);
+    let tab = openTabs.find((t) => t.type !== "chat" && t.path === p);
     if (!tab) {
       const data = await (await fetch("/api/file?path=" + encodeURIComponent(p))).json();
       const content = data.content ?? "";
@@ -221,6 +249,8 @@
         model = monaco.editor.getModel(uri) || monaco.editor.createModel(content, langOf(p), uri);
       }
       tab = {
+        type: "file",
+        id: p,
         path: p,
         content: content,
         savedContent: content,
@@ -242,8 +272,10 @@
       }
     }
 
-    activePath = p;
     renderTabs();
+
+    if (chatDocView) chatDocView.style.display = "none";
+    if (editorEl) editorEl.style.display = "block";
 
     if (editor && tab.model) {
       editor.setModel(tab.model);
@@ -254,32 +286,82 @@
       const leafName = p.split("/").pop();
       el.classList.toggle("active", el.textContent.trim() === leafName);
     });
+    if (typeof renderChatSidebar === "function") renderChatSidebar();
   }
 
-  function closeTab(p) {
-    const idx = openTabs.findIndex((t) => t.path === p);
+  function openChatTab(threadId) {
+    if (isDiffMode) closeDiffView();
+    activeTabType = "chat";
+    activeChatThreadId = threadId;
+
+    const thread = (chatThreads || []).find((t) => t.id === threadId);
+    if (!thread) return;
+
+    let tab = openTabs.find((t) => t.type === "chat" && t.threadId === threadId);
+    if (!tab) {
+      tab = {
+        type: "chat",
+        id: "chat:" + threadId,
+        threadId: threadId,
+        title: thread.title || "Nuevo chat",
+      };
+      openTabs.push(tab);
+    }
+
+    renderTabs();
+
+    if (editorEl) editorEl.style.display = "none";
+    if (chatDocView) chatDocView.style.display = "flex";
+
+    if (chatDocTitle) chatDocTitle.textContent = thread.title || "Nuevo chat";
+    if (typeof renderCurrentThreadMessages === "function") renderCurrentThreadMessages();
+    if (typeof renderChatSidebar === "function") renderChatSidebar();
+    if (inputEl) inputEl.focus();
+  }
+
+  function closeTab(id) {
+    const idx = openTabs.findIndex((t) => (t.id || t.path) === id || t.path === id || t.threadId === id);
     if (idx === -1) return;
+    const closedTab = openTabs[idx];
     openTabs.splice(idx, 1);
 
-    if (activePath === p) {
+    const wasActive = closedTab.type === "chat"
+      ? (activeTabType === "chat" && activeChatThreadId === closedTab.threadId)
+      : (activeTabType === "file" && activePath === closedTab.path);
+
+    if (wasActive) {
       if (openTabs.length > 0) {
         const next = openTabs[Math.max(0, idx - 1)];
-        openFile(next.path);
+        if (next.type === "chat") {
+          openChatTab(next.threadId);
+        } else {
+          openFile(next.path);
+        }
       } else {
+        activeTabType = "file";
         activePath = "";
         renderTabs();
-        if (editor) {
-          const empty = monaco.editor.createModel("// Abre un archivo desde el explorador (Ctrl+P)", "plaintext");
-          editor.setModel(empty);
+        if (chatDocView) chatDocView.style.display = "none";
+        if (editorEl) {
+          editorEl.style.display = "block";
+          if (editor) {
+            const empty = monaco.editor.createModel("// Abre un archivo desde el explorador (Ctrl+P) o inicia un chat (Ctrl+L)", "plaintext");
+            editor.setModel(empty);
+          }
         }
       }
     } else {
       renderTabs();
     }
+    if (typeof renderChatSidebar === "function") renderChatSidebar();
   }
 
   function closeActiveTab() {
-    if (activePath) closeTab(activePath);
+    if (activeTabType === "chat") {
+      closeTab("chat:" + activeChatThreadId);
+    } else if (activePath) {
+      closeTab(activePath);
+    }
   }
 
   // Save File (Ctrl+S)
@@ -908,20 +990,12 @@
     }
   }
 
-  // Chat & Multi-Thread Management (Claude style)
+  // Chat & Multi-Thread Management (Documents + Historial Panel)
   const btnNewChat = document.getElementById("btn-new-chat");
-  const btnChatHistory = document.getElementById("btn-chat-history");
-  const chatBadge = document.getElementById("chat-badge");
-  const chatThreadsDrawer = document.getElementById("chat-threads-drawer");
-  const btnCloseThreads = document.getElementById("btn-close-threads");
-  const chatThreadsList = document.getElementById("chat-threads-list");
-  const currentChatTitle = document.getElementById("current-chat-title");
-  const btnDeleteCurrentChat = document.getElementById("btn-delete-current-chat");
   const agentThinkingPill = document.getElementById("agent-thinking-pill");
   const agentStatusLabel = document.getElementById("agent-status-label");
 
   let chatThreads = [];
-  let activeThreadId = null;
 
   function loadChatThreads() {
     try {
@@ -939,31 +1013,24 @@
         messages: [],
       };
       chatThreads = [initialThread];
-      activeThreadId = initialThread.id;
+      activeChatThreadId = initialThread.id;
       saveChatThreads();
     } else {
-      activeThreadId = chatThreads[0].id;
+      activeChatThreadId = chatThreads[0].id;
     }
-    updateChatHeaderUI();
-    renderCurrentThreadMessages();
+    renderChatSidebar();
+    openChatTab(activeChatThreadId);
   }
 
   function saveChatThreads() {
     try {
       localStorage.setItem("fh_chat_threads", JSON.stringify(chatThreads));
     } catch (e) {}
-    updateChatHeaderUI();
+    renderChatSidebar();
   }
 
   function getActiveThread() {
-    return chatThreads.find((t) => t.id === activeThreadId) || chatThreads[0];
-  }
-
-  function updateChatHeaderUI() {
-    const thread = getActiveThread();
-    if (chatBadge) chatBadge.textContent = chatThreads.length;
-    if (currentChatTitle && thread) currentChatTitle.textContent = thread.title || "Nuevo chat";
-    renderThreadsList();
+    return chatThreads.find((t) => t.id === activeChatThreadId) || chatThreads[0];
   }
 
   function formatRelativeTime(ts) {
@@ -976,42 +1043,78 @@
     return new Date(ts).toLocaleDateString([], { month: "short", day: "numeric" });
   }
 
-  function renderThreadsList() {
-    if (!chatThreadsList) return;
-    chatThreadsList.innerHTML = "";
-    chatThreads.forEach((thread) => {
+  function renderChatSidebar() {
+    if (!chatSidebarList) return;
+    chatSidebarList.innerHTML = "";
+
+    const query = (chatSearchInput ? chatSearchInput.value : "").trim().toLowerCase();
+    const filtered = (chatThreads || []).filter((t) => {
+      if (!query) return true;
+      if ((t.title || "").toLowerCase().includes(query)) return true;
+      return (t.messages || []).some((m) => (m.text || "").toLowerCase().includes(query));
+    });
+
+    if (filtered.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "chat-sidebar-empty";
+      empty.textContent = query ? "No hay resultados para la búsqueda." : "No hay conversaciones previas.";
+      chatSidebarList.appendChild(empty);
+      return;
+    }
+
+    filtered.forEach((thread) => {
       const item = document.createElement("div");
-      item.className = "thread-item" + (thread.id === activeThreadId ? " active" : "");
+      const isItemActive = (activeTabType === "chat" && activeChatThreadId === thread.id);
+      item.className = "chat-history-item" + (isItemActive ? " active" : "");
 
-      const info = document.createElement("div");
-      info.className = "thread-info";
+      const main = document.createElement("div");
+      main.className = "chat-item-main";
+
       const title = document.createElement("span");
-      title.className = "thread-title";
+      title.className = "chat-item-title";
       title.textContent = thread.title || "Nuevo chat";
-      const date = document.createElement("span");
-      date.className = "thread-date";
-      date.textContent = `${thread.messages.length} msgs · ${formatRelativeTime(thread.updatedAt || thread.createdAt)}`;
-      info.appendChild(title);
-      info.appendChild(date);
+      title.title = thread.title;
 
-      item.appendChild(info);
+      const meta = document.createElement("span");
+      meta.className = "chat-item-meta";
+      meta.textContent = `${thread.messages ? thread.messages.length : 0} msgs · ${formatRelativeTime(thread.updatedAt || thread.createdAt || Date.now())}`;
 
+      main.appendChild(title);
+      main.appendChild(meta);
+      item.appendChild(main);
+
+      const actions = document.createElement("div");
+      actions.className = "chat-item-actions";
+
+      // Edit title button (✏️)
+      const editBtn = document.createElement("button");
+      editBtn.className = "chat-item-btn";
+      editBtn.textContent = "✏️";
+      editBtn.title = "Renombrar conversación";
+      editBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        renameThread(thread.id);
+      });
+      actions.appendChild(editBtn);
+
+      // Delete button (🗑)
       const delBtn = document.createElement("button");
-      delBtn.className = "thread-del-btn";
-      delBtn.textContent = "✕";
+      delBtn.className = "chat-item-btn btn-del";
+      delBtn.textContent = "🗑";
       delBtn.title = "Eliminar conversación";
       delBtn.addEventListener("click", (ev) => {
         ev.stopPropagation();
         deleteThread(thread.id);
       });
-      item.appendChild(delBtn);
+      actions.appendChild(delBtn);
+
+      item.appendChild(actions);
 
       item.addEventListener("click", () => {
-        switchThread(thread.id);
-        if (chatThreadsDrawer) chatThreadsDrawer.style.display = "none";
+        openChatTab(thread.id);
       });
 
-      chatThreadsList.appendChild(item);
+      chatSidebarList.appendChild(item);
     });
   }
 
@@ -1024,72 +1127,71 @@
       messages: [],
     };
     chatThreads.unshift(newThread);
-    activeThreadId = newThread.id;
     saveChatThreads();
-    renderCurrentThreadMessages();
-    if (chatThreadsDrawer) chatThreadsDrawer.style.display = "none";
-    inputEl.focus();
+    openChatTab(newThread.id);
   }
 
-  function switchThread(threadId) {
-    if (activeThreadId === threadId) return;
-    activeThreadId = threadId;
-    saveChatThreads();
-    renderCurrentThreadMessages();
+  function renameThread(threadId) {
+    const thread = chatThreads.find((t) => t.id === threadId);
+    if (!thread) return;
+    const newName = prompt("Nuevo nombre para esta conversación:", thread.title);
+    if (newName && newName.trim()) {
+      thread.title = newName.trim();
+      const tab = openTabs.find((t) => t.type === "chat" && t.threadId === threadId);
+      if (tab) tab.title = thread.title;
+      if (activeChatThreadId === threadId && chatDocTitle) {
+        chatDocTitle.textContent = thread.title;
+      }
+      saveChatThreads();
+      renderTabs();
+      renderChatSidebar();
+    }
   }
 
   function deleteThread(threadId) {
-    if (chatThreads.length <= 1) {
-      chatThreads[0].messages = [];
-      chatThreads[0].title = "Nuevo chat";
-      chatThreads[0].updatedAt = Date.now();
-      saveChatThreads();
-      renderCurrentThreadMessages();
-      return;
-    }
+    if (!confirm("¿Deseas eliminar esta conversación de forma permanente?")) return;
     const idx = chatThreads.findIndex((t) => t.id === threadId);
-    if (idx !== -1) {
-      chatThreads.splice(idx, 1);
-      if (activeThreadId === threadId) {
-        activeThreadId = chatThreads[0].id;
+    if (idx === -1) return;
+    chatThreads.splice(idx, 1);
+
+    // Close any open tab for this conversation
+    const tabIdx = openTabs.findIndex((t) => t.type === "chat" && t.threadId === threadId);
+    if (tabIdx !== -1) {
+      closeTab(openTabs[tabIdx].id);
+    }
+
+    if (chatThreads.length === 0) {
+      createNewChat();
+    } else {
+      if (activeChatThreadId === threadId) {
+        activeChatThreadId = chatThreads[0].id;
       }
       saveChatThreads();
-      renderCurrentThreadMessages();
+      renderChatSidebar();
     }
   }
 
   if (btnNewChat) btnNewChat.addEventListener("click", createNewChat);
 
-  if (btnChatHistory && chatThreadsDrawer) {
-    btnChatHistory.addEventListener("click", () => {
-      const isVisible = chatThreadsDrawer.style.display === "flex";
-      chatThreadsDrawer.style.display = isVisible ? "none" : "flex";
-      if (!isVisible) renderThreadsList();
+  if (chatSearchInput) {
+    chatSearchInput.addEventListener("input", renderChatSidebar);
+  }
+
+  if (btnRenameChatDoc) {
+    btnRenameChatDoc.addEventListener("click", () => {
+      renameThread(activeChatThreadId);
     });
   }
 
-  if (btnCloseThreads && chatThreadsDrawer) {
-    btnCloseThreads.addEventListener("click", () => {
-      chatThreadsDrawer.style.display = "none";
+  if (btnDeleteChatDoc) {
+    btnDeleteChatDoc.addEventListener("click", () => {
+      deleteThread(activeChatThreadId);
     });
   }
 
-  if (btnDeleteCurrentChat) {
-    btnDeleteCurrentChat.addEventListener("click", () => {
-      if (confirm("¿Deseas eliminar este chat?")) {
-        deleteThread(activeThreadId);
-      }
-    });
-  }
-
-  if (currentChatTitle) {
-    currentChatTitle.addEventListener("dblclick", () => {
-      const thread = getActiveThread();
-      const newTitle = prompt("Nuevo nombre para este chat:", thread.title);
-      if (newTitle && newTitle.trim()) {
-        thread.title = newTitle.trim();
-        saveChatThreads();
-      }
+  if (chatDocTitle) {
+    chatDocTitle.addEventListener("dblclick", () => {
+      renameThread(activeChatThreadId);
     });
   }
 
@@ -1193,6 +1295,10 @@
     const thread = getActiveThread();
     if (thread.title === "Nuevo chat" || !thread.title) {
       thread.title = text.length > 32 ? text.slice(0, 32) + "…" : text;
+      const tab = openTabs.find((t) => t.type === "chat" && t.threadId === thread.id);
+      if (tab) tab.title = thread.title;
+      if (chatDocTitle) chatDocTitle.textContent = thread.title;
+      renderTabs();
     }
     thread.messages.push({ role: "user", text, timestamp: Date.now() });
     thread.updatedAt = Date.now();
@@ -1238,7 +1344,7 @@
       }
     }
     const activeContent = (editor && activePath) ? editor.getValue() : undefined;
-    const openFileList = openTabs.map((t) => t.path);
+    const openFileList = openTabs.filter((t) => t.type !== "chat" && t.path).map((t) => t.path);
 
     try {
       const res = await fetch("/api/chat", {
