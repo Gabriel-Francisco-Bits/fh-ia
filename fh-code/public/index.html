@@ -4,11 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>fh-code</title>
+  <link rel="icon" type="image/png" href="/static/logo.png" />
+  <link rel="shortcut icon" href="/static/logo.png" />
+  <link rel="apple-touch-icon" href="/static/logo.png" />
   <link rel="stylesheet" href="/static/app.css" />
 </head>
 <body>
   <header class="titlebar">
-    <span class="brand">fh-code</span>
+    <span class="brand"><img src="/static/logo.png" alt="FH Logo" class="brand-logo" />fh-code</span>
     <button id="btn-open-folder" class="tb-btn" title="Abrir carpeta en el workspace">📁 Abrir carpeta</button>
     <button id="btn-quick-open" class="tb-btn" title="Abrir archivo rápidamente (Ctrl+P)">🔍 Buscar archivo (Ctrl+P)</button>
     <button id="btn-cmd-palette" class="tb-btn" title="Paleta de comandos (Ctrl+Shift+P)">⌘ Comandos</button>
@@ -96,7 +99,35 @@
 
       <aside class="chat">
         <div class="chat-head">
-          <strong>fh-ia</strong>
+          <div class="chat-title-row">
+            <div class="chat-brand-wrap">
+              <strong>fh-ia</strong>
+              <div id="agent-thinking-pill" class="agent-thinking-pill" style="display: none;">
+                <span class="pulsing-orbit"></span>
+                <span id="agent-status-label">Procesando…</span>
+              </div>
+            </div>
+            <div class="chat-head-actions">
+              <button id="btn-chat-history" class="chat-action-btn chat-hist-btn" title="Historial de conversaciones">💬 Chats (<span id="chat-badge">1</span>)</button>
+              <button id="btn-new-chat" class="chat-action-btn chat-new-btn" title="Iniciar nuevo chat (Ctrl+L)">+ Nuevo chat</button>
+            </div>
+          </div>
+
+          <!-- Chat Threads Drawer (Claude style) -->
+          <div id="chat-threads-drawer" class="chat-threads-drawer" style="display: none;">
+            <div class="threads-drawer-header">
+              <span>Historial de chats</span>
+              <button id="btn-close-threads" class="threads-close-btn" title="Cerrar">✕</button>
+            </div>
+            <div id="chat-threads-list" class="chat-threads-list"></div>
+          </div>
+
+          <!-- Current Chat Strip -->
+          <div class="current-chat-strip">
+            <span class="chat-thread-icon">✦</span>
+            <span id="current-chat-title" class="current-chat-title" title="Doble clic para renombrar">Nuevo chat</span>
+            <button id="btn-delete-current-chat" class="chat-del-btn" title="Eliminar conversación actual">🗑</button>
+          </div>
           <div class="row">
             <label>IA
               <select id="provider">

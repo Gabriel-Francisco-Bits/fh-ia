@@ -119,13 +119,27 @@ function sessionFor(id, provider, model) {
 
 function editorPort(rec) {
   const port = { workspaceRoot: WORKSPACE };
+  if (Array.isArray(rec.openFiles)) {
+    port.openFiles = rec.openFiles;
+  }
   if (rec.activePath) {
-    try {
-      const abs = safeResolve(WORKSPACE, rec.activePath);
-      const content = fssync.readFileSync(abs, "utf8");
-      port.activeFile = { path: rec.activePath, content };
-    } catch {
-      // ignore
+    let content = rec.activeContent;
+    if (typeof content !== "string") {
+      try {
+        const abs = safeResolve(WORKSPACE, rec.activePath);
+        content = fssync.readFileSync(abs, "utf8");
+      } catch {
+        content = "";
+      }
+    }
+    port.activeFile = { path: rec.activePath, content };
+    if (rec.selection && rec.selection.text) {
+      port.selection = {
+        path: rec.activePath,
+        text: rec.selection.text,
+        startLine: rec.selection.startLine || 1,
+        endLine: rec.selection.endLine || 1,
+      };
     }
   }
   return port;
@@ -504,6 +518,9 @@ const server = http.createServer(async (req, res) => {
       const id = String(body.sessionId || "default");
       const rec = sessionFor(id, body.provider, body.model);
       rec.activePath = String(body.activePath || rec.activePath || "");
+      rec.activeContent = typeof body.activeContent === "string" ? body.activeContent : undefined;
+      rec.selection = body.selection;
+      rec.openFiles = Array.isArray(body.openFiles) ? body.openFiles : [];
       const mode = isAgentMode(String(body.mode || "ask")) ? body.mode : "ask";
       rec.dispatcher.setSelected(isProviderId(body.provider) ? body.provider : rec.dispatcher.getSelected());
       res.writeHead(200, {
@@ -518,10 +535,29 @@ const server = http.createServer(async (req, res) => {
           if (ev.type === "status") send({ type: "status", text: ev.text });
           if (ev.type === "error") send({ type: "error", message: ev.error });
         }, mode);
-        send({ type: "done", text: result.text, provider: result.provider, edits: result.edits, plannedEdits: result.plannedEdits });
+
+        // In autonomous mode, automatically apply proposed edits to disk!
+        if (mode === "autonomous" && result.edits && result.edits.length > 0) {
+          for (const edit of result.edits) {
+            try {
+              await acceptEdit(edit, filesPort);
+            } catch (err) {
+              console.error("Auto accept failed:", err);
+            }
+          }
+        }
+
+        send({
+          type: "done",
+          text: result.text,
+          provider: result.provider,
+          mode,
+          edits: result.edits,
+          plannedEdits: result.plannedEdits,
+        });
       } catch (err) {
         send({ type: "error", message: err instanceof Error ? err.message : String(err) });
-        send({ type: "done", text: "", provider: rec.dispatcher.getSelected(), edits: [] });
+        send({ type: "done", text: "", provider: rec.dispatcher.getSelected(), edits: [], mode });
       }
       res.end();
       return;

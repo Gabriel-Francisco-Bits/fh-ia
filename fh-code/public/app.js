@@ -908,7 +908,191 @@
     }
   }
 
-  // Chat Section
+  // Chat & Multi-Thread Management (Claude style)
+  const btnNewChat = document.getElementById("btn-new-chat");
+  const btnChatHistory = document.getElementById("btn-chat-history");
+  const chatBadge = document.getElementById("chat-badge");
+  const chatThreadsDrawer = document.getElementById("chat-threads-drawer");
+  const btnCloseThreads = document.getElementById("btn-close-threads");
+  const chatThreadsList = document.getElementById("chat-threads-list");
+  const currentChatTitle = document.getElementById("current-chat-title");
+  const btnDeleteCurrentChat = document.getElementById("btn-delete-current-chat");
+  const agentThinkingPill = document.getElementById("agent-thinking-pill");
+  const agentStatusLabel = document.getElementById("agent-status-label");
+
+  let chatThreads = [];
+  let activeThreadId = null;
+
+  function loadChatThreads() {
+    try {
+      const raw = localStorage.getItem("fh_chat_threads");
+      if (raw) chatThreads = JSON.parse(raw);
+    } catch (e) {
+      chatThreads = [];
+    }
+    if (!Array.isArray(chatThreads) || chatThreads.length === 0) {
+      const initialThread = {
+        id: "thread-" + Date.now(),
+        title: "Nuevo chat",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        messages: [],
+      };
+      chatThreads = [initialThread];
+      activeThreadId = initialThread.id;
+      saveChatThreads();
+    } else {
+      activeThreadId = chatThreads[0].id;
+    }
+    updateChatHeaderUI();
+    renderCurrentThreadMessages();
+  }
+
+  function saveChatThreads() {
+    try {
+      localStorage.setItem("fh_chat_threads", JSON.stringify(chatThreads));
+    } catch (e) {}
+    updateChatHeaderUI();
+  }
+
+  function getActiveThread() {
+    return chatThreads.find((t) => t.id === activeThreadId) || chatThreads[0];
+  }
+
+  function updateChatHeaderUI() {
+    const thread = getActiveThread();
+    if (chatBadge) chatBadge.textContent = chatThreads.length;
+    if (currentChatTitle && thread) currentChatTitle.textContent = thread.title || "Nuevo chat";
+    renderThreadsList();
+  }
+
+  function formatRelativeTime(ts) {
+    const diffSec = Math.floor((Date.now() - ts) / 1000);
+    if (diffSec < 60) return "Ahora";
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `Hace ${diffMin}m`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `Hace ${diffHr}h`;
+    return new Date(ts).toLocaleDateString([], { month: "short", day: "numeric" });
+  }
+
+  function renderThreadsList() {
+    if (!chatThreadsList) return;
+    chatThreadsList.innerHTML = "";
+    chatThreads.forEach((thread) => {
+      const item = document.createElement("div");
+      item.className = "thread-item" + (thread.id === activeThreadId ? " active" : "");
+
+      const info = document.createElement("div");
+      info.className = "thread-info";
+      const title = document.createElement("span");
+      title.className = "thread-title";
+      title.textContent = thread.title || "Nuevo chat";
+      const date = document.createElement("span");
+      date.className = "thread-date";
+      date.textContent = `${thread.messages.length} msgs · ${formatRelativeTime(thread.updatedAt || thread.createdAt)}`;
+      info.appendChild(title);
+      info.appendChild(date);
+
+      item.appendChild(info);
+
+      const delBtn = document.createElement("button");
+      delBtn.className = "thread-del-btn";
+      delBtn.textContent = "✕";
+      delBtn.title = "Eliminar conversación";
+      delBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        deleteThread(thread.id);
+      });
+      item.appendChild(delBtn);
+
+      item.addEventListener("click", () => {
+        switchThread(thread.id);
+        if (chatThreadsDrawer) chatThreadsDrawer.style.display = "none";
+      });
+
+      chatThreadsList.appendChild(item);
+    });
+  }
+
+  function createNewChat() {
+    const newThread = {
+      id: "thread-" + Date.now(),
+      title: "Nuevo chat",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      messages: [],
+    };
+    chatThreads.unshift(newThread);
+    activeThreadId = newThread.id;
+    saveChatThreads();
+    renderCurrentThreadMessages();
+    if (chatThreadsDrawer) chatThreadsDrawer.style.display = "none";
+    inputEl.focus();
+  }
+
+  function switchThread(threadId) {
+    if (activeThreadId === threadId) return;
+    activeThreadId = threadId;
+    saveChatThreads();
+    renderCurrentThreadMessages();
+  }
+
+  function deleteThread(threadId) {
+    if (chatThreads.length <= 1) {
+      chatThreads[0].messages = [];
+      chatThreads[0].title = "Nuevo chat";
+      chatThreads[0].updatedAt = Date.now();
+      saveChatThreads();
+      renderCurrentThreadMessages();
+      return;
+    }
+    const idx = chatThreads.findIndex((t) => t.id === threadId);
+    if (idx !== -1) {
+      chatThreads.splice(idx, 1);
+      if (activeThreadId === threadId) {
+        activeThreadId = chatThreads[0].id;
+      }
+      saveChatThreads();
+      renderCurrentThreadMessages();
+    }
+  }
+
+  if (btnNewChat) btnNewChat.addEventListener("click", createNewChat);
+
+  if (btnChatHistory && chatThreadsDrawer) {
+    btnChatHistory.addEventListener("click", () => {
+      const isVisible = chatThreadsDrawer.style.display === "flex";
+      chatThreadsDrawer.style.display = isVisible ? "none" : "flex";
+      if (!isVisible) renderThreadsList();
+    });
+  }
+
+  if (btnCloseThreads && chatThreadsDrawer) {
+    btnCloseThreads.addEventListener("click", () => {
+      chatThreadsDrawer.style.display = "none";
+    });
+  }
+
+  if (btnDeleteCurrentChat) {
+    btnDeleteCurrentChat.addEventListener("click", () => {
+      if (confirm("¿Deseas eliminar este chat?")) {
+        deleteThread(activeThreadId);
+      }
+    });
+  }
+
+  if (currentChatTitle) {
+    currentChatTitle.addEventListener("dblclick", () => {
+      const thread = getActiveThread();
+      const newTitle = prompt("Nuevo nombre para este chat:", thread.title);
+      if (newTitle && newTitle.trim()) {
+        thread.title = newTitle.trim();
+        saveChatThreads();
+      }
+    });
+  }
+
   function append(role, text) {
     const div = document.createElement("div");
     div.className = "msg " + role;
@@ -918,66 +1102,233 @@
     return div;
   }
 
+  function renderEditsUI(edits, mode) {
+    if (!edits || edits.length === 0) return;
+    if (mode === "autonomous") {
+      for (const edit of edits) {
+        const wrap = append("system", "✓ Aplicado automáticamente en " + edit.path);
+        const viewBtn = document.createElement("button");
+        viewBtn.textContent = "Abrir archivo";
+        viewBtn.style.marginLeft = "8px";
+        viewBtn.style.cursor = "pointer";
+        viewBtn.addEventListener("click", () => openFile(edit.path));
+        wrap.appendChild(viewBtn);
+      }
+    } else {
+      edits.forEach((edit) => {
+        const wrap = append("system", "Edición propuesta: " + edit.path);
+        const diffBtn = document.createElement("button");
+        diffBtn.textContent = "Ver Diff";
+        diffBtn.style.marginLeft = "8px";
+        diffBtn.style.cursor = "pointer";
+        diffBtn.addEventListener("click", () => {
+          if (edit.diff && edit.diff.unified) {
+            openDiffView(edit.path, edit.diff.unified);
+          } else {
+            openFile(edit.path);
+          }
+        });
+        wrap.appendChild(diffBtn);
+
+        const ok = document.createElement("button");
+        ok.textContent = "Accept";
+        ok.style.marginLeft = "6px";
+        ok.style.cursor = "pointer";
+        ok.addEventListener("click", async () => {
+          await fetch("/api/edit/accept", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ edit }),
+          });
+          wrap.textContent = "✓ Aplicado " + edit.path;
+          if (activePath !== edit.path) {
+            await openFile(edit.path);
+          } else {
+            await reloadBufferIfOpen(edit.path);
+          }
+        });
+        wrap.appendChild(ok);
+
+        const rejectBtn = document.createElement("button");
+        rejectBtn.textContent = "Reject";
+        rejectBtn.style.marginLeft = "6px";
+        rejectBtn.style.cursor = "pointer";
+        rejectBtn.addEventListener("click", () => {
+          wrap.textContent = "✕ Rechazado " + edit.path;
+        });
+        wrap.appendChild(rejectBtn);
+      });
+    }
+  }
+
+  function renderCurrentThreadMessages() {
+    messagesEl.innerHTML = "";
+    const thread = getActiveThread();
+    if (!thread || !thread.messages || thread.messages.length === 0) {
+      append("system", "✦ Nuevo chat iniciado. ¿En qué te puedo ayudar hoy?");
+      return;
+    }
+    for (const m of thread.messages) {
+      if (m.role === "user") {
+        append("user", m.text);
+      } else if (m.role === "assistant") {
+        append("assistant", m.text);
+        if (m.edits && m.edits.length > 0) {
+          renderEditsUI(m.edits, m.mode);
+        }
+      } else if (m.role === "system") {
+        append("system", m.text);
+      } else if (m.role === "error") {
+        append("error", m.text);
+      }
+    }
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
   async function send() {
     const text = String(inputEl.value || "").trim();
     if (!text || streaming) return;
     inputEl.value = "";
+
+    const thread = getActiveThread();
+    if (thread.title === "Nuevo chat" || !thread.title) {
+      thread.title = text.length > 32 ? text.slice(0, 32) + "…" : text;
+    }
+    thread.messages.push({ role: "user", text, timestamp: Date.now() });
+    thread.updatedAt = Date.now();
+    saveChatThreads();
+
     append("user", text);
+
+    // Visual feedback: Thinking pill in header & animated thinking card
+    if (agentThinkingPill) {
+      agentThinkingPill.style.display = "inline-flex";
+      if (agentStatusLabel) agentStatusLabel.textContent = "Pensando…";
+    }
+
+    const thinkingNode = document.createElement("div");
+    thinkingNode.className = "thinking-card";
+    thinkingNode.innerHTML = `
+      <div class="thinking-card-header">
+        <span>✦ fh-ia está procesando</span>
+        <span class="typing-dots"><span></span><span></span><span></span></span>
+      </div>
+      <div class="thinking-detail">Analizando contexto y código del workspace…</div>
+    `;
+    messagesEl.appendChild(thinkingNode);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+
     const node = append("assistant", "");
+    node.style.display = "none";
     streaming = true;
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        sessionId: "main",
-        text,
-        provider: providerEl.value,
-        model: modelEl.value,
-        mode: modeEl.value,
-        activePath,
-      }),
-    });
-    const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    let buf = "";
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      const parts = buf.split("\n\n");
-      buf = parts.pop() || "";
-      for (const part of parts) {
-        const line = part.split("\n").find((l) => l.startsWith("data: "));
-        if (!line) continue;
-        const msg = JSON.parse(line.slice(6));
-        if (msg.type === "delta") node.textContent += msg.text || "";
-        else if (msg.type === "status") append("system", msg.text || "");
-        else if (msg.type === "error") append("error", msg.message || "Error");
-        else if (msg.type === "done") {
-          if (msg.text) node.textContent = msg.text;
-          (msg.edits || []).forEach((edit) => {
-            const wrap = append("system", "Edición: " + edit.path);
-            const ok = document.createElement("button");
-            ok.textContent = "Accept";
-            ok.style.marginLeft = "8px";
-            ok.style.cursor = "pointer";
-            ok.addEventListener("click", async () => {
-              await fetch("/api/edit/accept", {
-                method: "POST",
-                headers: { "content-type": "application/json" },
-                body: JSON.stringify({ edit }),
-              });
-              wrap.textContent = "Aplicado " + edit.path;
-              // Reload buffer in Monaco if file is open (Issue #9 & #13)
-              await reloadBufferIfOpen(edit.path);
-            });
-            wrap.appendChild(ok);
-          });
-        }
-        messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    let assistantText = "";
+    let finalEdits = [];
+    let finalMode = modeEl.value;
+
+    let selection = undefined;
+    if (editor && activePath) {
+      const sel = editor.getSelection();
+      if (sel && !sel.isEmpty()) {
+        selection = {
+          text: editor.getModel().getValueInRange(sel),
+          startLine: sel.startLineNumber,
+          endLine: sel.endLineNumber,
+        };
       }
     }
-    streaming = false;
+    const activeContent = (editor && activePath) ? editor.getValue() : undefined;
+    const openFileList = openTabs.map((t) => t.path);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          sessionId: thread.id,
+          text,
+          provider: providerEl.value,
+          model: modelEl.value,
+          mode: modeEl.value,
+          activePath,
+          activeContent,
+          selection,
+          openFiles: openFileList,
+        }),
+      });
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const parts = buf.split("\n\n");
+        buf = parts.pop() || "";
+        for (const part of parts) {
+          const line = part.split("\n").find((l) => l.startsWith("data: "));
+          if (!line) continue;
+          const msg = JSON.parse(line.slice(6));
+          if (msg.type === "delta") {
+            if (thinkingNode.parentNode) thinkingNode.remove();
+            node.style.display = "";
+            node.textContent += msg.text || "";
+            assistantText += msg.text || "";
+            if (agentStatusLabel) agentStatusLabel.textContent = "Generando respuesta…";
+          }
+          else if (msg.type === "status") {
+            if (agentStatusLabel) agentStatusLabel.textContent = msg.text || "Trabajando…";
+            append("system", msg.text || "");
+          }
+          else if (msg.type === "error") {
+            if (thinkingNode.parentNode) thinkingNode.remove();
+            append("error", msg.message || "Error");
+            thread.messages.push({ role: "error", text: msg.message || "Error", timestamp: Date.now() });
+            saveChatThreads();
+          }
+          else if (msg.type === "done") {
+            if (thinkingNode.parentNode) thinkingNode.remove();
+            node.style.display = "";
+            if (msg.text) {
+              node.textContent = msg.text;
+              assistantText = msg.text;
+            }
+            finalEdits = msg.edits || [];
+            finalMode = msg.mode || modeEl.value;
+
+            // Save assistant message to persistent thread
+            thread.messages.push({
+              role: "assistant",
+              text: assistantText,
+              edits: finalEdits,
+              mode: finalMode,
+              timestamp: Date.now(),
+            });
+            thread.updatedAt = Date.now();
+            saveChatThreads();
+
+            // Render edit action buttons and handle autonomous reloading
+            renderEditsUI(finalEdits, finalMode);
+
+            if (finalMode === "autonomous" && finalEdits.length > 0) {
+              for (const edit of finalEdits) {
+                await reloadBufferIfOpen(edit.path);
+              }
+            }
+          }
+          messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+      }
+    } catch (err) {
+      append("error", "Error de conexión: " + (err.message || err));
+      thread.messages.push({ role: "error", text: "Error de conexión: " + (err.message || err), timestamp: Date.now() });
+      saveChatThreads();
+    } finally {
+      if (thinkingNode.parentNode) thinkingNode.remove();
+      node.style.display = "";
+      if (agentThinkingPill) agentThinkingPill.style.display = "none";
+      streaming = false;
+    }
   }
 
   // Event Listeners
@@ -996,6 +1347,12 @@
     if ((ev.ctrlKey || ev.metaKey) && ev.key === "s") {
       ev.preventDefault();
       save();
+      return;
+    }
+    // Ctrl+L / Cmd+L: Focus chat input
+    if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && (ev.key === "l" || ev.key === "L")) {
+      ev.preventDefault();
+      inputEl.focus();
       return;
     }
     // Ctrl+P / Cmd+P: Quick Open Files
@@ -1057,6 +1414,7 @@
   actGit.addEventListener("click", () => openBottomPanel("git"));
   actTerminal.addEventListener("click", () => openBottomPanel("terminal"));
   actSettings.addEventListener("click", showSettingsModal);
+  if (actChat) actChat.addEventListener("click", () => inputEl.focus());
 
   // Search input
   searchInput.addEventListener("keydown", (ev) => {
@@ -1204,5 +1562,6 @@
     });
 
     loadMeta();
+    loadChatThreads();
   });
 })();
