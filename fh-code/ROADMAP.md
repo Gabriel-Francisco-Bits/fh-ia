@@ -58,3 +58,9 @@ App de escritorio tipo Cursor con Monaco Editor (VS Code engine) + servidor loca
 11. **Reglas de Proyecto Jerárquicas ([#20](https://github.com/Gabriel-Francisco-Bits/fh-ia/issues/20))**:
     - Detección y lectura automática de reglas del espacio de trabajo (`.cursorrules`, `.fhrules`, `rules.md`, `AGENTS.md`) y globales (`~/.config/fh-code/rules.md`).
     - Inyección prioritaria de instrucciones en el prompt del sistema y endpoint `/api/rules`.
+
+12. **Iconografía y Estética Idéntica a Cursor / VS Code**:
+    - Reemplazo integral de emojis por iconos vectoriales SVG nativos y nítidos: barra de actividad (`files`, `search`, `source-control`, `terminal`, `settings`, `sparkle` de Cursor).
+    - Conjunto de iconos por tipo de archivo (`TS`, `JS`, `JSON`, `Markdown`, `HTML`, `CSS`, `Python`, `Git`, `Shell`, etc.) y carpetas vectoriales dinámicas con estado abierto/cerrado y rotación suave de chevrons.
+    - Pestañas con borde superior de acento activo (`#3b82f6`), botón de cierre `✕` SVG y sincronización de icono según el contenido.
+    - Barra de actividad con indicador lateral vertical y paleta oscura Cursor Dark (`#141416` / `#18181b` / `#1e1e20`).
