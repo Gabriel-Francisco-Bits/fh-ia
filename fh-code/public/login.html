@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Iniciar Sesión — fh-code</title>
+  <link rel="icon" type="image/png" href="/static/logo.png" />
+  <link rel="shortcut icon" href="/static/logo.png" />
+  <link rel="stylesheet" href="/static/app.css" />
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at top center, #1e1b4b 0%, #0d0e15 60%, #08080d 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      color: #e2e8f0;
+    }
+
+    .login-container {
+      width: 100%;
+      max-width: 420px;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .login-card {
+      background: rgba(22, 24, 34, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 36px 32px;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(124, 131, 255, 0.15);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      animation: fadeIn 0.4s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .login-brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 12px;
+    }
+
+    .login-logo {
+      width: 64px;
+      height: 64px;
+      border-radius: 14px;
+      object-fit: cover;
+      box-shadow: 0 8px 24px rgba(124, 131, 255, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .login-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #ffffff;
+      margin: 0;
+      letter-spacing: -0.3px;
+    }
+
+    .login-subtitle {
+      font-size: 13px;
+      color: #94a3b8;
+      margin: 0;
+      line-height: 1.4;
+    }
+
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-top: 6px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #cbd5e1;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .form-input {
+      width: 100%;
+      box-sizing: border-box;
+      background: rgba(15, 17, 26, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 14px;
+      color: #ffffff;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .form-input:focus {
+      border-color: #7c83ff;
+      box-shadow: 0 0 0 3px rgba(124, 131, 255, 0.2);
+    }
+
+    .btn-peek {
+      position: absolute;
+      right: 10px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #94a3b8;
+      font-size: 16px;
+      padding: 4px;
+      line-height: 1;
+    }
+
+    .btn-peek:hover {
+      color: #ffffff;
+    }
+
+    .btn-submit {
+      margin-top: 8px;
+      background: linear-gradient(135deg, #7c83ff 0%, #6366f1 100%);
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      padding: 13px;
+      font-size: 14.5px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(99, 102, 241, 0.35);
+      transition: all 0.18s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-submit:hover:not(:disabled) {
+      background: linear-gradient(135deg, #8f95ff 0%, #7579f6 100%);
+      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    .error-box {
+      display: none;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      line-height: 1.4;
+      animation: shake 0.3s ease-in-out;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-4px); }
+      40%, 80% { transform: translateX(4px); }
+    }
+
+    .login-footer {
+      text-align: center;
+      font-size: 11.5px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-brand">
+        <img src="/static/logo.png" alt="FH" class="login-logo" onerror="this.src='/static/logo.png'" />
+        <h1 class="login-title">fh-code</h1>
+        <p class="login-subtitle">Acceso seguro con tu usuario de la PC</p>
+      </div>
+
+      <div id="error-box" class="error-box"></div>
+
+      <form id="login-form" class="login-form">
+        <div class="form-group">
+          <label class="form-label" for="username">Usuario de la PC</label>
+          <div class="input-wrap">
+            <input type="text" id="username" class="form-input" placeholder="Usuario" required autocomplete="username" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Contraseña de la PC</label>
+          <div class="input-wrap">
+            <input type="password" id="password" class="form-input" placeholder="Contraseña del sistema" required autocomplete="current-password" />
+            <button type="button" id="btn-toggle-peek" class="btn-peek" title="Mostrar/ocultar contraseña">👁</button>
+          </div>
+        </div>
+
+        <button type="submit" id="btn-submit" class="btn-submit">
+          <span class="spinner" id="btn-spinner"></span>
+          <span id="btn-text">Iniciar sesión con contraseña</span>
+        </button>
+
+        <div style="display: flex; align-items: center; gap: 8px; margin: 4px 0;">
+          <div style="flex:1; height:1px; background: rgba(255,255,255,0.1);"></div>
+          <span style="font-size: 11px; color: #64748b; text-transform: uppercase;">o también</span>
+          <div style="flex:1; height:1px; background: rgba(255,255,255,0.1);"></div>
+        </div>
+
+        <button type="button" id="btn-quick-login" class="btn-submit" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); box-shadow: none;">
+          ⚡ Acceso Directo Local (Usuario PC)
+        </button>
+      </form>
+
+      <div class="login-footer">
+        Protegido por autenticación nativa del sistema Linux (PAM / sudo).
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("login-form");
+    const usernameInput = document.getElementById("username");
+    const passwordInput = document.getElementById("password");
+    const peekBtn = document.getElementById("btn-toggle-peek");
+    const errorBox = document.getElementById("error-box");
+    const submitBtn = document.getElementById("btn-submit");
+    const btnText = document.getElementById("btn-text");
+    const btnSpinner = document.getElementById("btn-spinner");
+
+    // Auto-detect local connection or pre-fill default system username
+    fetch("/api/auth/me")
+      .then(res => res.json())
+      .then(async data => {
+        if (data.authenticated) {
+          window.location.href = "/";
+          return;
+        }
+        if (data.defaultUser) {
+          usernameInput.value = data.defaultUser;
+        }
+        // If local access from the PC itself, seamlessly authenticate
+        if (data.isLocal) {
+          try {
+            const lres = await fetch("/api/auth/local-login", { method: "POST" });
+            const ldata = await lres.json();
+            if (lres.ok && ldata.ok) {
+              window.location.href = "/";
+              return;
+            }
+          } catch {}
+          passwordInput.focus();
+        } else {
+          passwordInput.focus();
+        }
+      })
+      .catch(() => {});
+
+    peekBtn.addEventListener("click", () => {
+      const isPass = passwordInput.type === "password";
+      passwordInput.type = isPass ? "text" : "password";
+      peekBtn.textContent = isPass ? "🙈" : "👁";
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorBox.style.display = "none";
+      submitBtn.disabled = true;
+      btnSpinner.style.display = "inline-block";
+      btnText.textContent = "Verificando…";
+
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value;
+
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
+
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          window.location.href = "/";
+        } else {
+          errorBox.textContent = data.error || "Contraseña o usuario incorrecto. Inténtalo de nuevo.";
+          errorBox.style.display = "block";
+          passwordInput.value = "";
+          passwordInput.focus();
+        }
+      } catch (err) {
+        errorBox.textContent = "Error de conexión con el servidor.";
+        errorBox.style.display = "block";
+      } finally {
+        submitBtn.disabled = false;
+        btnSpinner.style.display = "none";
+        btnText.textContent = "Iniciar sesión con contraseña";
+      }
+    });
+
+    const quickLoginBtn = document.getElementById("btn-quick-login");
+    if (quickLoginBtn) {
+      quickLoginBtn.addEventListener("click", async () => {
+        quickLoginBtn.disabled = true;
+        quickLoginBtn.textContent = "Accediendo…";
+        try {
+          const res = await fetch("/api/auth/local-login", { method: "POST" });
+          const data = await res.json();
+          if (res.ok && data.ok) {
+            window.location.href = "/";
+          } else {
+            errorBox.textContent = data.error || "Acceso rápido no disponible en conexiones remotas.";
+            errorBox.style.display = "block";
+            quickLoginBtn.disabled = false;
+            quickLoginBtn.textContent = "⚡ Acceso Directo Local (Usuario PC)";
+          }
+        } catch {
+          errorBox.textContent = "Error de conexión.";
+          errorBox.style.display = "block";
+          quickLoginBtn.disabled = false;
+          quickLoginBtn.textContent = "⚡ Acceso Directo Local (Usuario PC)";
+        }
+      });
+    }
+  </script>
+</body>
+</html>

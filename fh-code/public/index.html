@@ -12,13 +12,15 @@
 <body>
   <header class="titlebar">
     <span class="brand"><img src="/static/logo.png" alt="FH Logo" class="brand-logo" />fh-code</span>
-    <button id="btn-open-folder" class="tb-btn" title="Abrir carpeta en el workspace">📁 Abrir carpeta</button>
-    <button id="btn-quick-open" class="tb-btn" title="Abrir archivo rápidamente (Ctrl+P)">🔍 Buscar archivo (Ctrl+P)</button>
-    <button id="btn-cmd-palette" class="tb-btn" title="Paleta de comandos (Ctrl+Shift+P)">⌘ Comandos</button>
+    <button id="btn-toggle-view" class="tb-btn tb-view-toggle" title="Alternar entre Modo IDE y Modo Claude Desktop">🔀 <span class="btn-text">Modo Claude</span></button>
+    <button id="btn-open-folder" class="tb-btn" title="Abrir carpeta en el workspace">📁 <span class="btn-text">Abrir carpeta</span></button>
+    <button id="btn-quick-open" class="tb-btn" title="Abrir archivo rápidamente (Ctrl+P)">🔍 <span class="btn-text">Buscar archivo (Ctrl+P)</span></button>
+    <button id="btn-cmd-palette" class="tb-btn" title="Paleta de comandos (Ctrl+Shift+P)">⌘ <span class="btn-text">Comandos</span></button>
     <span id="ws-name" class="ws" title="Ruta del workspace"></span>
     <div class="tb-actions">
-      <button id="btn-toggle-terminal" class="tb-btn" title="Alternar terminal integrada (Ctrl+`)">⌨ Terminal</button>
-      <button id="btn-open-settings" class="tb-btn" title="Ajustes de fh-code (Ctrl+,)">⚙ Ajustes</button>
+      <button id="btn-toggle-terminal" class="tb-btn" title="Alternar terminal integrada (Ctrl+`)">⌨ <span class="btn-text">Terminal</span></button>
+      <button id="btn-open-settings" class="tb-btn" title="Ajustes de fh-code (Ctrl+,)">⚙ <span class="btn-text">Ajustes</span></button>
+      <button id="btn-logout" class="tb-btn tb-logout" title="Cerrar sesión de la PC">🚪 <span class="btn-text">Salir</span></button>
       <span class="hint">Monaco · VS Code · fh-ia</span>
     </div>
   </header>
@@ -36,9 +38,12 @@
     <div class="shell">
       <aside class="files">
         <div class="pane-head">
-          <span id="sidebar-title" class="pane-label">Explorador</span>
+          <span id="sidebar-title" class="pane-label">EXPLORADOR</span>
           <div class="pane-actions">
+            <button id="btn-new-file" class="icon-btn" title="Nuevo archivo">📄+</button>
+            <button id="btn-new-folder" class="icon-btn" title="Nueva carpeta">📁+</button>
             <button id="btn-refresh-tree" class="icon-btn" title="Recargar archivos">↻</button>
+            <button id="btn-collapse-all" class="icon-btn" title="Colapsar carpetas">⇲</button>
           </div>
         </div>
 
@@ -69,39 +74,62 @@
                 <span id="chat-doc-title" class="chat-doc-title" title="Doble clic para renombrar">Nuevo chat</span>
                 <button id="btn-rename-chat-doc" class="icon-btn chat-edit-btn" title="Renombrar conversación">✏️</button>
                 <button id="btn-delete-chat-doc" class="icon-btn chat-del-btn" title="Eliminar conversación">🗑</button>
+                <span id="chat-project-badge" class="chat-project-badge" title="Proyecto asignado">📁 General</span>
                 <div id="agent-thinking-pill" class="agent-thinking-pill" style="display: none;">
                   <span class="pulsing-orbit"></span>
                   <span id="agent-status-label">Procesando…</span>
                 </div>
               </div>
 
-              <div class="chat-doc-options">
-                <label>IA
-                  <select id="provider">
-                    <option value="claude">Claude</option>
-                    <option value="grok">Grok</option>
-                    <option value="openai">OpenAI</option>
-                    <option value="fcc">FCC</option>
-                  </select>
-                </label>
-                <label>Modelo
-                  <select id="model"></select>
-                </label>
-                <label>Modo
-                  <select id="mode">
-                    <option value="ask">Preguntar</option>
-                    <option value="plan">Plan</option>
-                    <option value="autonomous">Autónomo</option>
-                  </select>
-                </label>
+              <div class="chat-doc-right-actions">
+                <button id="btn-clear-chat" class="icon-btn-text" title="Limpiar mensajes del chat">🧹 Limpiar</button>
               </div>
             </div>
 
             <div id="messages" class="messages doc-messages"></div>
 
             <div class="composer doc-composer">
-              <textarea id="input" placeholder="Pregunta a fh-ia sobre el workspace o pide ediciones en el código (Ctrl+Enter para enviar)…"></textarea>
-              <button id="send" class="send" type="button">Enviar</button>
+              <!-- Floating Slash Command Dropdown -->
+              <div id="slash-menu" class="slash-menu" style="display: none;">
+                <div class="slash-menu-header">Comandos rápidos (escribe / para filtrar)</div>
+                <div id="slash-menu-list" class="slash-menu-list"></div>
+              </div>
+
+              <textarea id="input" placeholder="Pregunta a fh-ia, usa / para comandos rápidos o pide cambios en el código (Ctrl+Enter para enviar)…"></textarea>
+
+              <div class="composer-toolbar">
+                <div class="composer-selectors">
+                  <div class="selector-chip" title="Proveedor de Inteligencia Artificial">
+                    <span class="chip-icon">🤖</span>
+                    <select id="provider">
+                      <option value="claude">Claude</option>
+                      <option value="grok">Grok</option>
+                      <option value="openai">OpenAI</option>
+                      <option value="fcc">FCC</option>
+                    </select>
+                  </div>
+
+                  <div class="selector-chip" title="Modelo de IA seleccionado">
+                    <span class="chip-icon">🧠</span>
+                    <select id="model"></select>
+                  </div>
+
+                  <div class="selector-chip" title="Modo de ejecución del agente">
+                    <span class="chip-icon">⚡</span>
+                    <select id="mode">
+                      <option value="ask">Preguntar</option>
+                      <option value="plan">Plan</option>
+                      <option value="autonomous">Autónomo</option>
+                    </select>
+                  </div>
+
+                  <button type="button" class="slash-hint-btn" id="slash-hint-btn" title="Ver comandos disponibles">Comandos <strong>/</strong></button>
+                </div>
+
+                <div class="composer-actions">
+                  <button id="send" class="send" type="button">Enviar ↵</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -141,17 +169,31 @@
         </div>
       </section>
 
-      <!-- Sidebar: Historial de Chats (Claude / Cursor style) -->
+      <!-- Sidebar: Historial de Chats & Proyectos (OpenClaude style) -->
       <aside class="chat">
         <div class="chat-sidebar-head">
           <div class="chat-sidebar-title-row">
-            <span class="chat-sidebar-brand"><span class="chat-brand-icon">✦</span> Historial de chats</span>
+            <span class="chat-sidebar-brand"><span class="chat-brand-icon">✦</span> fh-ia Desktop</span>
             <button id="btn-new-chat" class="chat-action-btn chat-new-btn" title="Iniciar nuevo chat (Ctrl+L)">+ Nuevo chat</button>
           </div>
           <div class="chat-search-wrap">
             <input id="chat-search-input" type="text" placeholder="Buscar conversaciones…" />
           </div>
         </div>
+
+        <!-- Projects section (OpenClaude style) -->
+        <div class="projects-section">
+          <div class="projects-header">
+            <span class="projects-title">📂 PROYECTOS</span>
+            <button id="btn-new-project" class="icon-btn-small" title="Crear nuevo proyecto">+ Nuevo</button>
+          </div>
+          <div id="projects-list" class="projects-list"></div>
+        </div>
+
+        <div class="chat-section-divider">
+          <span>CONVERSACIONES</span>
+        </div>
+
         <div id="chat-sidebar-list" class="chat-sidebar-list"></div>
       </aside>
     </div>
@@ -179,94 +221,251 @@
     </div>
   </div>
 
-  <!-- Settings Modal (Issue #13) -->
+  <!-- Settings Modal (Rediseño sutil e intuitivo) -->
   <div id="settings-modal" class="modal-overlay" style="display: none;">
-    <div class="dialog-box settings-box">
-      <div class="settings-head">
-        <h3>Ajustes de fh-code</h3>
-        <button id="btn-settings-close" class="icon-btn">✕</button>
-      </div>
-      <div class="settings-body">
-        <div class="settings-section">
-          <h4>General e Interfaz</h4>
-          <div class="settings-row">
-            <label>Tema visual</label>
-            <select id="set-theme">
-              <option value="auto">Automático (Seguir sistema)</option>
-              <option value="dark">Oscuro (Dark mode)</option>
-              <option value="light">Claro (Light mode)</option>
-            </select>
-          </div>
-          <div class="settings-row">
-            <label>Tamaño de fuente del editor (px)</label>
-            <input id="set-font-size" type="number" min="11" max="24" value="15" />
-          </div>
-          <div class="settings-row">
-            <label>Modo de autenticación</label>
-            <select id="set-auth-mode">
-              <option value="auto">Auto (API key > Terminal session > Env)</option>
-              <option value="apiKey">Solo API Keys</option>
-              <option value="terminal">Solo Sesión Terminal</option>
-            </select>
+    <div class="settings-dialog">
+      <!-- Modal Header -->
+      <div class="settings-modal-header">
+        <div class="settings-modal-title-group">
+          <span class="settings-modal-icon">⚙</span>
+          <div>
+            <h3>Ajustes de fh-code</h3>
+            <p class="settings-modal-subtitle">Configuración de modelos, credenciales de IA y personalización</p>
           </div>
         </div>
-
-        <div class="settings-section">
-          <h4>Proveedores de IA y Modelos</h4>
-          <div class="settings-row">
-            <label>Claude API Key</label>
-            <input id="set-claude-key" type="password" placeholder="sk-ant-..." />
-          </div>
-          <div class="settings-row">
-            <label>Claude Modelo</label>
-            <input id="set-claude-model" type="text" placeholder="claude-sonnet-4-20250514" />
-          </div>
-          <div class="settings-row">
-            <label>Grok API Key</label>
-            <input id="set-grok-key" type="password" placeholder="xai-..." />
-          </div>
-          <div class="settings-row">
-            <label>Grok Modelo</label>
-            <input id="set-grok-model" type="text" placeholder="grok-4" />
-          </div>
-          <div class="settings-row">
-            <label>OpenAI-Compatible API Key</label>
-            <input id="set-openai-key" type="password" placeholder="sk-..." />
-          </div>
-          <div class="settings-row">
-            <label>OpenAI Base URL</label>
-            <input id="set-openai-base" type="text" placeholder="https://api.openai.com/v1" />
-          </div>
-          <div class="settings-row">
-            <label>OpenAI Modelo</label>
-            <input id="set-openai-model" type="text" placeholder="gpt-4o" />
-          </div>
-          <div class="settings-row">
-            <label>FCC Server Base URL</label>
-            <input id="set-fcc-base" type="text" placeholder="http://127.0.0.1:8082" />
-          </div>
-        </div>
-
-        <div class="settings-section">
-          <h4>Failover automático</h4>
-          <div class="settings-row checkbox-row">
-            <label><input id="set-failover-enabled" type="checkbox" /> Activar failover si falla la IA seleccionada</label>
-          </div>
-          <div class="settings-row">
-            <label>Orden de failover</label>
-            <input id="set-failover-order" type="text" placeholder="grok,claude,openai" />
-          </div>
-        </div>
+        <button id="btn-settings-close" class="settings-close-icon" title="Cerrar (Esc)">✕</button>
       </div>
 
-      <div class="dialog-buttons settings-footer">
-        <button id="btn-settings-reset" class="dialog-btn danger" title="Restablecer a valores de fábrica">Restablecer ajustes</button>
-        <div style="flex: 1"></div>
-        <button id="btn-settings-cancel" class="dialog-btn">Cancelar</button>
-        <button id="btn-settings-save" class="dialog-btn primary">Guardar cambios</button>
+      <!-- Navigation Tabs -->
+      <div class="settings-tabs-nav">
+        <button class="settings-tab-btn active" data-tab="general">🎨 General</button>
+        <button class="settings-tab-btn" data-tab="models">🤖 Modelos</button>
+        <button class="settings-tab-btn" data-tab="keys">🔑 Claves & Conexión</button>
+        <button class="settings-tab-btn" data-tab="failover">🛡️ Failover</button>
+      </div>
+
+      <!-- Modal Body (Tab Panes) -->
+      <div class="settings-modal-body">
+        <!-- Pane: General -->
+        <div id="set-pane-general" class="settings-pane active">
+          <div class="settings-card">
+            <div class="settings-card-label">
+              <strong>Tema de la interfaz</strong>
+              <span>Selecciona la apariencia visual de fh-code</span>
+            </div>
+            <div class="settings-card-field">
+              <select id="set-theme" class="settings-select">
+                <option value="auto">Automático (Seguir sistema)</option>
+                <option value="dark">Oscuro (Dark mode)</option>
+                <option value="light">Claro (Light mode)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-label">
+              <strong>Tamaño de fuente del editor</strong>
+              <span>Tamaño en píxeles del código fuente en Monaco (11px – 24px)</span>
+            </div>
+            <div class="settings-card-field">
+              <input id="set-font-size" class="settings-input" type="number" min="11" max="24" value="15" />
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-label">
+              <strong>Modo de autenticación</strong>
+              <span>Estrategia de resolución para credenciales de IA</span>
+            </div>
+            <div class="settings-card-field">
+              <select id="set-auth-mode" class="settings-select">
+                <option value="auto">Automático (API Key > Terminal > Env)</option>
+                <option value="apiKey">Solo API Keys explícitas</option>
+                <option value="terminal">Solo Sesión de Terminal</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pane: Models -->
+        <div id="set-pane-models" class="settings-pane" style="display: none;">
+          <div class="settings-card">
+            <div class="settings-card-label">
+              <strong>Modelo de Claude</strong>
+              <span>Identificador del modelo de Anthropic para el agente</span>
+            </div>
+            <div class="settings-card-field">
+              <input id="set-claude-model" class="settings-input" type="text" placeholder="claude-sonnet-4-20250514" />
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-label">
+              <strong>Modelo de Grok</strong>
+              <span>Identificador del modelo de xAI a invocar</span>
+            </div>
+            <div class="settings-card-field">
+              <input id="set-grok-model" class="settings-input" type="text" placeholder="grok-4" />
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-label">
+              <strong>Modelo de OpenAI</strong>
+              <span>Identificador del modelo predeterminado compatible con OpenAI</span>
+            </div>
+            <div class="settings-card-field">
+              <input id="set-openai-model" class="settings-input" type="text" placeholder="gpt-4o" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Pane: Keys & Connection -->
+        <div id="set-pane-keys" class="settings-pane" style="display: none;">
+          <div class="settings-card">
+            <div class="settings-card-label">
+              <strong>Claude API Key</strong>
+              <span>Clave secreta de Anthropic (sk-ant-…)</span>
+            </div>
+            <div class="settings-card-field key-field-wrap">
+              <input id="set-claude-key" class="settings-input" type="password" placeholder="sk-ant-…" />
+              <button type="button" class="btn-toggle-peek" title="Mostrar/Ocultar clave">👁</button>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-label">
+              <strong>Grok API Key</strong>
+              <span>Clave de API de xAI (xai-…)</span>
+            </div>
+            <div class="settings-card-field key-field-wrap">
+              <input id="set-grok-key" class="settings-input" type="password" placeholder="xai-…" />
+              <button type="button" class="btn-toggle-peek" title="Mostrar/Ocultar clave">👁</button>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-label">
+              <strong>OpenAI-Compatible API Key</strong>
+              <span>Clave de API de OpenAI o proveedor compatible (sk-…)</span>
+            </div>
+            <div class="settings-card-field key-field-wrap">
+              <input id="set-openai-key" class="settings-input" type="password" placeholder="sk-…" />
+              <button type="button" class="btn-toggle-peek" title="Mostrar/Ocultar clave">👁</button>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-label">
+              <strong>OpenAI Base URL</strong>
+              <span>URL base para endpoints compatibles con OpenAI</span>
+            </div>
+            <div class="settings-card-field">
+              <input id="set-openai-base" class="settings-input" type="text" placeholder="https://api.openai.com/v1" />
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-label">
+              <strong>FCC Server Base URL</strong>
+              <span>URL base del servidor local o proxy FCC</span>
+            </div>
+            <div class="settings-card-field">
+              <input id="set-fcc-base" class="settings-input" type="text" placeholder="http://127.0.0.1:8082" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Pane: Failover -->
+        <div id="set-pane-failover" class="settings-pane" style="display: none;">
+          <div class="settings-card">
+            <div class="settings-card-label">
+              <strong>Failover automático entre IAs</strong>
+              <span>Si la IA elegida se satura o devuelve error 5xx, conmuta automáticamente a la siguiente</span>
+            </div>
+            <div class="settings-card-field switch-wrap">
+              <label class="toggle-switch">
+                <input id="set-failover-enabled" type="checkbox" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-label">
+              <strong>Orden de prioridad de failover</strong>
+              <span>Lista de proveedores en orden separados por coma</span>
+            </div>
+            <div class="settings-card-field">
+              <input id="set-failover-order" class="settings-input" type="text" placeholder="grok,claude,openai" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="settings-modal-footer">
+        <button id="btn-settings-reset" class="btn-subtle-danger" type="button" title="Restablecer valores de fábrica">Restablecer ajustes</button>
+        <div class="footer-spacer"></div>
+        <button id="btn-settings-cancel" class="btn-subtle-ghost" type="button">Cancelar</button>
+        <button id="btn-settings-save" class="btn-subtle-primary" type="button">✓ Guardar cambios</button>
       </div>
     </div>
   </div>
+
+  <!-- New / Edit Project Modal -->
+  <div id="project-modal" class="modal-overlay" style="display: none;">
+    <div class="palette-box project-modal-box">
+      <div class="modal-header-simple">
+        <h3 id="project-modal-title">📂 Nuevo Proyecto</h3>
+        <p>Crea un espacio de trabajo con instrucciones y contexto personalizados</p>
+      </div>
+      <div class="project-modal-body">
+        <div class="form-group">
+          <label class="form-label" for="proj-name-input">Nombre del proyecto</label>
+          <input id="proj-name-input" class="settings-input" type="text" placeholder="Ej: ERP Webkor, API Backend, Mobile App…" />
+        </div>
+        <div class="form-group" style="margin-top: 12px;">
+          <label class="form-label" for="proj-desc-input">Descripción</label>
+          <input id="proj-desc-input" class="settings-input" type="text" placeholder="Objetivo y alcance del proyecto…" />
+        </div>
+        <div class="form-group" style="margin-top: 12px;">
+          <label class="form-label" for="proj-prompt-input">Instrucciones del sistema (System Prompt específico)</label>
+          <textarea id="proj-prompt-input" class="settings-input" rows="4" placeholder="Reglas de arquitectura, tecnologías, estilo de código, etc.…" style="resize: vertical;"></textarea>
+        </div>
+      </div>
+      <div class="settings-modal-footer">
+        <button id="btn-project-delete" class="btn-subtle-danger" type="button" style="display: none;">Eliminar proyecto</button>
+        <div class="footer-spacer"></div>
+        <button id="btn-project-cancel" class="btn-subtle-ghost" type="button">Cancelar</button>
+        <button id="btn-project-save" class="btn-subtle-primary" type="button">Guardar proyecto</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Bottom Navigation Bar (Responsive on <= 768px) -->
+  <nav class="mobile-nav-bar" id="mobile-nav-bar">
+    <button class="mobile-nav-btn active" data-view="files">
+      <span class="m-icon">📁</span>
+      <span class="m-label">Archivos</span>
+    </button>
+    <button class="mobile-nav-btn" data-view="editor">
+      <span class="m-icon">📝</span>
+      <span class="m-label">Editor</span>
+    </button>
+    <button class="mobile-nav-btn" data-view="chat">
+      <span class="m-icon">💬</span>
+      <span class="m-label">Chat</span>
+    </button>
+    <button class="mobile-nav-btn" data-view="history">
+      <span class="m-icon">📜</span>
+      <span class="m-label">Historial</span>
+    </button>
+    <button class="mobile-nav-btn" data-view="settings">
+      <span class="m-icon">⚙️</span>
+      <span class="m-label">Ajustes</span>
+    </button>
+  </nav>
 
   <script src="/static/layout.js"></script>
   <!-- Monaco local offline bundle -->

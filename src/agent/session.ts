@@ -9,6 +9,7 @@ import {
 } from "../workspace/context";
 import type { FilePort } from "../workspace/files";
 import { discoverSkills, renderSkillsForPrompt } from "../workspace/skills";
+import { discoverRules, renderRulesForPrompt } from "../workspace/rules";
 import { capHistory } from "../chats";
 import { systemPromptForMode, type AgentMode } from "./modes";
 
@@ -50,6 +51,15 @@ export class AgentSession {
     const editor = this.editor();
     const ctx = await gatherContext(userText, editor, this.files);
     let system = systemPromptForMode(mode, DEFAULT_SYSTEM_PROMPT);
+    try {
+      const rules = await discoverRules({ workspaceRoot: editor.workspaceRoot, home: this.home });
+      const rulesBlock = renderRulesForPrompt(rules);
+      if (rulesBlock) {
+        system = `${system}\n\n${rulesBlock}`;
+      }
+    } catch {
+      // rules are optional; never fail turn if unreadable
+    }
     try {
       const bundle = await discoverSkills({ workspaceRoot: editor.workspaceRoot, home: this.home });
       const skillBlock = renderSkillsForPrompt(bundle, userText);

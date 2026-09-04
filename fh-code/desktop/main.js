@@ -5,6 +5,8 @@ const fssync = require("node:fs");
 const path = require("node:path");
 
 app.commandLine.appendSwitch("no-sandbox");
+app.commandLine.appendSwitch("disable-gpu");
+app.commandLine.appendSwitch("disable-gpu-sandbox");
 
 const url = process.env.FH_CODE_URL || "http://127.0.0.1:3847";
 let mainWindow = null;
@@ -25,6 +27,15 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+
+  mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription) => {
+    console.warn(`Reintentando conectar a ${url} (${errorCode}: ${errorDescription})...`);
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.loadURL(url);
+      }
+    }, 500);
   });
 
   mainWindow.loadURL(url);

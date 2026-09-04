@@ -17,6 +17,12 @@ export interface EditorPort {
   selection?: SelectionSpan;
   workspaceRoot?: string;
   openFiles?: string[];
+  gitContext?: string;
+  terminalContext?: string;
+  symbolsContext?: string;
+  docsContext?: string;
+  webContext?: string;
+  codebaseContext?: string;
 }
 
 export interface PromptContext {
@@ -27,15 +33,31 @@ export interface PromptContext {
   workspaceName?: string;
   tree: string[];
   openFiles: string[];
+  gitContext?: string;
+  terminalContext?: string;
+  symbolsContext?: string;
+  docsContext?: string;
+  webContext?: string;
+  codebaseContext?: string;
 }
 
 export const FILE_MENTION_RE = /@([^\s@]+)/g;
+
+export const SPECIAL_MENTIONS = new Set([
+  "git",
+  "terminal",
+  "symbols",
+  "docs",
+  "web",
+  "codebase",
+  "problems",
+]);
 
 export function parseFileMentions(text: string): string[] {
   const paths: string[] = [];
   for (const match of text.matchAll(FILE_MENTION_RE)) {
     const p = match[1];
-    if (!paths.includes(p)) {
+    if (!SPECIAL_MENTIONS.has(p.toLowerCase()) && !paths.includes(p)) {
       paths.push(p);
     }
   }
@@ -76,6 +98,12 @@ export async function gatherContext(
     workspaceName,
     tree,
     openFiles: editor.openFiles ?? [],
+    gitContext: editor.gitContext,
+    terminalContext: editor.terminalContext,
+    symbolsContext: editor.symbolsContext,
+    docsContext: editor.docsContext,
+    webContext: editor.webContext,
+    codebaseContext: editor.codebaseContext,
   };
 }
 
@@ -86,7 +114,13 @@ export function hasWorkspaceContext(ctx: PromptContext): boolean {
       ctx.openFiles.length ||
       ctx.activeFile ||
       ctx.selection ||
-      ctx.attachedFiles.length,
+      ctx.attachedFiles.length ||
+      ctx.gitContext ||
+      ctx.terminalContext ||
+      ctx.symbolsContext ||
+      ctx.docsContext ||
+      ctx.webContext ||
+      ctx.codebaseContext,
   );
 }
 
@@ -123,6 +157,36 @@ export function renderContextBlock(ctx: PromptContext): string {
     parts.push("```");
     parts.push(file.content);
     parts.push("```");
+  }
+  if (ctx.gitContext) {
+    parts.push("[Git Status & Diff (@git)]");
+    parts.push("```diff");
+    parts.push(ctx.gitContext);
+    parts.push("```");
+  }
+  if (ctx.terminalContext) {
+    parts.push("[Terminal Buffer Output (@terminal)]");
+    parts.push("```text");
+    parts.push(ctx.terminalContext);
+    parts.push("```");
+  }
+  if (ctx.symbolsContext) {
+    parts.push("[Code Symbols (@symbols)]");
+    parts.push("```");
+    parts.push(ctx.symbolsContext);
+    parts.push("```");
+  }
+  if (ctx.docsContext) {
+    parts.push("[Framework Documentation Context (@docs)]");
+    parts.push(ctx.docsContext);
+  }
+  if (ctx.webContext) {
+    parts.push("[Live Web Context (@web)]");
+    parts.push(ctx.webContext);
+  }
+  if (ctx.codebaseContext) {
+    parts.push("[Codebase Semantic Search Context (@codebase)]");
+    parts.push(ctx.codebaseContext);
   }
   return parts.join("\n");
 }

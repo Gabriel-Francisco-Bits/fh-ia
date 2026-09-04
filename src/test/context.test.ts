@@ -61,6 +61,43 @@ test("outbound prompt payload includes active file path and selected span", asyn
   }
 });
 
+test("contextual mentions (@git, @terminal, @symbols) are attached into outbound payload", async () => {
+  const grok = await startSseServer({ kind: "openai", pathSuffix: "/v1/chat/completions", reply: "ok" });
+  try {
+    const editor: EditorPort = {
+      workspaceRoot: "/test/repo",
+      gitContext: "Branch: main\nModified: src/index.ts",
+      terminalContext: "npm test: 50 passed",
+      symbolsContext: "function run() (L10)",
+    };
+    const files: FilePort = {
+      async read() { throw new Error("not used"); },
+      async write() { throw new Error("not used"); },
+      async exists() { return false; },
+    };
+    const dispatcher = new ProviderDispatcher({
+      bundle: {
+        selected: "grok",
+        claude: { id: "claude", apiKey: "unused", baseUrl: "http://127.0.0.1:9", model: "x" },
+        grok: { id: "grok", apiKey: "xai-test", baseUrl: grok.url, model: "grok-test" },
+        openai: { id: "openai", apiKey: "unused", baseUrl: "http://127.0.0.1:9", model: "x" },
+        fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "x" },
+      },
+    });
+    const session = new AgentSession(dispatcher, files, () => editor);
+    await session.send("review @git and @terminal and @symbols", () => undefined);
+
+    assert.equal(grok.requests.length, 1);
+    const body = grok.requests[0].body;
+    assert.match(body, /Git Status & Diff/);
+    assert.match(body, /Terminal Buffer Output/);
+    assert.match(body, /Code Symbols/);
+    assert.match(body, /npm test: 50 passed/);
+  } finally {
+    await grok.close();
+  }
+});
+
 test("@file mention is attached into the outbound payload", async () => {
   const grok = await startSseServer({ kind: "openai", pathSuffix: "/v1/chat/completions", reply: "ok" });
   try {

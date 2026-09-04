@@ -144,28 +144,115 @@
     scanAllFiles();
   }
 
+  function getFileIcon(name, isDir, isOpen) {
+    if (isDir) {
+      if (name === ".git" || name === ".github") return { text: "⎇", color: "#f34f29", isBadge: false };
+      if (name === "node_modules") return { text: "📦", color: "#cb3837", isBadge: false };
+      if (name === "src" || name === "app") return { text: isOpen ? "📂" : "📁", color: "#60a5fa", isBadge: false };
+      if (name === "public" || name === "static") return { text: isOpen ? "📂" : "📁", color: "#34d399", isBadge: false };
+      if (name === "test" || name === "tests") return { text: isOpen ? "📂" : "📁", color: "#a78bfa", isBadge: false };
+      return { text: isOpen ? "📂" : "📁", color: "#fbbf24", isBadge: false };
+    }
+    const ext = (name.split(".").pop() || "").toLowerCase();
+    switch (ext) {
+      case "ts":
+      case "tsx":
+        return { text: "TS", color: "#3178c6", isBadge: true };
+      case "js":
+      case "jsx":
+      case "mjs":
+      case "cjs":
+        return { text: "JS", color: "#f7df1e", isBadge: true, darkText: true };
+      case "json":
+        return { text: "{}", color: "#eab308", isBadge: true, darkText: true };
+      case "md":
+        return { text: "📝", color: "#38bdf8", isBadge: false };
+      case "html":
+        return { text: "🌐", color: "#f97316", isBadge: false };
+      case "css":
+      case "scss":
+      case "less":
+        return { text: "🎨", color: "#38bdf8", isBadge: false };
+      case "sql":
+        return { text: "🗄️", color: "#c084fc", isBadge: false };
+      case "sh":
+      case "bash":
+        return { text: "💻", color: "#4ade80", isBadge: false };
+      case "py":
+        return { text: "🐍", color: "#38bdf8", isBadge: false };
+      case "png":
+      case "jpg":
+      case "jpeg":
+      case "svg":
+      case "ico":
+        return { text: "🖼️", color: "#f472b6", isBadge: false };
+      case "yml":
+      case "yaml":
+        return { text: "📄", color: "#f87171", isBadge: false };
+      default:
+        return { text: "📄", color: "#94a3b8", isBadge: false };
+    }
+  }
+
   // File Tree
   async function loadTree(dir, into) {
     const data = await (await fetch("/api/tree?dir=" + encodeURIComponent(dir))).json();
     into.innerHTML = "";
     for (const ent of data.entries || []) {
-      const btn = document.createElement("button");
-      btn.textContent = (ent.dir ? "▸ " : "  ") + ent.name;
-      btn.className = ent.dir ? "dir" : "file";
+      const itemRow = document.createElement("div");
+      itemRow.className = "tree-row " + (ent.dir ? "dir-row" : "file-row");
+      if (!ent.dir && ent.path === activePath) itemRow.classList.add("active");
+      itemRow.setAttribute("data-path", ent.path);
+
+      const iconInfo = getFileIcon(ent.name, ent.dir, false);
+      let chevronHtml = ent.dir
+        ? '<span class="tree-chevron">▸</span>'
+        : '<span class="tree-indent-spacer"></span>';
+
+      let iconHtml = iconInfo.isBadge
+        ? `<span class="tree-file-badge" style="background:${iconInfo.color};color:${iconInfo.darkText ? "#111" : "#fff"}">${iconInfo.text}</span>`
+        : `<span class="tree-file-icon" style="color:${iconInfo.color}">${iconInfo.text}</span>`;
+
+      itemRow.innerHTML = `
+        <div class="tree-item-left">
+          ${chevronHtml}
+          ${iconHtml}
+          <span class="tree-name" title="${escapeHtml(ent.path)}">${escapeHtml(ent.name)}</span>
+        </div>
+      `;
+
       const nested = document.createElement("div");
       nested.className = "nested";
+      nested.style.display = "none";
       let open = false;
-      btn.addEventListener("click", async () => {
+
+      itemRow.querySelector(".tree-item-left").addEventListener("click", async () => {
         if (ent.dir) {
           open = !open;
-          btn.textContent = (open ? "▾ " : "▸ ") + ent.name;
-          if (open) await loadTree(ent.path, nested);
-          else nested.innerHTML = "";
+          const chev = itemRow.querySelector(".tree-chevron");
+          if (chev) {
+            chev.textContent = open ? "▾" : "▸";
+            chev.classList.toggle("open", open);
+          }
+          const iconEl = itemRow.querySelector(".tree-file-icon");
+          if (iconEl && !iconInfo.isBadge) {
+            iconEl.textContent = open ? "📂" : "📁";
+          }
+          if (open) {
+            nested.style.display = "block";
+            await loadTree(ent.path, nested);
+          } else {
+            nested.style.display = "none";
+            nested.innerHTML = "";
+          }
         } else {
+          document.querySelectorAll(".tree-row.file-row").forEach((r) => r.classList.remove("active"));
+          itemRow.classList.add("active");
           openFile(ent.path);
         }
       });
-      into.appendChild(btn);
+
+      into.appendChild(itemRow);
       if (ent.dir) into.appendChild(nested);
     }
   }
@@ -1195,7 +1282,252 @@
     });
   }
 
+  function escapeHtml(str) {
+    return String(str || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function renderMarkdown(md) {
+    if (!md) return "";
+
+    // 1. Extract and protect code blocks
+    const codeBlocks = [];
+    let processed = md.replace(/```([a-zA-Z0-9_-]*)\r?\n([\s\S]*?)```/g, (match, lang, code) => {
+      const idx = codeBlocks.length;
+      codeBlocks.push({ lang: (lang || "code").trim(), code: code.replace(/\r?\n$/, "") });
+      return `___CODE_BLOCK_${idx}___`;
+    });
+
+    // Helper for inline elements: bold, italic, inline-code, links
+    function formatInline(text) {
+      let t = escapeHtml(text);
+      // Inline code `code`
+      t = t.replace(/`([^`]+)`/g, '<code class="md-inline-code">$1</code>');
+      // Bold **text**
+      t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      // Italic *text*
+      t = t.replace(/(^|[^\*])\*([^*]+)\*([^\*]|$)/g, '$1<em>$2</em>$3');
+      // Links [text](url)
+      t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a class="md-link" href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+      return t;
+    }
+
+    // 2. Process line by line
+    const lines = processed.split(/\r?\n/);
+    const out = [];
+    let inList = null; // 'ul' or 'ol'
+    let listItems = [];
+
+    function closeList() {
+      if (!inList) return;
+      if (inList === "ul") {
+        out.push('<ul class="md-ul">' + listItems.join("") + '</ul>');
+      } else if (inList === "ol") {
+        out.push('<ol class="md-ol">' + listItems.join("") + '</ol>');
+      }
+      inList = null;
+      listItems = [];
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      // Check for code block token
+      const codeMatch = trimmed.match(/^___CODE_BLOCK_(\d+)___$/);
+      if (codeMatch) {
+        closeList();
+        const block = codeBlocks[parseInt(codeMatch[1], 10)];
+        out.push(`
+          <div class="code-block-wrap">
+            <div class="code-block-header">
+              <span class="code-lang-tag">${escapeHtml(block.lang)}</span>
+              <button class="code-copy-btn" data-code="${encodeURIComponent(block.code)}">📋 Copiar</button>
+            </div>
+            <pre class="code-block-pre"><code class="code-block-content">${escapeHtml(block.code)}</code></pre>
+          </div>
+        `);
+        continue;
+      }
+
+      // Headings
+      if (/^###\s+/.test(trimmed)) {
+        closeList();
+        out.push(`<h3 class="md-h3">${formatInline(trimmed.replace(/^###\s+/, ""))}</h3>`);
+        continue;
+      }
+      if (/^##\s+/.test(trimmed)) {
+        closeList();
+        out.push(`<h2 class="md-h2">${formatInline(trimmed.replace(/^##\s+/, ""))}</h2>`);
+        continue;
+      }
+      if (/^#\s+/.test(trimmed)) {
+        closeList();
+        out.push(`<h1 class="md-h1">${formatInline(trimmed.replace(/^#\s+/, ""))}</h1>`);
+        continue;
+      }
+
+      // Blockquote
+      if (/^>\s+/.test(trimmed)) {
+        closeList();
+        out.push(`<blockquote class="md-quote">${formatInline(trimmed.replace(/^>\s+/, ""))}</blockquote>`);
+        continue;
+      }
+
+      // Horizontal rule
+      if (/^(\*\*\*|---|___)$/.test(trimmed)) {
+        closeList();
+        out.push('<hr class="md-hr">');
+        continue;
+      }
+
+      // Unordered list item (- or *)
+      const ulMatch = line.match(/^(\s*)[-*+]\s+(.*)$/);
+      if (ulMatch) {
+        if (inList !== "ul") {
+          closeList();
+          inList = "ul";
+        }
+        listItems.push(`<li class="md-li">${formatInline(ulMatch[2])}</li>`);
+        continue;
+      }
+
+      // Ordered list item (1. 2. etc.)
+      const olMatch = line.match(/^(\s*)(\d+)\.\s+(.*)$/);
+      if (olMatch) {
+        if (inList !== "ol") {
+          closeList();
+          inList = "ol";
+        }
+        const num = olMatch[2];
+        const content = olMatch[3];
+        // If content has quotes like "¿Qué hay para hacer?", make it actionable on click
+        const quoteMatch = content.match(/"([^"]+)"/);
+        const actionAttr = quoteMatch ? ` data-action="${escapeHtml(quoteMatch[1])}" title="Click para enviar: ${escapeHtml(quoteMatch[1])}"` : "";
+        const actionClass = quoteMatch ? "md-ol-item actionable" : "md-ol-item";
+        listItems.push(`
+          <li class="${actionClass}"${actionAttr}>
+            <span class="ol-num">${num}</span>
+            <div class="ol-content">${formatInline(content)}</div>
+          </li>
+        `);
+        continue;
+      }
+
+      // Empty line closes active list or adds spacing
+      if (trimmed === "") {
+        closeList();
+        continue;
+      }
+
+      // Regular paragraph
+      closeList();
+      out.push(`<p class="md-p">${formatInline(line)}</p>`);
+    }
+    closeList();
+
+    return out.join("");
+  }
+
+  function appendAssistant(text, meta) {
+    const div = document.createElement("div");
+    div.className = "msg assistant";
+
+    const header = document.createElement("div");
+    header.className = "assistant-msg-header";
+    header.innerHTML = `
+      <div class="assistant-avatar-badge">
+        <img src="/logo.png" alt="FH" class="assistant-avatar-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+        <span class="assistant-avatar-fallback" style="display:none;">FH</span>
+        <span class="assistant-name">fh-ia</span>
+      </div>
+      <div class="assistant-actions">
+        <button class="btn-copy-msg" title="Copiar respuesta completa">📋 Copiar</button>
+      </div>
+    `;
+
+    const body = document.createElement("div");
+    body.className = "msg-body";
+    body.innerHTML = renderMarkdown(text);
+
+    div.appendChild(header);
+    div.appendChild(body);
+
+    if (meta) {
+      const metaBar = formatMetaBar(meta);
+      if (metaBar) div.appendChild(metaBar);
+    }
+
+    bindAssistantInteractions(div, text);
+
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return div;
+  }
+
+  function updateAssistantMessage(div, text, isDone, meta) {
+    const body = div.querySelector(".msg-body");
+    if (body) {
+      body.innerHTML = renderMarkdown(text);
+    }
+    // Remove old meta bar if exists
+    const oldMeta = div.querySelector(".msg-meta-bar");
+    if (oldMeta) oldMeta.remove();
+
+    if (meta) {
+      const metaBar = formatMetaBar(meta);
+      if (metaBar) div.appendChild(metaBar);
+    }
+
+    if (isDone) {
+      bindAssistantInteractions(div, text);
+    }
+  }
+
+  function bindAssistantInteractions(div, fullText) {
+    // Copy entire response button
+    const copyBtn = div.querySelector(".btn-copy-msg");
+    if (copyBtn) {
+      copyBtn.onclick = () => {
+        navigator.clipboard.writeText(fullText || "").then(() => {
+          const prev = copyBtn.textContent;
+          copyBtn.textContent = "✓ Copiado";
+          setTimeout(() => { copyBtn.textContent = prev; }, 2000);
+        });
+      };
+    }
+
+    // Code copy buttons
+    div.querySelectorAll(".code-copy-btn").forEach((btn) => {
+      btn.onclick = () => {
+        const raw = decodeURIComponent(btn.getAttribute("data-code") || "");
+        navigator.clipboard.writeText(raw).then(() => {
+          btn.textContent = "✓ Copiado";
+          setTimeout(() => { btn.textContent = "📋 Copiar"; }, 2000);
+        });
+      };
+    });
+
+    // Actionable numbered items
+    div.querySelectorAll(".md-ol-item.actionable").forEach((item) => {
+      item.onclick = () => {
+        const action = item.getAttribute("data-action");
+        if (action && inputEl) {
+          inputEl.value = action;
+          inputEl.focus();
+        }
+      };
+    });
+  }
+
   function append(role, text) {
+    if (role === "assistant") {
+      return appendAssistant(text, null);
+    }
     const div = document.createElement("div");
     div.className = "msg " + role;
     div.textContent = text;
@@ -1263,6 +1595,75 @@
     }
   }
 
+  // Settings Tabs Navigation & Peek Toggles
+  document.querySelectorAll(".settings-tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".settings-tab-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      const tabId = btn.getAttribute("data-tab");
+      document.querySelectorAll(".settings-pane").forEach((pane) => {
+        pane.style.display = "none";
+      });
+      const targetPane = document.getElementById("set-pane-" + tabId);
+      if (targetPane) targetPane.style.display = "flex";
+    });
+  });
+
+  document.querySelectorAll(".key-field-wrap").forEach((wrap) => {
+    const input = wrap.querySelector("input");
+    const toggleBtn = wrap.querySelector(".btn-toggle-peek");
+    if (input && toggleBtn) {
+      toggleBtn.addEventListener("click", () => {
+        const isPassword = input.type === "password";
+        input.type = isPassword ? "text" : "password";
+        toggleBtn.textContent = isPassword ? "🙈" : "👁";
+      });
+    }
+  });
+
+  function formatMetaBar(meta) {
+    if (!meta) return null;
+    const bar = document.createElement("div");
+    bar.className = "msg-meta-bar";
+
+    // Duration chip
+    if (meta.durationMs != null) {
+      const sec = (meta.durationMs / 1000).toFixed(1);
+      const chip = document.createElement("span");
+      chip.className = "meta-chip time";
+      chip.textContent = `⚡ ${sec}s`;
+      chip.title = `Tiempo de respuesta: ${meta.durationMs}ms`;
+      bar.appendChild(chip);
+    }
+
+    // Token count chip
+    if (meta.usage && (meta.usage.totalTokens || meta.usage.completionTokens)) {
+      const total = meta.usage.totalTokens || meta.usage.completionTokens;
+      const chip = document.createElement("span");
+      chip.className = "meta-chip tokens";
+      chip.textContent = `✦ ${total} tokens`;
+      chip.title = meta.usage.promptTokens ? `Prompt: ${meta.usage.promptTokens} | Salida: ${meta.usage.completionTokens}` : "Tokens calculados";
+      bar.appendChild(chip);
+    }
+
+    // Rate Limit / Quota chip
+    if (meta.rateLimit && meta.rateLimit.usedPercent != null) {
+      const chip = document.createElement("span");
+      const pct = meta.rateLimit.usedPercent;
+      let statusClass = "quota";
+      if (pct >= 85) statusClass = "quota danger";
+      else if (pct >= 60) statusClass = "quota warning";
+      chip.className = `meta-chip ${statusClass}`;
+      chip.textContent = `📊 Límite: ${pct}% usado`;
+      if (meta.rateLimit.remaining != null && meta.rateLimit.limit != null) {
+        chip.title = `Restante: ${meta.rateLimit.remaining} / ${meta.rateLimit.limit} (${meta.rateLimit.kind || "cuota"})`;
+      }
+      bar.appendChild(chip);
+    }
+
+    return bar;
+  }
+
   function renderCurrentThreadMessages() {
     messagesEl.innerHTML = "";
     const thread = getActiveThread();
@@ -1274,7 +1675,7 @@
       if (m.role === "user") {
         append("user", m.text);
       } else if (m.role === "assistant") {
-        append("assistant", m.text);
+        appendAssistant(m.text, m.meta);
         if (m.edits && m.edits.length > 0) {
           renderEditsUI(m.edits, m.mode);
         }
@@ -1292,6 +1693,7 @@
     if (!text || streaming) return;
     inputEl.value = "";
 
+    const clientStartTime = Date.now();
     const thread = getActiveThread();
     if (thread.title === "Nuevo chat" || !thread.title) {
       thread.title = text.length > 32 ? text.slice(0, 32) + "…" : text;
@@ -1324,7 +1726,7 @@
     messagesEl.appendChild(thinkingNode);
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
-    const node = append("assistant", "");
+    const node = appendAssistant("", null);
     node.style.display = "none";
     streaming = true;
 
@@ -1378,8 +1780,8 @@
           if (msg.type === "delta") {
             if (thinkingNode.parentNode) thinkingNode.remove();
             node.style.display = "";
-            node.textContent += msg.text || "";
             assistantText += msg.text || "";
+            updateAssistantMessage(node, assistantText, false, null);
             if (agentStatusLabel) agentStatusLabel.textContent = "Generando respuesta…";
           }
           else if (msg.type === "status") {
@@ -1396,16 +1798,23 @@
             if (thinkingNode.parentNode) thinkingNode.remove();
             node.style.display = "";
             if (msg.text) {
-              node.textContent = msg.text;
               assistantText = msg.text;
             }
             finalEdits = msg.edits || [];
             finalMode = msg.mode || modeEl.value;
 
-            // Save assistant message to persistent thread
+            const meta = {
+              durationMs: msg.durationMs != null ? msg.durationMs : (Date.now() - clientStartTime),
+              usage: msg.usage,
+              rateLimit: msg.rateLimit,
+            };
+            updateAssistantMessage(node, assistantText, true, meta);
+
+            // Save assistant message with metadata to persistent thread
             thread.messages.push({
               role: "assistant",
               text: assistantText,
+              meta,
               edits: finalEdits,
               mode: finalMode,
               timestamp: Date.now(),
@@ -1623,6 +2032,17 @@
     if (ev.target === settingsModal) settingsModal.style.display = "none";
   });
 
+  // Configure Monaco Worker environment for offline local loading without URL parse errors
+  window.MonacoEnvironment = {
+    getWorkerUrl: function (_moduleId, label) {
+      const base = window.location.origin + "/static/vendor/monaco/min/";
+      return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
+        self.MonacoEnvironment = { baseUrl: '${base}' };
+        importScripts('${base}vs/base/worker/workerMain.js');
+      `)}`;
+    },
+  };
+
   // Initialize Monaco Offline with TypeScript / LSP (Issue #11 & #12)
   require.config({ paths: { vs: "/static/vendor/monaco/min/vs" } });
   require(["vs/editor/editor.main"], () => {
@@ -1667,7 +2087,341 @@
       tabCompletion: "on",
     });
 
+    initInlineEdit(editor);
+    initCursorTab(editor);
+
     loadMeta();
     loadChatThreads();
   });
+
+  function initCursorTab(editorInstance) {
+    let enabled = true;
+    let timer = null;
+
+    try {
+      monaco.languages.registerInlineCompletionsProvider({ pattern: "**" }, {
+        provideInlineCompletions: async (model, position, context, token) => {
+          if (!enabled) return { items: [] };
+
+          await new Promise((resolve) => {
+            clearTimeout(timer);
+            timer = setTimeout(resolve, 280);
+          });
+          if (token.isCancellationRequested) return { items: [] };
+
+          const line = model.getLineContent(position.lineNumber);
+          if (!line.trim()) return { items: [] };
+
+          const fullText = model.getValue();
+          const offset = model.getOffsetAt(position);
+          const prefix = fullText.slice(0, offset);
+          const suffix = fullText.slice(offset);
+
+          try {
+            const res = await fetch("/api/autocomplete", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                prefix,
+                suffix,
+                language: model.getLanguageId(),
+              }),
+            });
+            const data = await res.json();
+            if (data.ok && data.completion && data.completion.trim()) {
+              return {
+                items: [
+                  {
+                    insertText: data.completion,
+                    range: new monaco.Range(
+                      position.lineNumber,
+                      position.column,
+                      position.lineNumber,
+                      position.column
+                    ),
+                  },
+                ],
+              };
+            }
+          } catch {
+            // ignore
+          }
+          return { items: [] };
+        },
+        freeInlineCompletions: () => {},
+      });
+    } catch (e) {
+      console.warn("Cursor Tab inline completions provider init:", e);
+    }
+  }
+
+  function initInlineEdit(editorInstance) {
+    let widget = document.getElementById("inline-edit-widget");
+    if (!widget) {
+      widget = document.createElement("div");
+      widget.id = "inline-edit-widget";
+      widget.className = "inline-edit-widget";
+      widget.innerHTML = `
+        <div class="inline-edit-header">
+          <span class="inline-edit-title">✨ Cursor Inline Edit (Ctrl+K)</span>
+          <span class="inline-edit-hint">Enter para generar · Esc para cerrar</span>
+        </div>
+        <div class="inline-edit-body">
+          <input type="text" id="inline-edit-input" class="inline-edit-input" placeholder="Instrucción (ej: 'añadir validación', 'convertir a async')..." />
+          <button id="inline-edit-btn" class="inline-edit-submit">Generar</button>
+        </div>
+        <div id="inline-edit-actions" class="inline-edit-actions" style="display:none;">
+          <span class="inline-edit-status">Cambios aplicados inline:</span>
+          <button id="inline-edit-accept" class="btn-action-accept">✓ Aceptar (Ctrl+Enter)</button>
+          <button id="inline-edit-reject" class="btn-action-reject">✕ Descartar (Esc)</button>
+        </div>
+      `;
+      document.body.appendChild(widget);
+    }
+
+    let originalSelection = null;
+    let originalText = "";
+
+    function openInlineEdit() {
+      const model = editorInstance.getModel();
+      if (!model) return;
+      originalSelection = editorInstance.getSelection() || new monaco.Selection(1, 1, 1, 1);
+      originalText = model.getValueInRange(originalSelection);
+
+      widget.style.display = "flex";
+      const input = document.getElementById("inline-edit-input");
+      input.value = "";
+      document.getElementById("inline-edit-actions").style.display = "none";
+      input.focus();
+    }
+
+    function closeInlineEdit() {
+      widget.style.display = "none";
+      editorInstance.focus();
+    }
+
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, () => {
+      openInlineEdit();
+    });
+
+    // Global shortcut fallback
+    window.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
+        if (widget.style.display !== "flex") {
+          e.preventDefault();
+          openInlineEdit();
+        }
+      }
+    });
+
+    const input = document.getElementById("inline-edit-input");
+    const submitBtn = document.getElementById("inline-edit-btn");
+    const acceptBtn = document.getElementById("inline-edit-accept");
+    const rejectBtn = document.getElementById("inline-edit-reject");
+
+    async function executeInline() {
+      const prompt = input.value.trim();
+      if (!prompt) return;
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Generando…";
+      try {
+        const res = await fetch("/api/inline-edit", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            prompt,
+            code: originalText,
+            path: activePath,
+            fullContent: editorInstance.getModel()?.getValue() || "",
+          }),
+        });
+        const data = await res.json();
+        if (data.ok && typeof data.replacement === "string") {
+          editorInstance.executeEdits("inline-edit", [
+            { range: originalSelection, text: data.replacement, forceMoveMarkers: true },
+          ]);
+          document.getElementById("inline-edit-actions").style.display = "flex";
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Generar";
+      }
+    }
+
+    submitBtn.addEventListener("click", executeInline);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        executeInline();
+      } else if (e.key === "Escape") {
+        closeInlineEdit();
+      }
+    });
+
+    acceptBtn.addEventListener("click", () => {
+      closeInlineEdit();
+    });
+
+    rejectBtn.addEventListener("click", () => {
+      if (originalSelection) {
+        editorInstance.executeEdits("inline-edit-reject", [
+          { range: originalSelection, text: originalText, forceMoveMarkers: true },
+        ]);
+      }
+      closeInlineEdit();
+    });
+  }
+
+  function initComposer() {
+    let overlay = document.getElementById("composer-overlay");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "composer-overlay";
+      overlay.className = "composer-overlay";
+      overlay.innerHTML = `
+        <div class="composer-modal">
+          <div class="composer-header">
+            <span class="composer-title">✨ Cursor Composer (Ctrl+I)</span>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <button id="composer-btn-rollback" class="composer-rollback-btn" title="Revertir cambios al checkpoint anterior">⏪ Rollback</button>
+              <button id="composer-btn-close" style="background:none; border:none; color:#94a3b8; cursor:pointer; font-size:18px;">✕</button>
+            </div>
+          </div>
+          <div class="composer-body">
+            <textarea id="composer-textarea" class="composer-input" placeholder="Describe los cambios multi-archivo que deseas generar... (ej: 'Crea un servicio de autenticación y modula las rutas')"></textarea>
+            <div class="composer-controls">
+              <span style="font-size:12px; color:#64748b;">Ctrl+Enter para enviar</span>
+              <div class="composer-actions">
+                <button id="composer-btn-submit" class="btn-primary" style="background:#6366f1; color:white; border:none; border-radius:6px; padding:7px 14px; font-weight:500; cursor:pointer;">Generar cambios</button>
+              </div>
+            </div>
+            <div id="composer-files-tree" class="composer-files-tree">
+              <span style="font-size:12px; font-weight:600; color:#cbd5e1;">Archivos modificados:</span>
+              <div id="composer-files-list"></div>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+    }
+
+    const textarea = document.getElementById("composer-textarea");
+    const closeBtn = document.getElementById("composer-btn-close");
+    const submitBtn = document.getElementById("composer-btn-submit");
+    const rollbackBtn = document.getElementById("composer-btn-rollback");
+    const filesTree = document.getElementById("composer-files-tree");
+    const filesList = document.getElementById("composer-files-list");
+
+    function openComposer() {
+      overlay.style.display = "flex";
+      textarea.focus();
+    }
+
+    function closeComposer() {
+      overlay.style.display = "none";
+    }
+
+    closeBtn.addEventListener("click", closeComposer);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closeComposer();
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "i" || e.key === "I")) {
+        e.preventDefault();
+        openComposer();
+      } else if (e.key === "Escape" && overlay.style.display === "flex") {
+        closeComposer();
+      }
+    });
+
+    rollbackBtn.addEventListener("click", async () => {
+      rollbackBtn.disabled = true;
+      rollbackBtn.textContent = "Revertiendo…";
+      try {
+        const res = await fetch("/api/composer/rollback", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({}) });
+        const data = await res.json();
+        if (data.ok) {
+          alert("✓ Rollback exitoso: archivos restaurados al checkpoint anterior.");
+          if (activePath) openPath(activePath);
+          loadTree();
+        } else {
+          alert("No hay checkpoints disponibles para revertir.");
+        }
+      } catch (err) {
+        alert("Error al revertir: " + err.message);
+      } finally {
+        rollbackBtn.disabled = false;
+        rollbackBtn.textContent = "⏪ Rollback";
+      }
+    });
+
+    async function sendComposer() {
+      const text = textarea.value.trim();
+      if (!text) return;
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Generando multi-archivo…";
+      filesTree.style.display = "none";
+      filesList.innerHTML = "";
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            text,
+            mode: "autonomous",
+            activePath,
+          }),
+        });
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const parts = buf.split("\n\n");
+          buf = parts.pop() || "";
+          for (const chunk of parts) {
+            const trimmed = chunk.trim();
+            if (!trimmed.startsWith("data:")) continue;
+            try {
+              const ev = JSON.parse(trimmed.slice(5).trim());
+              if (ev.type === "done" && ev.edits && ev.edits.length > 0) {
+                filesTree.style.display = "flex";
+                filesList.innerHTML = ev.edits.map(ed => `
+                  <div class="composer-file-row">
+                    <span>📄 <strong>${escapeHtml(ed.path)}</strong> (${ed.kind || "modificado"})</span>
+                    <button class="btn-action-accept" onclick="openPath('${escapeHtml(ed.path)}')">Abrir</button>
+                  </div>
+                `).join("");
+                loadTree();
+                if (activePath) openPath(activePath);
+              }
+            } catch {}
+          }
+        }
+      } catch (err) {
+        console.error("Error en Composer:", err);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Generar cambios";
+      }
+    }
+
+    submitBtn.addEventListener("click", sendComposer);
+    textarea.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        sendComposer();
+      }
+    });
+  }
+
+  initComposer();
 })();
