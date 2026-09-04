@@ -115,7 +115,7 @@ add_editor() {
 }
 
 editors=()
-for name in code cursor codium; do
+for name in code cursor codium antigravity; do
   add_editor "$(command -v "$name" 2>/dev/null || true)"
 done
 for path in \
@@ -124,14 +124,16 @@ for path in \
   /usr/bin/cursor /usr/local/bin/cursor /opt/homebrew/bin/cursor \
   "/Applications/Cursor.app/Contents/Resources/app/bin/cursor" \
   /usr/bin/codium /usr/local/bin/codium /opt/homebrew/bin/codium \
-  "/Applications/VSCodium.app/Contents/Resources/app/bin/codium"
+  "/Applications/VSCodium.app/Contents/Resources/app/bin/codium" \
+  "$HOME/Applications/Antigravity IDE/bin/antigravity-wrapper.sh" \
+  /usr/bin/antigravity /usr/local/bin/antigravity
 do
   add_editor "$path"
 done
 
 if [ "${#editors[@]}" -eq 0 ]; then
-  echo "[ERROR] No está VS Code, Cursor ni VSCodium en el PATH."
-  echo "        Instala VS Code y vuelve a abrir este archivo."
+  echo "[ERROR] No está VS Code, Cursor, VSCodium ni Antigravity en el PATH."
+  echo "        Instala tu editor preferido y vuelve a abrir este archivo."
   exit 1
 fi
 

@@ -13,5 +13,23 @@ if [ "${1:-}" != "" ] && [ -d "$1" ]; then
   export FH_IA_WORKSPACE="$1"
   shift
 fi
-export FH_IA_WORKSPACE="${FH_IA_WORKSPACE:-$ROOT}"
-exec node "$ROOT/fh-code/launch.js" "$@"
+# Ensure node and user paths are available even when launched from GUI desktop environments
+if ! command -v node >/dev/null 2>&1; then
+  shopt -s nullglob
+  for p in \
+    "$HOME/.local/share/pi-node/"*"/bin" \
+    "$HOME/.nvm/versions/node/"*"/bin" \
+    "$HOME/.fnm/current/bin" \
+    "$HOME/.local/bin" \
+    /usr/local/bin /usr/bin /bin
+  do
+    if [ -x "$p/node" ]; then
+      export PATH="$p:$PATH"
+      break
+    fi
+  done
+  shopt -u nullglob
+fi
+
+NODE_BIN="$(command -v node 2>/dev/null || which node 2>/dev/null || echo "node")"
+exec "$NODE_BIN" "$ROOT/fh-code/launch.js" "$@"

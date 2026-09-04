@@ -1,6 +1,8 @@
 appId: do.bits.fhcode
 productName: fh-code
 executableName: fh-code
+extraMetadata:
+  main: fh-code/desktop/main.js
 directories:
   output: fh-code/dist
 files:
@@ -9,6 +11,8 @@ files:
   - package.json
   - "!fh-code/dist/**"
 linux:
+  executableArgs:
+    - "--no-sandbox"
   target:
     - deb
     - AppImage
