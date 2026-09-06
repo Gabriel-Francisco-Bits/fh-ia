@@ -188,6 +188,11 @@
           "default": "grok,claude,openai",
           "description": "Orden de failover después de la IA seleccionada. Ejemplo: grok,claude,openai"
         },
+        "fhIa.claude.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Habilitar Claude (Anthropic) como IA en el panel y en la rotación."
+        },
         "fhIa.claude.apiKey": {
           "type": "string",
           "default": "",
@@ -202,6 +207,11 @@
           "type": "string",
           "default": "claude-sonnet-4-20250514",
           "description": "Modelo Claude."
+        },
+        "fhIa.grok.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Habilitar Grok (xAI) como IA en el panel y en la rotación."
         },
         "fhIa.grok.apiKey": {
           "type": "string",
@@ -218,6 +228,11 @@
           "default": "grok-4",
           "description": "Modelo Grok."
         },
+        "fhIa.openai.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Habilitar OpenAI / compatible como IA en el panel y en la rotación."
+        },
         "fhIa.openai.apiKey": {
           "type": "string",
           "default": "",
@@ -232,6 +247,14 @@
           "type": "string",
           "default": "gpt-4o",
           "description": "Modelo OpenAI-compatible."
+        },
+        "fhIa.disabledProviders": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Lista de proveedores de IA deshabilitados."
         },
         "fhIa.fcc.enabled": {
           "type": "boolean",

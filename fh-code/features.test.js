@@ -79,16 +79,28 @@ test("settings manager supports get, update, and reset", async () => {
   const init = getMergedSettings();
   assert.ok(init["fhIa.provider"]);
   assert.deepEqual(init["fhIa.disabledModels"], []);
+  assert.deepEqual(init["fhIa.disabledProviders"], []);
+  assert.equal(init["fhIa.claude.enabled"], true);
 
-  const updated = await updateSettings({ "fhIa.ui.fontSize": 19, "fhIa.grok.model": "grok-custom-test", "fhIa.disabledModels": ["grok-2"] });
+  const updated = await updateSettings({
+    "fhIa.ui.fontSize": 19,
+    "fhIa.grok.model": "grok-custom-test",
+    "fhIa.disabledModels": ["grok-2"],
+    "fhIa.disabledProviders": ["claude"],
+    "fhIa.claude.enabled": false,
+  });
   assert.equal(updated["fhIa.ui.fontSize"], 19);
   assert.equal(updated["fhIa.grok.model"], "grok-custom-test");
   assert.deepEqual(updated["fhIa.disabledModels"], ["grok-2"]);
+  assert.deepEqual(updated["fhIa.disabledProviders"], ["claude"]);
+  assert.equal(updated["fhIa.claude.enabled"], false);
 
   const reset = await resetSettings();
   assert.equal(reset["fhIa.ui.fontSize"], 15);
   assert.equal(reset["fhIa.grok.model"], "grok-4");
   assert.deepEqual(reset["fhIa.disabledModels"], []);
+  assert.deepEqual(reset["fhIa.disabledProviders"], []);
+  assert.equal(reset["fhIa.claude.enabled"], true);
 });
 
 test("server provides search, settings, and lsp endpoints", async (t) => {

@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { ProviderDispatcher } from "../providers/dispatcher";
 import { failoverChain, parseFailoverOrder } from "../providers/failover";
 import type { ProviderBundle, StreamEvent } from "../providers/types";
+import { resolveAvailableProviders, resolveProviderBundle, resolveProviderEnabled, type RawConfig } from "../config";
 import { startFailingServer, startSseServer } from "./helpers";
 
 test("failover chain starts with preferred then configured order", () => {
@@ -194,5 +195,48 @@ test("hierarchical failover: All accounts of primary provider fail -> falls over
     await claude2.close();
     await grok.close();
   }
+});
+
+test("disabled providers: resolveAvailableProviders and resolveProviderEnabled respect disabledProviders", () => {
+  const cfg1: RawConfig = {
+    get: <T>(key: string): T | undefined => {
+      if (key === "fhIa.disabledProviders") return ["claude", "fcc"] as unknown as T;
+      return undefined;
+    },
+  };
+  assert.equal(resolveProviderEnabled("claude", cfg1), false);
+  assert.equal(resolveProviderEnabled("fcc", cfg1), false);
+  assert.equal(resolveProviderEnabled("grok", cfg1), true);
+  assert.equal(resolveProviderEnabled("openai", cfg1), true);
+  assert.deepEqual(resolveAvailableProviders(cfg1), ["grok", "openai"]);
+
+  const cfg2: RawConfig = {
+    get: <T>(key: string): T | undefined => {
+      if (key === "fhIa.grok.enabled") return false as unknown as T;
+      return undefined;
+    },
+  };
+  assert.equal(resolveProviderEnabled("grok", cfg2), false);
+  assert.equal(resolveProviderEnabled("claude", cfg2), true);
+  assert.deepEqual(resolveAvailableProviders(cfg2), ["claude", "openai", "fcc"]);
+});
+
+test("disabled providers: resolveProviderBundle selects an enabled provider when preferred is disabled", () => {
+  const cfg: RawConfig = {
+    get: <T>(key: string): T | undefined => {
+      if (key === "fhIa.provider") return "grok" as unknown as T;
+      if (key === "fhIa.disabledProviders") return ["grok"] as unknown as T;
+      return undefined;
+    },
+  };
+  const bundle = resolveProviderBundle(cfg);
+  assert.notEqual(bundle.selected, "grok");
+  assert.ok(["claude", "openai", "fcc"].includes(bundle.selected));
+});
+
+test("disabled providers: failoverChain excludes disabled providers", () => {
+  const available = ["grok", "openai"] as const;
+  const chain = failoverChain("grok", parseFailoverOrder("claude,grok,openai,fcc"), available);
+  assert.deepEqual(chain, ["grok", "openai"]);
 });
 

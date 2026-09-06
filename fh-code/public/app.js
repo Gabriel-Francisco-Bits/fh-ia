@@ -157,9 +157,46 @@
   }
 
   let disabledModels = [];
+  let disabledProviders = [];
+
+  const ALL_PROVIDERS = [
+    { id: "claude", label: "Claude" },
+    { id: "grok", label: "Grok" },
+    { id: "openai", label: "OpenAI" },
+    { id: "fcc", label: "FCC" },
+  ];
+
+  function fillProviders() {
+    const currentVal = providerEl.value;
+    const available = ALL_PROVIDERS.filter((p) => !disabledProviders.includes(p.id));
+    providerEl.innerHTML = "";
+    if (available.length === 0) {
+      const o = document.createElement("option");
+      o.value = "";
+      o.textContent = "(Ningún proveedor habilitado)";
+      providerEl.appendChild(o);
+    } else {
+      available.forEach((p) => {
+        const o = document.createElement("option");
+        o.value = p.id;
+        o.textContent = p.label;
+        providerEl.appendChild(o);
+      });
+      if (available.some((p) => p.id === currentVal)) {
+        providerEl.value = currentVal;
+      } else if (available.length > 0) {
+        providerEl.value = available[0].id;
+      }
+    }
+    fillModels();
+  }
 
   function fillModels() {
     const id = providerEl.value;
+    if (!id) {
+      modelEl.innerHTML = '<option value="">(Ningún modelo habilitado)</option>';
+      return;
+    }
     const all = (catalog[id] || []).slice();
     const list = all.filter((m) => !disabledModels.includes(m));
     modelEl.innerHTML = "";
@@ -189,10 +226,24 @@
     } else {
       disabledModels = [];
     }
-    providerEl.value = meta.provider || "grok";
-    fillModels();
+    if (meta.settings && Array.isArray(meta.settings["fhIa.disabledProviders"])) {
+      disabledProviders = [...meta.settings["fhIa.disabledProviders"]];
+    } else {
+      disabledProviders = [];
+    }
+    ALL_PROVIDERS.forEach(({ id }) => {
+      if (meta.settings && meta.settings[`fhIa.${id}.enabled`] === false && !disabledProviders.includes(id)) {
+        disabledProviders.push(id);
+      }
+    });
+    fillProviders();
+    if (meta.provider && !disabledProviders.includes(meta.provider)) {
+      providerEl.value = meta.provider;
+      fillModels();
+    }
     populateSettingsModelSelects(catalog);
     renderModelTogglesList(catalog);
+    renderProviderMasterToggles();
     applySettingsToUi(meta.settings || {});
     await loadTree(".", treeEl);
     scanAllFiles();
@@ -723,10 +774,10 @@
     { id: "open-settings", label: "Ajustes de fh-code...", hint: "Ctrl+,", run: showSettingsModal },
     { id: "reset-settings", label: "Restablecer ajustes a valores de fábrica", hint: "", run: handleResetSettings },
     { id: "new-chat", label: "Nuevo chat fh-ia", hint: "", run: () => { messagesEl.innerHTML = ""; append("system", "Nuevo chat iniciado"); } },
-    { id: "select-claude", label: "Usar IA: Claude", hint: "", run: () => { providerEl.value = "claude"; fillModels(); } },
-    { id: "select-grok", label: "Usar IA: Grok", hint: "", run: () => { providerEl.value = "grok"; fillModels(); } },
-    { id: "select-openai", label: "Usar IA: OpenAI-Compatible", hint: "", run: () => { providerEl.value = "openai"; fillModels(); } },
-    { id: "select-fcc", label: "Usar IA: FCC (Free Claude Code)", hint: "", run: () => { providerEl.value = "fcc"; fillModels(); } },
+    { id: "select-claude", label: "Usar IA: Claude", hint: "", run: () => { if (!disabledProviders.includes("claude")) { providerEl.value = "claude"; fillModels(); } else { alert("El proveedor Claude está deshabilitado en Ajustes."); } } },
+    { id: "select-grok", label: "Usar IA: Grok", hint: "", run: () => { if (!disabledProviders.includes("grok")) { providerEl.value = "grok"; fillModels(); } else { alert("El proveedor Grok está deshabilitado en Ajustes."); } } },
+    { id: "select-openai", label: "Usar IA: OpenAI-Compatible", hint: "", run: () => { if (!disabledProviders.includes("openai")) { providerEl.value = "openai"; fillModels(); } else { alert("El proveedor OpenAI está deshabilitado en Ajustes."); } } },
+    { id: "select-fcc", label: "Usar IA: FCC (Free Claude Code)", hint: "", run: () => { if (!disabledProviders.includes("fcc")) { providerEl.value = "fcc"; fillModels(); } else { alert("El proveedor FCC está deshabilitado en Ajustes."); } } },
     { id: "refresh-tree", label: "Recargar árbol de archivos", hint: "", run: () => loadTree(".", treeEl) },
   ];
 
@@ -1109,6 +1160,58 @@
     }
   }
 
+  function renderProviderMasterToggles() {
+    ALL_PROVIDERS.forEach(({ id }) => {
+      const chk = document.getElementById(`toggle-prov-${id}`);
+      const item = document.getElementById(`item-prov-${id}`);
+      const badge = document.getElementById(`status-badge-${id}`);
+      const card = document.getElementById(`card-provider-${id}`);
+      const drawer = document.getElementById(`drawer-${id}`);
+
+      const isEnabled = !disabledProviders.includes(id);
+
+      if (chk) chk.checked = isEnabled;
+      if (item) {
+        if (isEnabled) item.classList.remove("disabled");
+        else item.classList.add("disabled");
+      }
+      if (badge) {
+        badge.className = "provider-status-badge " + (isEnabled ? "enabled" : "disabled");
+        badge.textContent = isEnabled ? "Activo" : "Inactivo";
+      }
+      if (card) {
+        if (isEnabled) card.classList.remove("provider-disabled");
+        else card.classList.add("provider-disabled");
+      }
+      if (drawer) {
+        if (isEnabled) drawer.classList.remove("provider-disabled");
+        else drawer.classList.add("provider-disabled");
+      }
+    });
+  }
+
+  function setupProviderMasterToggles() {
+    ALL_PROVIDERS.forEach(({ id }) => {
+      const chk = document.getElementById(`toggle-prov-${id}`);
+      if (!chk) return;
+      chk.onchange = () => {
+        if (!chk.checked) {
+          const enabledCount = ALL_PROVIDERS.filter((p) => !disabledProviders.includes(p.id)).length;
+          if (enabledCount <= 1) {
+            chk.checked = true;
+            alert("Debe haber al menos un proveedor de IA habilitado.");
+            return;
+          }
+          if (!disabledProviders.includes(id)) disabledProviders.push(id);
+        } else {
+          disabledProviders = disabledProviders.filter((p) => p !== id);
+        }
+        renderProviderMasterToggles();
+        fillProviders();
+      };
+    });
+  }
+
   // Settings Modal (Issue #13)
   function applySettingsToUi(settings) {
     if (Array.isArray(settings["fhIa.disabledModels"])) {
@@ -1117,6 +1220,17 @@
       populateSettingsModelSelects(catalog);
       renderModelTogglesList(catalog);
     }
+
+    if (Array.isArray(settings["fhIa.disabledProviders"])) {
+      disabledProviders = [...settings["fhIa.disabledProviders"]];
+    }
+    ALL_PROVIDERS.forEach(({ id }) => {
+      if (settings[`fhIa.${id}.enabled`] === false && !disabledProviders.includes(id)) {
+        disabledProviders.push(id);
+      }
+    });
+    fillProviders();
+    renderProviderMasterToggles();
 
     const theme = settings["fhIa.ui.theme"] || "auto";
     if (theme === "light") {
@@ -1531,8 +1645,15 @@
     document.getElementById("set-failover-enabled").checked = res["fhIa.failover.enabled"] !== false;
     document.getElementById("set-failover-order").value = res["fhIa.failover.order"] || "grok,claude,openai";
     disabledModels = Array.isArray(res["fhIa.disabledModels"]) ? [...res["fhIa.disabledModels"]] : [];
+    disabledProviders = Array.isArray(res["fhIa.disabledProviders"]) ? [...res["fhIa.disabledProviders"]] : [];
+    ALL_PROVIDERS.forEach(({ id }) => {
+      if (res[`fhIa.${id}.enabled`] === false && !disabledProviders.includes(id)) {
+        disabledProviders.push(id);
+      }
+    });
     currentAccounts = Array.isArray(res["fhIa.accounts"]) ? [...res["fhIa.accounts"]] : [];
     renderAccountsList();
+    renderProviderMasterToggles();
     populateSettingsModelSelects(catalog);
     renderModelTogglesList(catalog);
     settingsModal.style.display = "flex";
@@ -1555,6 +1676,11 @@
       "fhIa.failover.order": document.getElementById("set-failover-order").value,
       "fhIa.accounts": currentAccounts,
       "fhIa.disabledModels": disabledModels,
+      "fhIa.disabledProviders": disabledProviders,
+      "fhIa.claude.enabled": !disabledProviders.includes("claude"),
+      "fhIa.grok.enabled": !disabledProviders.includes("grok"),
+      "fhIa.openai.enabled": !disabledProviders.includes("openai"),
+      "fhIa.fcc.enabled": !disabledProviders.includes("fcc"),
     };
 
     const res = await fetch("/api/settings", {
@@ -1578,10 +1704,13 @@
     if (res.ok) {
       applySettingsToUi(data.settings);
       disabledModels = [];
+      disabledProviders = [];
       currentAccounts = [];
       renderAccountsList();
+      renderProviderMasterToggles();
       populateSettingsModelSelects(catalog);
       renderModelTogglesList(catalog);
+      fillProviders();
       fillModels();
       settingsModal.style.display = "none";
       alert("Ajustes restablecidos correctamente.");
@@ -2522,6 +2651,8 @@
   btnCmdPalette.addEventListener("click", showCommandPalette);
   btnToggleTerminal.addEventListener("click", toggleTerminalPanel);
   btnOpenSettings.addEventListener("click", showSettingsModal);
+  const btnChatOpenSettings = document.getElementById("btn-chat-open-settings");
+  if (btnChatOpenSettings) btnChatOpenSettings.addEventListener("click", showSettingsModal);
   btnRefreshTree.addEventListener("click", () => { loadTree(".", treeEl); scanAllFiles(); });
 
   // Activity Bar
@@ -2737,6 +2868,9 @@
       fillModels();
     });
   });
+
+  // Setup Provider Master Toggles
+  setupProviderMasterToggles();
 
   // Configure Monaco Worker environment for offline local loading without URL parse errors
   window.MonacoEnvironment = {

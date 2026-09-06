@@ -18,12 +18,16 @@ export const FHIA_CONFIG_KEYS = [
   "fhIa.failover.order",
   "fhIa.accounts",
   "fhIa.disabledModels",
+  "fhIa.disabledProviders",
+  "fhIa.claude.enabled",
   "fhIa.claude.apiKey",
   "fhIa.claude.baseUrl",
   "fhIa.claude.model",
+  "fhIa.grok.enabled",
   "fhIa.grok.apiKey",
   "fhIa.grok.baseUrl",
   "fhIa.grok.model",
+  "fhIa.openai.enabled",
   "fhIa.openai.apiKey",
   "fhIa.openai.baseUrl",
   "fhIa.openai.model",
@@ -83,12 +87,26 @@ export function resolveUi(config: RawConfig): UiSettings {
   };
 }
 
+export function resolveProviderEnabled(provider: ProviderId, config: RawConfig): boolean {
+  const disabledList = config.get<string[]>("fhIa.disabledProviders");
+  if (Array.isArray(disabledList) && disabledList.includes(provider)) {
+    return false;
+  }
+  const perProviderKey = `fhIa.${provider}.enabled`;
+  const perVal = config.get<boolean>(perProviderKey);
+  if (perVal !== undefined && perVal !== null) {
+    return Boolean(perVal);
+  }
+  return true;
+}
+
 export function resolveFccEnabled(config: RawConfig): boolean {
-  return config.get<boolean>("fhIa.fcc.enabled") !== false;
+  return resolveProviderEnabled("fcc", config);
 }
 
 export function resolveAvailableProviders(config: RawConfig): ProviderId[] {
-  return PROVIDER_IDS.filter((id) => (id === "fcc" ? resolveFccEnabled(config) : true));
+  const available = PROVIDER_IDS.filter((id) => resolveProviderEnabled(id, config));
+  return available.length > 0 ? available : [...PROVIDER_IDS];
 }
 
 export function resolveFailover(config: RawConfig): FailoverPolicy {
@@ -105,7 +123,11 @@ export function resolveProviderBundle(
   selectedOverride?: ProviderId,
 ): ProviderBundle {
   const rawSelected = selectedOverride ?? String(config.get("fhIa.provider") ?? "grok");
-  const selected: ProviderId = isProviderId(rawSelected) ? rawSelected : "grok";
+  const available = resolveAvailableProviders(config);
+  let selected: ProviderId = isProviderId(rawSelected) ? rawSelected : "grok";
+  if (!available.includes(selected)) {
+    selected = available[0] || "grok";
+  }
   const rawAccounts = config.get<unknown>("fhIa.accounts");
   let accounts: ProviderAccount[] = [];
   if (Array.isArray(rawAccounts)) {

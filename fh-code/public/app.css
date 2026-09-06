@@ -78,6 +78,29 @@ html, body { margin: 0; height: 100%; overflow: hidden; }
   gap: 4px;
 }
 .tb-btn:hover { background: rgba(255, 255, 255, 0.1); }
+.tb-btn.tb-settings-btn {
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #93c5fd;
+  font-weight: 500;
+  padding: 3px 9px;
+  margin-left: 2px;
+}
+.tb-btn.tb-settings-btn:hover {
+  background: rgba(59, 130, 246, 0.22);
+  border-color: rgba(59, 130, 246, 0.6);
+  color: #ffffff;
+}
+[data-theme="light"] .tb-btn.tb-settings-btn {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.3);
+  color: #1d4ed8;
+}
+[data-theme="light"] .tb-btn.tb-settings-btn:hover {
+  background: rgba(37, 99, 235, 0.16);
+  border-color: #2563eb;
+  color: #0f172a;
+}
 .tb-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .hint { color: var(--muted); font-size: 11px; }
 
@@ -1814,6 +1837,91 @@ button.send { background: var(--accent); color: #111; border: none; cursor: poin
   border: 1px solid rgba(59, 130, 246, 0.4);
 }
 
+#settings-modal .provider-status-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+#settings-modal .provider-status-badge.enabled {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+#settings-modal .provider-status-badge.disabled {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+/* Master Provider Toggles Card */
+#settings-modal .provider-master-card {
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 16px !important;
+  border-color: rgba(59, 130, 246, 0.35) !important;
+  background: #141724 !important;
+}
+#settings-modal .provider-toggles-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+@media (max-width: 900px) {
+  #settings-modal .provider-toggles-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 550px) {
+  #settings-modal .provider-toggles-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+#settings-modal .provider-toggle-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 15px;
+  background: #0f1017;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+#settings-modal .provider-toggle-item:hover {
+  background: #171822;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+#settings-modal .provider-toggle-item.disabled {
+  opacity: 0.55;
+  border-color: rgba(239, 68, 68, 0.25);
+}
+#settings-modal .provider-toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+#settings-modal .provider-toggle-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #f8fafc;
+}
+#settings-modal .provider-toggle-sub {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+#settings-modal .settings-card.provider-disabled {
+  opacity: 0.55;
+}
+#settings-modal .provider-models-drawer.provider-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 /* Settings Cards */
 #settings-modal .settings-card {
   width: 100%;
@@ -2906,6 +3014,25 @@ button.send { background: var(--accent); color: #111; border: none; cursor: poin
   background: #f8fafc;
   border-color: #94a3b8;
 }
+[data-theme="light"] #settings-modal .provider-master-card {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+[data-theme="light"] #settings-modal .provider-toggle-item {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+[data-theme="light"] #settings-modal .provider-toggle-item:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+[data-theme="light"] #settings-modal .provider-toggle-name {
+  color: #0f172a;
+}
+[data-theme="light"] #settings-modal .provider-toggle-sub {
+  color: #475569;
+}
+
 
 /* Light Theme Overrides for Account Modal & Project Modal */
 [data-theme="light"] #account-modal .account-dialog-modal,
