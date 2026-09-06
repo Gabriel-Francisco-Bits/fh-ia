@@ -14,6 +14,8 @@ const DEFAULTS = {
   "fhIa.agentMode": "ask",
   "fhIa.failover.enabled": true,
   "fhIa.failover.order": "grok,claude,openai",
+  "fhIa.accounts": [],
+  "fhIa.disabledModels": [],
   "fhIa.claude.apiKey": "",
   "fhIa.claude.baseUrl": "https://api.anthropic.com",
   "fhIa.claude.model": "claude-sonnet-4-20250514",

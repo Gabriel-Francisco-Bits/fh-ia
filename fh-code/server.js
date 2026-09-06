@@ -38,7 +38,24 @@ if (!fssync.existsSync(path.join(out, "agent", "session.js"))) {
 const { AgentSession } = require(path.join(out, "agent", "session.js"));
 const { createTerminalCredentialResolver } = require(path.join(out, "auth", "resolve.js"));
 const { resolveAuthMode, resolveFailover, resolveProviderBundle } = require(path.join(out, "config.js"));
-const { MODEL_CATALOG, modelsFor } = require(path.join(out, "models.js"));
+const { MODEL_CATALOG, modelsFor, uniqueModels } = require(path.join(out, "models.js"));
+const { fetchModelsForProvider } = require(path.join(out, "modelsDiscovery.js"));
+
+const dynamicModelCatalog = {
+  claude: [...MODEL_CATALOG.claude],
+  grok: [...MODEL_CATALOG.grok],
+  openai: [...MODEL_CATALOG.openai],
+  fcc: [...MODEL_CATALOG.fcc],
+};
+
+function getModelsFor(provider, current) {
+  const base = dynamicModelCatalog[provider] || MODEL_CATALOG[provider] || [];
+  const list = uniqueModels ? uniqueModels([...base]) : [...base];
+  if (current && !list.includes(current)) {
+    list.unshift(current);
+  }
+  return list;
+}
 const { ProviderDispatcher } = require(path.join(out, "providers", "dispatcher.js"));
 const { isProviderId } = require(path.join(out, "providers", "types.js"));
 const { isAgentMode } = require(path.join(out, "agent", "modes.js"));
@@ -190,11 +207,39 @@ function json(res, code, obj) {
   res.end(JSON.stringify(obj));
 }
 
+function sortTreeEntries(a, b) {
+  const isDirA = typeof a.isDirectory === "function" ? a.isDirectory() : !!a.dir;
+  const isDirB = typeof b.isDirectory === "function" ? b.isDirectory() : !!b.dir;
+
+  // 1. Folders always come first
+  if (isDirA !== isDirB) {
+    return isDirA ? -1 : 1;
+  }
+
+  // 2. Folders are sorted alphabetically
+  if (isDirA) {
+    return a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true });
+  }
+
+  // 3. Files are sorted by type (extension) first
+  const extA = path.extname(a.name).toLowerCase().replace(/^\./, "");
+  const extB = path.extname(b.name).toLowerCase().replace(/^\./, "");
+
+  if (extA !== extB) {
+    if (!extA) return 1;
+    if (!extB) return -1;
+    return extA.localeCompare(extB, undefined, { sensitivity: "base", numeric: true });
+  }
+
+  // 4. Same extension: sort by name
+  return a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true });
+}
+
 async function listDir(rel) {
   const abs = safeResolve(WORKSPACE, rel);
   const names = await fs.readdir(abs, { withFileTypes: true });
   const entries = [];
-  for (const ent of names.sort((a, b) => a.name.localeCompare(b.name))) {
+  for (const ent of names.sort(sortTreeEntries)) {
     if (
       SKIP_DIRS.has(ent.name) ||
       ent.name.endsWith(".vsix") ||
@@ -467,7 +512,12 @@ const server = http.createServer(async (req, res) => {
 
       try {
         const data = await fs.readFile(abs);
-        res.writeHead(200, { "content-type": mime(abs) });
+        res.writeHead(200, {
+          "content-type": mime(abs),
+          "cache-control": "no-cache, no-store, must-revalidate",
+          "pragma": "no-cache",
+          "expires": "0"
+        });
         res.end(data);
         return;
       } catch {
@@ -493,7 +543,12 @@ const server = http.createServer(async (req, res) => {
     // HTML / Index
     if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
       const html = await fs.readFile(path.join(PUBLIC, "index.html"), "utf8");
-      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.writeHead(200, {
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "no-cache, no-store, must-revalidate",
+        "pragma": "no-cache",
+        "expires": "0"
+      });
       res.end(html);
       return;
     }
@@ -506,12 +561,12 @@ const server = http.createServer(async (req, res) => {
         root: WORKSPACE,
         name: path.basename(WORKSPACE),
         provider: bundle.selected,
-        catalog: MODEL_CATALOG,
+        catalog: dynamicModelCatalog,
         models: {
-          claude: modelsFor("claude", bundle.claude.model),
-          grok: modelsFor("grok", bundle.grok.model),
-          openai: modelsFor("openai", bundle.openai.model),
-          fcc: modelsFor("fcc", bundle.fcc.model),
+          claude: getModelsFor("claude", bundle.claude.model),
+          grok: getModelsFor("grok", bundle.grok.model),
+          openai: getModelsFor("openai", bundle.openai.model),
+          fcc: getModelsFor("fcc", bundle.fcc.model),
         },
         settings: getMergedSettings(),
       });
@@ -767,6 +822,70 @@ const server = http.createServer(async (req, res) => {
         rec.dispatcher.updateFailover(resolveFailover(cfg));
       }
       json(res, 200, { ok: true, settings: reset });
+      return;
+    }
+
+    // Models Discovery / Refresh API
+    if (req.method === "POST" && url.pathname === "/api/models/refresh") {
+      const body = await readBody(req);
+      const cfg = fileConfig();
+      const bundle = resolveProviderBundle(cfg);
+      const credResolver = createTerminalCredentialResolver({
+        home: os.homedir(),
+        env: process.env,
+        files: createNodeFilePort(WORKSPACE),
+        authMode: resolveAuthMode(cfg),
+      });
+
+      const targetProviders = (body.provider && body.provider !== "all")
+        ? [body.provider]
+        : ["claude", "grok", "openai", "fcc"];
+
+      const statuses = {};
+
+      await Promise.all(
+        targetProviders.map(async (pid) => {
+          if (!isProviderId(pid)) return;
+          let provSettings = bundle[pid] || { id: pid, baseUrl: "", model: "" };
+          if (body[pid] && typeof body[pid] === "object") {
+            provSettings = { ...provSettings, ...body[pid] };
+          }
+          let resolved = provSettings;
+          try {
+            resolved = await credResolver.resolve(pid, provSettings);
+          } catch {
+            // keep provSettings if terminal resolve fails
+          }
+
+          const res = await fetchModelsForProvider(pid, {
+            apiKey: resolved.apiKey || provSettings.apiKey,
+            baseUrl: resolved.baseUrl || provSettings.baseUrl,
+            authKind: resolved.authKind,
+          }, 4500);
+
+          if (res.ok && res.models && res.models.length > 0) {
+            dynamicModelCatalog[pid] = uniqueModels ? uniqueModels([...res.models]) : [...res.models];
+          }
+          statuses[pid] = {
+            ok: res.ok,
+            count: (dynamicModelCatalog[pid] || []).length,
+            source: res.source,
+            error: res.error,
+          };
+        })
+      );
+
+      json(res, 200, {
+        ok: true,
+        catalog: dynamicModelCatalog,
+        models: {
+          claude: getModelsFor("claude", bundle.claude.model),
+          grok: getModelsFor("grok", bundle.grok.model),
+          openai: getModelsFor("openai", bundle.openai.model),
+          fcc: getModelsFor("fcc", bundle.fcc.model),
+        },
+        statuses,
+      });
       return;
     }
 

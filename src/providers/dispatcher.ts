@@ -1,9 +1,10 @@
 import { missingMessage, passthroughCredentials, type CredentialResolver } from "../auth/resolve";
 import { chatClaude } from "./claude";
 import {
+  accountFailoverChain,
   DEFAULT_FAILOVER_ORDER,
-  failoverChain,
   type FailoverPolicy,
+  type ProviderCallTarget,
 } from "./failover";
 import { chatOpenAiCompatible } from "./openaiCompatible";
 import {
@@ -13,6 +14,7 @@ import {
   type ChatCall,
   type ChatMessage,
   type HttpTransport,
+  type ProviderAccount,
   type ProviderBundle,
   type ProviderId,
   type ProviderSettings,
@@ -29,9 +31,17 @@ const DEFAULT_CLIENTS: Record<ProviderId, ChatFn> = {
   fcc: chatClaude,
 };
 
+function formatTarget(target: ProviderCallTarget): string {
+  if (target.account?.name) {
+    return `${target.provider} [${target.account.name}]`;
+  }
+  return target.provider;
+}
+
 export class ProviderDispatcher {
   private selected: ProviderId;
   private lastUsed: ProviderId;
+  private lastUsedAccount?: ProviderAccount;
   private bundle: ProviderBundle;
   private failover: FailoverPolicy;
   private readonly http: HttpTransport;
@@ -68,6 +78,10 @@ export class ProviderDispatcher {
     return this.lastUsed;
   }
 
+  getLastUsedAccount(): ProviderAccount | undefined {
+    return this.lastUsedAccount;
+  }
+
   updateBundle(bundle: ProviderBundle): void {
     this.bundle = bundle;
     this.selected = bundle.selected;
@@ -82,21 +96,44 @@ export class ProviderDispatcher {
   }
 
   async resolveActive(): Promise<ProviderSettings> {
-    return this.credentials.resolve(this.selected, this.bundle[this.selected]);
+    const accounts = [
+      ...(this.bundle[this.selected]?.accounts || []),
+      ...((this.bundle.accounts || []).filter((a) => a.provider === this.selected)),
+    ];
+    const activeAcc = accounts.find((a) => a.enabled !== false && a.apiKey);
+    const raw = activeAcc
+      ? {
+          ...this.bundle[this.selected],
+          apiKey: activeAcc.apiKey,
+          baseUrl: activeAcc.baseUrl || this.bundle[this.selected].baseUrl,
+          model: activeAcc.model || this.bundle[this.selected].model,
+        }
+      : this.bundle[this.selected];
+    return this.credentials.resolve(this.selected, raw);
   }
 
   async chat(messages: ChatMessage[], onEvent: StreamSink, signal?: AbortSignal): Promise<string> {
     const available = this.failover.available ?? PROVIDER_IDS;
-    const chain = this.failover.enabled
-      ? failoverChain(this.selected, this.failover.order, available)
-      : [this.selected];
+    const chain: ProviderCallTarget[] = this.failover.enabled
+      ? accountFailoverChain(this.selected, this.bundle, this.failover.order, available)
+      : accountFailoverChain(this.selected, this.bundle, [], [this.selected]);
     const errors: string[] = [];
 
     for (let i = 0; i < chain.length; i++) {
-      const id = chain[i];
+      const target = chain[i];
+      const id = target.provider;
       const buffered: StreamEvent[] = [];
       try {
-        const settings = await this.credentials.resolve(id, this.bundle[id]);
+        const rawSettings: ProviderSettings = target.account
+          ? {
+              ...this.bundle[id],
+              apiKey: target.account.apiKey,
+              baseUrl: target.account.baseUrl || this.bundle[id].baseUrl,
+              model: target.account.model || this.bundle[id].model,
+            }
+          : this.bundle[id];
+        const settings = await this.credentials.resolve(id, rawSettings);
+
         if (!settings.apiKey) {
           throw new Error(missingMessage(id));
         }
@@ -111,10 +148,13 @@ export class ProviderDispatcher {
           signal,
         });
         this.lastUsed = id;
+        this.lastUsedAccount = target.account;
         if (i > 0) {
+          const prev = formatTarget(chain[i - 1]);
+          const current = formatTarget(target);
           onEvent({
             type: "status",
-            text: `Failover: ${chain[0]} falló → usando ${id}`,
+            text: `Failover: ${prev} falló → usando ${current}`,
           });
         }
         for (const event of buffered) {
@@ -125,7 +165,8 @@ export class ProviderDispatcher {
         return text;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        errors.push(`${id}: ${msg}`);
+        const label = formatTarget(target);
+        errors.push(`${label}: ${msg}`);
         if (!this.failover.enabled) {
           onEvent({ type: "error", error: msg });
           throw new Error(msg);

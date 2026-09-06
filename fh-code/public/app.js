@@ -91,16 +91,53 @@
   const chatSidebarList = document.getElementById("chat-sidebar-list");
   const chatSearchInput = document.getElementById("chat-search-input");
 
-  // Responsive Layout
+  // Responsive Layout & View Mode
+  let explorerVisible = true;
+  let isClaudeMode = false;
+  const btnToggleView = document.getElementById("btn-toggle-view");
+
   function applyShellLayout() {
+    const w = window.innerWidth;
     const spec = (globalThis.FhCodeLayout && globalThis.FhCodeLayout.layoutForWidth)
-      ? globalThis.FhCodeLayout.layoutForWidth(window.innerWidth)
-      : { columns: "240px minmax(0, 1fr) 360px", chatDisplay: "flex" };
+      ? globalThis.FhCodeLayout.layoutForWidth(w)
+      : { columns: "240px minmax(0, 1fr) 340px", chatDisplay: "flex" };
     const shell = document.querySelector(".shell");
     const chat = document.querySelector(".chat");
-    if (shell) shell.style.gridTemplateColumns = spec.columns;
+
+    if (shell) {
+      if (!explorerVisible) {
+        shell.classList.add("explorer-collapsed");
+        const rightCol = w < 980 ? "minmax(180px, 28vw)" : (w < 1200 ? "290px" : "340px");
+        shell.style.gridTemplateColumns = `0px minmax(0, 1fr) ${rightCol}`;
+      } else {
+        shell.classList.remove("explorer-collapsed");
+        shell.style.gridTemplateColumns = spec.columns;
+      }
+    }
     if (chat) chat.style.display = spec.chatDisplay;
   }
+
+  function toggleClaudeMode() {
+    isClaudeMode = !isClaudeMode;
+    const btnText = btnToggleView ? btnToggleView.querySelector(".btn-text") : null;
+    if (isClaudeMode) {
+      document.body.classList.add("claude-desktop-mode");
+      if (btnText) btnText.textContent = "Modo IDE";
+      if (typeof openChatInDocument === "function") {
+        openChatInDocument(currentChatId || (chatThreads[0] && chatThreads[0].id));
+      }
+    } else {
+      document.body.classList.remove("claude-desktop-mode");
+      if (btnText) btnText.textContent = "Modo Claude";
+    }
+    applyShellLayout();
+    if (editor) editor.layout();
+    if (diffEditor) diffEditor.layout();
+  }
+  if (btnToggleView) {
+    btnToggleView.addEventListener("click", toggleClaudeMode);
+  }
+
   window.addEventListener("resize", () => {
     applyShellLayout();
     if (editor) editor.layout();
@@ -119,26 +156,43 @@
     return map[ext] || "plaintext";
   }
 
+  let disabledModels = [];
+
   function fillModels() {
     const id = providerEl.value;
-    const list = (catalog[id] || []).slice();
+    const all = (catalog[id] || []).slice();
+    const list = all.filter((m) => !disabledModels.includes(m));
     modelEl.innerHTML = "";
-    list.forEach((m) => {
+    if (list.length === 0) {
       const o = document.createElement("option");
-      o.value = m;
-      o.textContent = m;
+      o.value = "";
+      o.textContent = "(Ningún modelo habilitado)";
       modelEl.appendChild(o);
-    });
-    if (list.length) modelEl.value = list[0];
+    } else {
+      list.forEach((m) => {
+        const o = document.createElement("option");
+        o.value = m;
+        o.textContent = m;
+        modelEl.appendChild(o);
+      });
+      if (list.length) modelEl.value = list[0];
+    }
   }
 
   async function loadMeta() {
     const meta = await (await fetch("/api/meta")).json();
     wsName.textContent = meta.name + " — " + meta.root;
     wsName.title = meta.root;
-    catalog = meta.models || {};
+    catalog = meta.catalog || meta.models || {};
+    if (meta.settings && Array.isArray(meta.settings["fhIa.disabledModels"])) {
+      disabledModels = [...meta.settings["fhIa.disabledModels"]];
+    } else {
+      disabledModels = [];
+    }
     providerEl.value = meta.provider || "grok";
     fillModels();
+    populateSettingsModelSelects(catalog);
+    renderModelTogglesList(catalog);
     applySettingsToUi(meta.settings || {});
     await loadTree(".", treeEl);
     scanAllFiles();
@@ -221,63 +275,87 @@
     }
   }
 
+  function sortClientTreeEntries(a, b) {
+    if (a.dir !== b.dir) return a.dir ? -1 : 1;
+    if (a.dir) return a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true });
+
+    // Files: sort by type (extension) first
+    const hasDotA = a.name.includes(".");
+    const hasDotB = b.name.includes(".");
+    const extA = hasDotA ? (a.name.split(".").pop() || "").toLowerCase() : "";
+    const extB = hasDotB ? (b.name.split(".").pop() || "").toLowerCase() : "";
+
+    if (extA !== extB) {
+      if (!extA) return 1;
+      if (!extB) return -1;
+      return extA.localeCompare(extB, undefined, { sensitivity: "base", numeric: true });
+    }
+
+    return a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true });
+  }
+
   // File Tree
   async function loadTree(dir = ".", into = treeEl) {
-    const data = await (await fetch("/api/tree?dir=" + encodeURIComponent(dir))).json();
-    into.innerHTML = "";
-    for (const ent of data.entries || []) {
-      const itemRow = document.createElement("div");
-      itemRow.className = "tree-row " + (ent.dir ? "dir-row" : "file-row");
-      if (!ent.dir && ent.path === activePath) itemRow.classList.add("active");
-      itemRow.setAttribute("data-path", ent.path);
+    try {
+      const data = await (await fetch("/api/tree?dir=" + encodeURIComponent(dir))).json();
+      into.innerHTML = "";
+      const entries = (data.entries || []).slice().sort(sortClientTreeEntries);
+      for (const ent of entries) {
+        const itemRow = document.createElement("div");
+        itemRow.className = "tree-row " + (ent.dir ? "dir-row" : "file-row");
+        if (!ent.dir && ent.path === activePath) itemRow.classList.add("active");
+        itemRow.setAttribute("data-path", ent.path);
 
-      let chevronHtml = ent.dir
-        ? `<span class="tree-chevron">${SVGS.chevronRight}</span>`
-        : '<span class="tree-indent-spacer"></span>';
+        let chevronHtml = ent.dir
+          ? `<span class="tree-chevron">${SVGS.chevronRight}</span>`
+          : '<span class="tree-indent-spacer"></span>';
 
-      let iconHtml = `<span class="tree-file-icon">${getFileIconHtml(ent.name, ent.dir, false)}</span>`;
+        let iconHtml = `<span class="tree-file-icon">${getFileIconHtml(ent.name, ent.dir, false)}</span>`;
 
-      itemRow.innerHTML = `
-        <div class="tree-item-left">
-          ${chevronHtml}
-          ${iconHtml}
-          <span class="tree-name" title="${escapeHtml(ent.path)}">${escapeHtml(ent.name)}</span>
-        </div>
-      `;
+        itemRow.innerHTML = `
+          <div class="tree-item-left">
+            ${chevronHtml}
+            ${iconHtml}
+            <span class="tree-name" title="${escapeHtml(ent.path)}">${escapeHtml(ent.name)}</span>
+          </div>
+        `;
 
-      const nested = document.createElement("div");
-      nested.className = "nested";
-      nested.style.display = "none";
-      let open = false;
+        const nested = document.createElement("div");
+        nested.className = "nested";
+        nested.style.display = "none";
+        let open = false;
 
-      itemRow.querySelector(".tree-item-left").addEventListener("click", async () => {
-        if (ent.dir) {
-          open = !open;
-          const chev = itemRow.querySelector(".tree-chevron");
-          if (chev) {
-            chev.innerHTML = open ? SVGS.chevronDown : SVGS.chevronRight;
-            chev.classList.toggle("open", open);
-          }
-          const iconEl = itemRow.querySelector(".tree-file-icon");
-          if (iconEl) {
-            iconEl.innerHTML = getFileIconHtml(ent.name, true, open);
-          }
-          if (open) {
-            nested.style.display = "block";
-            await loadTree(ent.path, nested);
+        itemRow.addEventListener("click", async (ev) => {
+          if (ent.dir) {
+            open = !open;
+            const chev = itemRow.querySelector(".tree-chevron");
+            if (chev) {
+              chev.innerHTML = open ? SVGS.chevronDown : SVGS.chevronRight;
+              chev.classList.toggle("open", open);
+            }
+            const iconEl = itemRow.querySelector(".tree-file-icon");
+            if (iconEl) {
+              iconEl.innerHTML = getFileIconHtml(ent.name, true, open);
+            }
+            if (open) {
+              nested.style.display = "block";
+              await loadTree(ent.path, nested);
+            } else {
+              nested.style.display = "none";
+              nested.innerHTML = "";
+            }
           } else {
-            nested.style.display = "none";
-            nested.innerHTML = "";
+            document.querySelectorAll(".tree-row.file-row").forEach((r) => r.classList.remove("active"));
+            itemRow.classList.add("active");
+            openFile(ent.path);
           }
-        } else {
-          document.querySelectorAll(".tree-row.file-row").forEach((r) => r.classList.remove("active"));
-          itemRow.classList.add("active");
-          openFile(ent.path);
-        }
-      });
+        });
 
-      into.appendChild(itemRow);
-      if (ent.dir) into.appendChild(nested);
+        into.appendChild(itemRow);
+        if (ent.dir) into.appendChild(nested);
+      }
+    } catch (err) {
+      console.error("[loadTree error]", err);
     }
   }
 
@@ -351,58 +429,76 @@
   }
 
   async function openFile(p) {
-    if (isDiffMode) closeDiffView();
-    activeTabType = "file";
-    activePath = p;
+    try {
+      if (isDiffMode) closeDiffView();
+      if (isClaudeMode) toggleClaudeMode();
+      activeTabType = "file";
+      activePath = p;
 
-    let tab = openTabs.find((t) => t.type !== "chat" && t.path === p);
-    if (!tab) {
-      const data = await (await fetch("/api/file?path=" + encodeURIComponent(p))).json();
-      const content = data.content ?? "";
-      let model = null;
-      if (typeof monaco !== "undefined") {
-        const uri = monaco.Uri.parse(`file:///${p}`);
-        model = monaco.editor.getModel(uri) || monaco.editor.createModel(content, langOf(p), uri);
-      }
-      tab = {
-        type: "file",
-        id: p,
-        path: p,
-        content: content,
-        savedContent: content,
-        model: model,
-        isDirty: false,
-      };
-      openTabs.push(tab);
-
-      if (model) {
-        model.onDidChangeContent(() => {
-          const cur = model.getValue();
-          const dirty = cur !== tab.savedContent;
-          if (dirty !== tab.isDirty) {
-            tab.isDirty = dirty;
-            renderTabs();
+      let tab = openTabs.find((t) => t.type !== "chat" && t.path === p);
+      if (!tab) {
+        const res = await fetch("/api/file?path=" + encodeURIComponent(p));
+        if (!res.ok) {
+          throw new Error(`Error ${res.status}: no se pudo leer el archivo`);
+        }
+        const data = await res.json();
+        const content = typeof data.content === "string" ? data.content : "";
+        let model = null;
+        if (typeof monaco !== "undefined" && monaco.editor) {
+          const cleanPath = p.replace(/^\/+/, "");
+          const uri = monaco.Uri.parse(`inmemory://workspace/${cleanPath}`);
+          model = monaco.editor.getModel(uri);
+          if (!model) {
+            model = monaco.editor.createModel(content, langOf(p), uri);
+          } else {
+            model.setValue(content);
           }
-          triggerLspDiagnostics(p, cur, langOf(p), model);
-        });
+        }
+        tab = {
+          type: "file",
+          id: p,
+          path: p,
+          content: content,
+          savedContent: content,
+          model: model,
+          isDirty: false,
+        };
+        openTabs.push(tab);
+
+        if (model) {
+          model.onDidChangeContent(() => {
+            const cur = model.getValue();
+            const dirty = cur !== tab.savedContent;
+            if (dirty !== tab.isDirty) {
+              tab.isDirty = dirty;
+              renderTabs();
+            }
+            triggerLspDiagnostics(p, cur, langOf(p), model);
+          });
+        }
       }
+
+      renderTabs();
+
+      if (chatDocView) chatDocView.style.display = "none";
+      if (editorEl) editorEl.style.display = "block";
+
+      if (editor) {
+        if (tab.model) {
+          editor.setModel(tab.model);
+          triggerLspDiagnostics(p, tab.model.getValue(), langOf(p), tab.model);
+        }
+        editor.layout();
+      }
+
+      document.querySelectorAll(".tree-row.file-row").forEach((el) => {
+        el.classList.toggle("active", el.getAttribute("data-path") === p);
+      });
+      if (typeof renderChatSidebar === "function") renderChatSidebar();
+    } catch (err) {
+      console.error("[openFile error]", err);
+      alert("No se pudo abrir el archivo: " + (err.message || String(err)));
     }
-
-    renderTabs();
-
-    if (chatDocView) chatDocView.style.display = "none";
-    if (editorEl) editorEl.style.display = "block";
-
-    if (editor && tab.model) {
-      editor.setModel(tab.model);
-      triggerLspDiagnostics(p, tab.model.getValue(), langOf(p), tab.model);
-    }
-
-    document.querySelectorAll(".tree .file").forEach((el) => {
-      const leafName = p.split("/").pop();
-      el.classList.toggle("active", el.textContent.trim() === leafName);
-    });
-    if (typeof renderChatSidebar === "function") renderChatSidebar();
   }
 
   function openChatTab(threadId) {
@@ -1015,6 +1111,13 @@
 
   // Settings Modal (Issue #13)
   function applySettingsToUi(settings) {
+    if (Array.isArray(settings["fhIa.disabledModels"])) {
+      disabledModels = [...settings["fhIa.disabledModels"]];
+      fillModels();
+      populateSettingsModelSelects(catalog);
+      renderModelTogglesList(catalog);
+    }
+
     const theme = settings["fhIa.ui.theme"] || "auto";
     if (theme === "light") {
       document.body.setAttribute("data-theme", "light");
@@ -1026,6 +1129,390 @@
 
     const fontSize = Number(settings["fhIa.ui.fontSize"] || 15);
     if (editor) editor.updateOptions({ fontSize });
+  }
+
+  let currentAccounts = [];
+  const accountModal = document.getElementById("account-modal");
+  const btnAccountModalClose = document.getElementById("btn-account-modal-close");
+  const btnAccountCancel = document.getElementById("btn-account-cancel");
+  const btnAccountSave = document.getElementById("btn-account-save");
+  const btnAddAccount = document.getElementById("btn-add-account");
+  let editingAccountId = null;
+
+  function renderAccountsList() {
+    const listEl = document.getElementById("accounts-list");
+    const emptyEl = document.getElementById("accounts-empty");
+    if (!listEl) return;
+    listEl.innerHTML = "";
+    if (currentAccounts.length === 0) {
+      if (emptyEl) emptyEl.style.display = "block";
+      return;
+    }
+    if (emptyEl) emptyEl.style.display = "none";
+
+    currentAccounts.forEach((acc, idx) => {
+      const card = document.createElement("div");
+      card.className = "account-card" + (acc.enabled === false ? " disabled" : "");
+
+      const left = document.createElement("div");
+      left.className = "account-card-left";
+
+      const badge = document.createElement("span");
+      badge.className = `account-badge ${acc.provider || "claude"}`;
+      badge.textContent = (acc.provider || "IA").toUpperCase();
+
+      const meta = document.createElement("div");
+      meta.className = "account-meta";
+
+      const title = document.createElement("div");
+      title.className = "account-title";
+      title.textContent = acc.name || `Cuenta ${acc.provider}`;
+
+      const sub = document.createElement("div");
+      sub.className = "account-sub";
+      const keyStr = String(acc.apiKey || "");
+      const maskedKey = keyStr ? (keyStr.length > 8 ? `${keyStr.slice(0, 4)}••••${keyStr.slice(-4)}` : "••••••••") : "Sin clave";
+      sub.textContent = `${maskedKey}${acc.model ? ` · ${acc.model}` : ""}`;
+
+      meta.appendChild(title);
+      meta.appendChild(sub);
+      left.appendChild(badge);
+      left.appendChild(meta);
+
+      const right = document.createElement("div");
+      right.className = "account-card-right";
+
+      const switchLabel = document.createElement("label");
+      switchLabel.className = "toggle-switch";
+      switchLabel.title = acc.enabled === false ? "Cuenta deshabilitada" : "Cuenta activa";
+      const switchInput = document.createElement("input");
+      switchInput.type = "checkbox";
+      switchInput.checked = acc.enabled !== false;
+      switchInput.addEventListener("change", (e) => {
+        acc.enabled = e.target.checked;
+        renderAccountsList();
+      });
+      const slider = document.createElement("span");
+      slider.className = "toggle-slider";
+      switchLabel.appendChild(switchInput);
+      switchLabel.appendChild(slider);
+
+      const btnEdit = document.createElement("button");
+      btnEdit.className = "btn-icon-subtle";
+      btnEdit.type = "button";
+      btnEdit.title = "Editar cuenta";
+      btnEdit.innerHTML = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2l3 3L5 14H2v-3L11 2z"/></svg>`;
+      btnEdit.addEventListener("click", () => openAccountModal(acc));
+
+      const btnDel = document.createElement("button");
+      btnDel.className = "btn-icon-subtle danger";
+      btnDel.type = "button";
+      btnDel.title = "Eliminar cuenta";
+      btnDel.innerHTML = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h10M6 4V2h4v2M5 4v9h6V4"/></svg>`;
+      btnDel.addEventListener("click", () => {
+        if (confirm(`¿Eliminar la cuenta "${acc.name || acc.provider}"?`)) {
+          currentAccounts.splice(idx, 1);
+          renderAccountsList();
+        }
+      });
+
+      right.appendChild(switchLabel);
+      right.appendChild(btnEdit);
+      right.appendChild(btnDel);
+
+      card.appendChild(left);
+      card.appendChild(right);
+      listEl.appendChild(card);
+    });
+  }
+
+  function openAccountModal(acc) {
+    if (!accountModal) return;
+    if (acc) {
+      editingAccountId = acc.id;
+      document.getElementById("account-modal-title").textContent = "Editar Cuenta de IA";
+      document.getElementById("acc-id").value = acc.id;
+      document.getElementById("acc-provider").value = acc.provider || "claude";
+      document.getElementById("acc-name").value = acc.name || "";
+      document.getElementById("acc-key").value = acc.apiKey || "";
+      document.getElementById("acc-base").value = acc.baseUrl || "";
+      document.getElementById("acc-model").value = acc.model || "";
+      document.getElementById("acc-enabled").checked = acc.enabled !== false;
+    } else {
+      editingAccountId = null;
+      document.getElementById("account-modal-title").textContent = "Añadir Cuenta de IA";
+      document.getElementById("acc-id").value = "";
+      document.getElementById("acc-provider").value = "claude";
+      document.getElementById("acc-name").value = "";
+      document.getElementById("acc-key").value = "";
+      document.getElementById("acc-base").value = "";
+      document.getElementById("acc-model").value = "";
+      document.getElementById("acc-enabled").checked = true;
+    }
+    accountModal.style.display = "flex";
+  }
+
+  function closeAccountModal() {
+    if (accountModal) accountModal.style.display = "none";
+    editingAccountId = null;
+  }
+
+  if (btnAddAccount) {
+    btnAddAccount.addEventListener("click", () => openAccountModal(null));
+  }
+  if (btnAccountModalClose) {
+    btnAccountModalClose.addEventListener("click", closeAccountModal);
+  }
+  if (btnAccountCancel) {
+    btnAccountCancel.addEventListener("click", closeAccountModal);
+  }
+  if (btnAccountSave) {
+    btnAccountSave.addEventListener("click", () => {
+      const provider = document.getElementById("acc-provider").value;
+      const name = document.getElementById("acc-name").value.trim() || `Cuenta ${provider}`;
+      const apiKey = document.getElementById("acc-key").value.trim();
+      const baseUrl = document.getElementById("acc-base").value.trim();
+      const model = document.getElementById("acc-model").value.trim();
+      const enabled = document.getElementById("acc-enabled").checked;
+
+      if (!apiKey) {
+        alert("Por favor introduce una API Key válida para esta cuenta.");
+        return;
+      }
+
+      if (editingAccountId) {
+        const idx = currentAccounts.findIndex((a) => a.id === editingAccountId);
+        if (idx !== -1) {
+          currentAccounts[idx] = {
+            ...currentAccounts[idx],
+            provider,
+            name,
+            apiKey,
+            baseUrl: baseUrl || undefined,
+            model: model || undefined,
+            enabled,
+          };
+        }
+      } else {
+        currentAccounts.push({
+          id: "acc_" + Math.random().toString(36).slice(2, 9),
+          provider,
+          name,
+          apiKey,
+          baseUrl: baseUrl || undefined,
+          model: model || undefined,
+          enabled,
+        });
+      }
+      renderAccountsList();
+      closeAccountModal();
+    });
+  }
+
+  function populateSettingsModelSelects(cat = catalog) {
+    const providers = ["claude", "grok", "openai", "fcc"];
+    providers.forEach((p) => {
+      const sel = document.getElementById(`select-${p}-model`);
+      const inp = document.getElementById(`set-${p}-model`);
+      const badge = document.getElementById(`badge-${p}-models`);
+      if (!sel || !inp) return;
+
+      const all = Array.isArray(cat[p]) ? [...cat[p]] : [];
+      const list = all.filter((m) => !disabledModels.includes(m));
+      if (badge) {
+        badge.textContent = `${list.length}/${all.length} activos`;
+      }
+
+      const currentVal = (inp.value || "").trim();
+      sel.innerHTML = "";
+
+      list.forEach((m) => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        sel.appendChild(opt);
+      });
+
+      if (currentVal && !list.includes(currentVal)) {
+        const customOpt = document.createElement("option");
+        customOpt.value = currentVal;
+        customOpt.textContent = `${currentVal} (personalizado)`;
+        sel.prepend(customOpt);
+      }
+
+      const customChoice = document.createElement("option");
+      customChoice.value = "__custom__";
+      customChoice.textContent = "✏️ Escribir modelo personalizado...";
+      sel.appendChild(customChoice);
+
+      if (currentVal && (list.includes(currentVal) || sel.querySelector(`option[value="${currentVal}"]`))) {
+        sel.value = currentVal;
+      } else if (list.length > 0) {
+        sel.value = list[0];
+        inp.value = list[0];
+      } else if (!currentVal) {
+        const emptyChoice = document.createElement("option");
+        emptyChoice.value = "";
+        emptyChoice.textContent = "(Ningún modelo habilitado)";
+        emptyChoice.disabled = true;
+        sel.appendChild(emptyChoice);
+        sel.value = "";
+      }
+
+      sel.onchange = () => {
+        if (sel.value === "__custom__") {
+          inp.style.display = "block";
+          sel.style.display = "none";
+          inp.focus();
+        } else {
+          inp.value = sel.value;
+        }
+      };
+    });
+  }
+
+  function renderModelTogglesList(cat = catalog) {
+    const providers = ["claude", "grok", "openai", "fcc"];
+    providers.forEach((p) => {
+      const container = document.getElementById(`list-models-${p}`);
+      const stats = document.getElementById(`stats-${p}-models`);
+      if (!container) return;
+
+      const all = Array.isArray(cat[p]) ? [...cat[p]] : [];
+      const enabled = all.filter((m) => !disabledModels.includes(m));
+
+      if (stats) {
+        stats.textContent = `${enabled.length}/${all.length} activos`;
+      }
+
+      container.innerHTML = "";
+      if (all.length === 0) {
+        container.innerHTML = `<div class="models-empty-note">No hay modelos detectados aún. Haz clic en "Refrescar modelos" para identificarlos desde las APIs.</div>`;
+        return;
+      }
+
+      all.forEach((m) => {
+        const isEnabled = !disabledModels.includes(m);
+        const row = document.createElement("div");
+        row.className = "model-toggle-row" + (isEnabled ? "" : " disabled");
+
+        const label = document.createElement("label");
+        label.className = "model-toggle-label";
+
+        const chk = document.createElement("input");
+        chk.type = "checkbox";
+        chk.className = "model-toggle-input";
+        chk.checked = isEnabled;
+        chk.dataset.provider = p;
+        chk.dataset.model = m;
+
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "model-toggle-name";
+        nameSpan.textContent = m;
+        nameSpan.title = m;
+
+        label.appendChild(chk);
+        label.appendChild(nameSpan);
+
+        const chip = document.createElement("span");
+        chip.className = "model-status-chip " + (isEnabled ? "enabled" : "disabled");
+        chip.textContent = isEnabled ? "Habilitado" : "Deshabilitado";
+
+        chk.onchange = () => {
+          if (chk.checked) {
+            disabledModels = disabledModels.filter((x) => x !== m);
+            row.classList.remove("disabled");
+            chip.className = "model-status-chip enabled";
+            chip.textContent = "Habilitado";
+          } else {
+            if (!disabledModels.includes(m)) disabledModels.push(m);
+            row.classList.add("disabled");
+            chip.className = "model-status-chip disabled";
+            chip.textContent = "Deshabilitado";
+          }
+          const currentEnabled = all.filter((x) => !disabledModels.includes(x));
+          if (stats) stats.textContent = `${currentEnabled.length}/${all.length} activos`;
+          populateSettingsModelSelects(catalog);
+          fillModels();
+        };
+
+        row.appendChild(label);
+        row.appendChild(chip);
+        container.appendChild(row);
+      });
+    });
+  }
+
+  async function refreshModels(targetProvider = "all", triggeringBtn = null) {
+    const spinner = triggeringBtn ? triggeringBtn.querySelector(".refresh-spinner-svg") : null;
+    const allSpinner = document.querySelector("#btn-refresh-all-models .refresh-spinner-svg");
+    const compSpinner = document.querySelector("#btn-refresh-composer-models .refresh-spinner-svg");
+
+    if (spinner) spinner.classList.add("spinning");
+    if (allSpinner) allSpinner.classList.add("spinning");
+    if (compSpinner) compSpinner.classList.add("spinning");
+
+    const feedback = document.getElementById("models-refresh-feedback");
+    if (feedback) {
+      feedback.style.display = "flex";
+      feedback.innerHTML = `<span class="refresh-chip">⟳ Detectando modelos disponibles en las APIs...</span>`;
+    }
+
+    try {
+      const payload = {
+        provider: targetProvider,
+        claude: {
+          apiKey: (document.getElementById("set-claude-key")?.value || "").trim() || undefined,
+        },
+        grok: {
+          apiKey: (document.getElementById("set-grok-key")?.value || "").trim() || undefined,
+        },
+        openai: {
+          apiKey: (document.getElementById("set-openai-key")?.value || "").trim() || undefined,
+          baseUrl: (document.getElementById("set-openai-base")?.value || "").trim() || undefined,
+        },
+        fcc: {
+          baseUrl: (document.getElementById("set-fcc-base")?.value || "").trim() || undefined,
+        },
+      };
+
+      const res = await fetch("/api/models/refresh", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (data && data.catalog) {
+        catalog = data.catalog;
+        populateSettingsModelSelects(catalog);
+        renderModelTogglesList(catalog);
+        fillModels();
+
+        if (feedback && data.statuses) {
+          feedback.innerHTML = "";
+          for (const [p, st] of Object.entries(data.statuses)) {
+            const chip = document.createElement("span");
+            chip.className = "refresh-chip " + (st.ok ? "ok" : "warn");
+            const label = p.toUpperCase();
+            if (st.ok) {
+              chip.innerHTML = `✓ ${label}: ${st.count} modelos detectados`;
+            } else {
+              chip.innerHTML = `ℹ ${label}: ${st.count} modelos (${st.error || "catálogo"})`;
+            }
+            feedback.appendChild(chip);
+          }
+        }
+      }
+    } catch (err) {
+      if (feedback) {
+        feedback.innerHTML = `<span class="refresh-chip warn">⚠ Error al conectar con las APIs: ${err.message}</span>`;
+      }
+    } finally {
+      if (spinner) spinner.classList.remove("spinning");
+      if (allSpinner) allSpinner.classList.remove("spinning");
+      if (compSpinner) compSpinner.classList.remove("spinning");
+    }
   }
 
   async function showSettingsModal() {
@@ -1043,6 +1530,11 @@
     document.getElementById("set-fcc-base").value = res["fhIa.fcc.baseUrl"] || "http://127.0.0.1:8082";
     document.getElementById("set-failover-enabled").checked = res["fhIa.failover.enabled"] !== false;
     document.getElementById("set-failover-order").value = res["fhIa.failover.order"] || "grok,claude,openai";
+    disabledModels = Array.isArray(res["fhIa.disabledModels"]) ? [...res["fhIa.disabledModels"]] : [];
+    currentAccounts = Array.isArray(res["fhIa.accounts"]) ? [...res["fhIa.accounts"]] : [];
+    renderAccountsList();
+    populateSettingsModelSelects(catalog);
+    renderModelTogglesList(catalog);
     settingsModal.style.display = "flex";
   }
 
@@ -1061,6 +1553,8 @@
       "fhIa.fcc.baseUrl": document.getElementById("set-fcc-base").value,
       "fhIa.failover.enabled": document.getElementById("set-failover-enabled").checked,
       "fhIa.failover.order": document.getElementById("set-failover-order").value,
+      "fhIa.accounts": currentAccounts,
+      "fhIa.disabledModels": disabledModels,
     };
 
     const res = await fetch("/api/settings", {
@@ -1083,13 +1577,20 @@
     const data = await res.json();
     if (res.ok) {
       applySettingsToUi(data.settings);
+      disabledModels = [];
+      currentAccounts = [];
+      renderAccountsList();
+      populateSettingsModelSelects(catalog);
+      renderModelTogglesList(catalog);
+      fillModels();
       settingsModal.style.display = "none";
       alert("Ajustes restablecidos correctamente.");
     }
   }
 
-  // Sidebar Tab Switcher
+  // Sidebar Tab Switcher & Toggle
   function showSidebarTab(tab) {
+    explorerVisible = true;
     if (tab === "files") {
       actFiles.classList.add("active");
       actSearch.classList.remove("active");
@@ -1103,6 +1604,30 @@
       treeContainer.style.display = "none";
       searchContainer.style.display = "flex";
       searchInput.focus();
+    }
+    applyShellLayout();
+    if (editor) editor.layout();
+  }
+
+  function toggleSidebarTab(tab) {
+    if (tab === "files") {
+      if (actFiles.classList.contains("active") && explorerVisible) {
+        explorerVisible = false;
+        actFiles.classList.remove("active");
+        applyShellLayout();
+        if (editor) editor.layout();
+        return;
+      }
+      showSidebarTab("files");
+    } else if (tab === "search") {
+      if (actSearch.classList.contains("active") && explorerVisible) {
+        explorerVisible = false;
+        actSearch.classList.remove("active");
+        applyShellLayout();
+        if (editor) editor.layout();
+        return;
+      }
+      showSidebarTab("search");
     }
   }
 
@@ -2000,12 +2525,45 @@
   btnRefreshTree.addEventListener("click", () => { loadTree(".", treeEl); scanAllFiles(); });
 
   // Activity Bar
-  actFiles.addEventListener("click", () => showSidebarTab("files"));
-  actSearch.addEventListener("click", () => showSidebarTab("search"));
+  actFiles.addEventListener("click", () => toggleSidebarTab("files"));
+  actSearch.addEventListener("click", () => toggleSidebarTab("search"));
   actGit.addEventListener("click", () => openBottomPanel("git"));
   actTerminal.addEventListener("click", () => openBottomPanel("terminal"));
   actSettings.addEventListener("click", showSettingsModal);
-  if (actChat) actChat.addEventListener("click", () => inputEl.focus());
+  if (actChat) {
+    actChat.addEventListener("click", () => {
+      if (typeof openChatInDocument === "function") {
+        openChatInDocument(currentChatId || (chatThreads[0] && chatThreads[0].id));
+      }
+      inputEl.focus();
+    });
+  }
+
+  // Mobile Bottom Navigation Bar
+  const mobileNavBtns = document.querySelectorAll(".mobile-nav-btn");
+  mobileNavBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      mobileNavBtns.forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      const view = btn.dataset.view;
+      if (view === "files") {
+        showSidebarTab("files");
+      } else if (view === "editor") {
+        if (isClaudeMode) toggleClaudeMode();
+        if (chatDocView) chatDocView.style.display = "none";
+        if (editorEl) editorEl.style.display = "block";
+        if (editor) editor.layout();
+      } else if (view === "chat") {
+        if (typeof openChatInDocument === "function") {
+          openChatInDocument(currentChatId || (chatThreads[0] && chatThreads[0].id));
+        }
+      } else if (view === "history") {
+        if (chatSearchInput) chatSearchInput.focus();
+      } else if (view === "settings") {
+        showSettingsModal();
+      }
+    });
+  });
 
   // Search input
   searchInput.addEventListener("keydown", (ev) => {
@@ -2106,6 +2664,78 @@
   btnSettingsReset.addEventListener("click", handleResetSettings);
   settingsModal.addEventListener("click", (ev) => {
     if (ev.target === settingsModal) settingsModal.style.display = "none";
+  });
+
+  // Automatic Model Refresh & Discovery buttons
+  const btnRefreshAllModels = document.getElementById("btn-refresh-all-models");
+  if (btnRefreshAllModels) {
+    btnRefreshAllModels.addEventListener("click", () => refreshModels("all", btnRefreshAllModels));
+  }
+
+  const btnRefreshComposerModels = document.getElementById("btn-refresh-composer-models");
+  if (btnRefreshComposerModels) {
+    btnRefreshComposerModels.addEventListener("click", () => refreshModels(providerEl.value, btnRefreshComposerModels));
+  }
+
+  document.querySelectorAll(".btn-refresh-single").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const p = btn.getAttribute("data-provider");
+      if (p) refreshModels(p, btn);
+    });
+  });
+
+  document.querySelectorAll(".btn-toggle-custom-model").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const p = btn.getAttribute("data-target");
+      const sel = document.getElementById(`select-${p}-model`);
+      const inp = document.getElementById(`set-${p}-model`);
+      if (sel && inp) {
+        if (inp.style.display === "none") {
+          inp.style.display = "block";
+          sel.style.display = "none";
+          inp.focus();
+        } else {
+          inp.style.display = "none";
+          sel.style.display = "block";
+          if (sel.value && sel.value !== "__custom__") {
+            inp.value = sel.value;
+          }
+        }
+      }
+    });
+  });
+
+  // Provider Model Drawer Expand/Collapse
+  document.querySelectorAll(".btn-drawer-toggle").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const p = btn.getAttribute("data-provider");
+      const drawer = document.getElementById(`list-models-${p}`);
+      if (drawer) {
+        const isOpen = drawer.style.display !== "none";
+        drawer.style.display = isOpen ? "none" : "grid";
+        btn.classList.toggle("expanded", !isOpen);
+      }
+    });
+  });
+
+  // Provider Model Bulk Actions (Enable All / Disable All)
+  document.querySelectorAll(".btn-bulk-action").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const p = btn.getAttribute("data-provider");
+      const action = btn.getAttribute("data-action");
+      const all = Array.isArray(catalog[p]) ? [...catalog[p]] : [];
+      if (action === "all") {
+        disabledModels = disabledModels.filter((m) => !all.includes(m));
+      } else if (action === "none") {
+        all.forEach((m) => {
+          if (!disabledModels.includes(m)) disabledModels.push(m);
+        });
+      }
+      renderModelTogglesList(catalog);
+      populateSettingsModelSelects(catalog);
+      fillModels();
+    });
   });
 
   // Configure Monaco Worker environment for offline local loading without URL parse errors
@@ -2239,7 +2869,7 @@
       widget.className = "inline-edit-widget";
       widget.innerHTML = `
         <div class="inline-edit-header">
-          <span class="inline-edit-title">✨ Cursor Inline Edit (Ctrl+K)</span>
+          <span class="inline-edit-title"><svg class="cursor-sparkle" viewBox="0 0 16 16" width="14" height="14" fill="var(--accent)" style="margin-right: 6px; vertical-align: -2px;"><path d="M8 0C8 4.418 4.418 8 0 8C4.418 8 8 11.582 8 16C8 11.582 11.582 8 16 8C11.582 8 8 4.418 8 0Z"/></svg>Cursor Inline Edit (Ctrl+K)</span>
           <span class="inline-edit-hint">Enter para generar · Esc para cerrar</span>
         </div>
         <div class="inline-edit-body">
@@ -2248,8 +2878,8 @@
         </div>
         <div id="inline-edit-actions" class="inline-edit-actions" style="display:none;">
           <span class="inline-edit-status">Cambios aplicados inline:</span>
-          <button id="inline-edit-accept" class="btn-action-accept">✓ Aceptar (Ctrl+Enter)</button>
-          <button id="inline-edit-reject" class="btn-action-reject">✕ Descartar (Esc)</button>
+          <button id="inline-edit-accept" class="btn-action-accept"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; vertical-align: -1px;"><polyline points="3 8.5 6.5 12 13 4"></polyline></svg>Aceptar (Ctrl+Enter)</button>
+          <button id="inline-edit-reject" class="btn-action-reject"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; vertical-align: -1px;"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg>Descartar (Esc)</button>
         </div>
       `;
       document.body.appendChild(widget);
@@ -2359,10 +2989,10 @@
       overlay.innerHTML = `
         <div class="composer-modal">
           <div class="composer-header">
-            <span class="composer-title">✨ Cursor Composer (Ctrl+I)</span>
+            <span class="composer-title"><svg class="cursor-sparkle" viewBox="0 0 16 16" width="14" height="14" fill="var(--accent)" style="margin-right: 6px; vertical-align: -2px;"><path d="M8 0C8 4.418 4.418 8 0 8C4.418 8 8 11.582 8 16C8 11.582 11.582 8 16 8C11.582 8 8 4.418 8 0Z"/></svg>Cursor Composer (Ctrl+I)</span>
             <div style="display:flex; gap:8px; align-items:center;">
-              <button id="composer-btn-rollback" class="composer-rollback-btn" title="Revertir cambios al checkpoint anterior">⏪ Rollback</button>
-              <button id="composer-btn-close" style="background:none; border:none; color:#94a3b8; cursor:pointer; font-size:18px;">✕</button>
+              <button id="composer-btn-rollback" class="composer-rollback-btn" title="Revertir cambios al checkpoint anterior"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; vertical-align: -1px;"><path d="M14 8H3M7 4L3 8l4 4"/></svg>Rollback</button>
+              <button id="composer-btn-close" style="background:none; border:none; color:#94a3b8; cursor:pointer; display:flex; align-items:center;"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg></button>
             </div>
           </div>
           <div class="composer-body">

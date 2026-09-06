@@ -11,6 +11,7 @@ app.commandLine.appendSwitch("no-sandbox");
 app.commandLine.appendSwitch("disable-gpu");
 app.commandLine.appendSwitch("disable-gpu-sandbox");
 app.commandLine.appendSwitch("ozone-platform-hint", "auto");
+app.commandLine.appendSwitch("disable-http-cache");
 
 const port = process.env.FH_IA_EDITOR_PORT || 3847;
 const url = process.env.FH_CODE_URL || `http://127.0.0.1:${port}`;
@@ -93,6 +94,15 @@ function createWindow() {
         mainWindow.loadURL(url);
       }
     }, 500);
+  });
+
+  mainWindow.webContents.session.clearCache().catch(() => {});
+
+  mainWindow.webContents.on("before-input-event", (event, input) => {
+    if ((input.control || input.meta) && input.key.toLowerCase() === "r") {
+      mainWindow.webContents.session.clearCache().finally(() => mainWindow.reload());
+      event.preventDefault();
+    }
   });
 
   mainWindow.loadURL(url);

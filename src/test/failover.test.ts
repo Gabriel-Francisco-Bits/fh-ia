@@ -91,3 +91,108 @@ test("missing credential on preferred IA fails over to a configured backend", as
     await grok.close();
   }
 });
+
+test("intra-provider multi-account failover: Primary account 503 -> Secondary account of same provider succeeds", async () => {
+  const down = await startFailingServer({ status: 503, body: '{"error":"quota exceeded"}' });
+  const backup = await startSseServer({ kind: "claude", pathSuffix: "/v1/messages", reply: "CLAUDE-BACKUP-OK" });
+  try {
+    const bundle: ProviderBundle = {
+      selected: "claude",
+      claude: { id: "claude", apiKey: "unused", baseUrl: "http://127.0.0.1:9", model: "c" },
+      grok: { id: "grok", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "g" },
+      openai: { id: "openai", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "o" },
+      fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "f" },
+      accounts: [
+        {
+          id: "claude-main",
+          provider: "claude",
+          name: "Claude Pro (Principal)",
+          apiKey: "sk-ant-main",
+          baseUrl: down.url,
+          model: "claude-3-5-sonnet",
+          enabled: true,
+        },
+        {
+          id: "claude-backup",
+          provider: "claude",
+          name: "Claude Work (Backup)",
+          apiKey: "sk-ant-backup",
+          baseUrl: backup.url,
+          model: "claude-3-opus",
+          enabled: true,
+        },
+      ],
+    };
+    const dispatcher = new ProviderDispatcher({
+      bundle,
+      failover: { enabled: true, order: ["claude", "grok"] },
+    });
+    dispatcher.setSelected("claude");
+    const events: StreamEvent[] = [];
+    const text = await dispatcher.chat([{ role: "user", content: "hola" }], (e) => events.push(e));
+
+    assert.equal(text, "CLAUDE-BACKUP-OK");
+    assert.equal(dispatcher.getLastUsed(), "claude");
+    assert.equal(dispatcher.getLastUsedAccount()?.id, "claude-backup");
+    assert.equal(down.requests.length, 1);
+    assert.equal(backup.requests.length, 1);
+    assert.equal(backup.requests[0].headers["x-api-key"], "sk-ant-backup");
+
+    const status = events.find((e) => e.type === "status");
+    assert.ok(status && status.type === "status");
+    assert.match(status.text, /Claude Pro \(Principal\)/);
+    assert.match(status.text, /Claude Work \(Backup\)/);
+  } finally {
+    await down.close();
+    await backup.close();
+  }
+});
+
+test("hierarchical failover: All accounts of primary provider fail -> falls over to next provider", async () => {
+  const claude1 = await startFailingServer({ status: 429, body: '{"error":"rate_limited"}' });
+  const claude2 = await startFailingServer({ status: 500, body: '{"error":"server_error"}' });
+  const grok = await startSseServer({ kind: "openai", pathSuffix: "/v1/chat/completions", reply: "GROK-FALLBACK-OK" });
+  try {
+    const bundle: ProviderBundle = {
+      selected: "claude",
+      claude: { id: "claude", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "c" },
+      grok: { id: "grok", apiKey: "xai-key", baseUrl: grok.url, model: "grok-4" },
+      openai: { id: "openai", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "o" },
+      fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "f" },
+      accounts: [
+        {
+          id: "c1",
+          provider: "claude",
+          name: "Claude Acc 1",
+          apiKey: "k1",
+          baseUrl: claude1.url,
+          enabled: true,
+        },
+        {
+          id: "c2",
+          provider: "claude",
+          name: "Claude Acc 2",
+          apiKey: "k2",
+          baseUrl: claude2.url,
+          enabled: true,
+        },
+      ],
+    };
+    const dispatcher = new ProviderDispatcher({
+      bundle,
+      failover: { enabled: true, order: ["claude", "grok", "openai"] },
+    });
+    const text = await dispatcher.chat([{ role: "user", content: "test" }], () => undefined);
+
+    assert.equal(text, "GROK-FALLBACK-OK");
+    assert.equal(dispatcher.getLastUsed(), "grok");
+    assert.equal(claude1.requests.length, 1);
+    assert.equal(claude2.requests.length, 1);
+    assert.equal(grok.requests.length, 1);
+  } finally {
+    await claude1.close();
+    await claude2.close();
+    await grok.close();
+  }
+});
+

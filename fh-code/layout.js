@@ -7,16 +7,20 @@
 function layoutForWidth(width) {
   const w = Number(width);
   const narrow = w < 980;
+  const compact = w < 1200;
   return {
     width: w,
     narrow,
+    compact,
     explorer: true,
     editor: true,
     chat: true,
     chatDisplay: "flex",
     columns: narrow
-      ? "minmax(120px, 26vw) minmax(160px, 1fr) minmax(200px, 38vw)"
-      : "240px minmax(0, 1fr) 360px",
+      ? "minmax(130px, 20vw) minmax(160px, 1fr) minmax(180px, 28vw)"
+      : compact
+        ? "220px minmax(0, 1fr) 300px"
+        : "240px minmax(0, 1fr) 340px",
   };
 }
 

@@ -2,7 +2,7 @@ import { isAgentMode, type AgentMode } from "./agent/modes";
 import { isAuthMode, type AuthMode } from "./auth/resolve";
 import { FCC_DEFAULT_BASE, FCC_DEFAULT_TOKEN } from "./providers/fcc";
 import { parseFailoverOrder, type FailoverPolicy } from "./providers/failover";
-import type { ProviderBundle, ProviderId, ProviderSettings } from "./providers/types";
+import type { ProviderAccount, ProviderBundle, ProviderId, ProviderSettings } from "./providers/types";
 import { isProviderId, PROVIDER_IDS } from "./providers/types";
 
 export interface RawConfig {
@@ -16,6 +16,8 @@ export const FHIA_CONFIG_KEYS = [
   "fhIa.agentMode",
   "fhIa.failover.enabled",
   "fhIa.failover.order",
+  "fhIa.accounts",
+  "fhIa.disabledModels",
   "fhIa.claude.apiKey",
   "fhIa.claude.baseUrl",
   "fhIa.claude.model",
@@ -104,8 +106,27 @@ export function resolveProviderBundle(
 ): ProviderBundle {
   const rawSelected = selectedOverride ?? String(config.get("fhIa.provider") ?? "grok");
   const selected: ProviderId = isProviderId(rawSelected) ? rawSelected : "grok";
+  const rawAccounts = config.get<unknown>("fhIa.accounts");
+  let accounts: ProviderAccount[] = [];
+  if (Array.isArray(rawAccounts)) {
+    accounts = rawAccounts
+      .filter(
+        (a): a is ProviderAccount =>
+          Boolean(a && typeof a === "object" && isProviderId((a as any).provider) && (a as any).apiKey),
+      )
+      .map((a) => ({
+        id: String(a.id || Math.random().toString(36).slice(2, 9)),
+        provider: a.provider,
+        name: String(a.name || a.provider),
+        apiKey: String(a.apiKey),
+        baseUrl: a.baseUrl ? String(a.baseUrl) : undefined,
+        model: a.model ? String(a.model) : undefined,
+        enabled: a.enabled !== false,
+      }));
+  }
   return {
     selected,
+    accounts,
     claude: settings("claude", "https://api.anthropic.com", "claude-sonnet-4-20250514", config),
     grok: settings("grok", "https://api.x.ai", "grok-4", config),
     openai: settings("openai", "https://api.openai.com/v1", "gpt-4o", config),

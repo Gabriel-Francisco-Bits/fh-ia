@@ -75,16 +75,20 @@ test("lsp diagnostics detect json and javascript errors", async () => {
 });
 
 test("settings manager supports get, update, and reset", async () => {
+  await resetSettings();
   const init = getMergedSettings();
   assert.ok(init["fhIa.provider"]);
+  assert.deepEqual(init["fhIa.disabledModels"], []);
 
-  const updated = await updateSettings({ "fhIa.ui.fontSize": 19, "fhIa.grok.model": "grok-custom-test" });
+  const updated = await updateSettings({ "fhIa.ui.fontSize": 19, "fhIa.grok.model": "grok-custom-test", "fhIa.disabledModels": ["grok-2"] });
   assert.equal(updated["fhIa.ui.fontSize"], 19);
   assert.equal(updated["fhIa.grok.model"], "grok-custom-test");
+  assert.deepEqual(updated["fhIa.disabledModels"], ["grok-2"]);
 
   const reset = await resetSettings();
   assert.equal(reset["fhIa.ui.fontSize"], 15);
   assert.equal(reset["fhIa.grok.model"], "grok-4");
+  assert.deepEqual(reset["fhIa.disabledModels"], []);
 });
 
 test("server provides search, settings, and lsp endpoints", async (t) => {
@@ -102,13 +106,36 @@ test("server provides search, settings, and lsp endpoints", async (t) => {
   assert.equal(getSettings.status, 200);
   assert.ok(getSettings.body["fhIa.provider"]);
 
-  const putSettings = await request(port, "PUT", "/api/settings", { "fhIa.ui.theme": "dark" });
+  const putSettings = await request(port, "PUT", "/api/settings", {
+    "fhIa.ui.theme": "dark",
+    "fhIa.accounts": [{ id: "acc-test", provider: "claude", name: "Backup", apiKey: "sk-ant-test" }],
+  });
   assert.equal(putSettings.status, 200);
   assert.equal(putSettings.body.settings["fhIa.ui.theme"], "dark");
+  assert.equal(putSettings.body.settings["fhIa.accounts"].length, 1);
+  assert.equal(putSettings.body.settings["fhIa.accounts"][0].name, "Backup");
+
+  // Tree API sorted
+  const treeRes = await request(port, "GET", "/api/tree");
+  assert.equal(treeRes.status, 200);
+  assert.ok(Array.isArray(treeRes.body.entries));
 
   const resetReq = await request(port, "POST", "/api/settings/reset");
   assert.equal(resetReq.status, 200);
   assert.equal(resetReq.body.settings["fhIa.ui.theme"], "auto");
+  assert.deepEqual(resetReq.body.settings["fhIa.accounts"], []);
+
+  // Models Discovery / Refresh API
+  const refreshRes = await request(port, "POST", "/api/models/refresh", { provider: "all" });
+  assert.equal(refreshRes.status, 200);
+  assert.equal(refreshRes.body.ok, true);
+  assert.ok(refreshRes.body.catalog);
+  assert.ok(Array.isArray(refreshRes.body.catalog.claude));
+  assert.ok(Array.isArray(refreshRes.body.catalog.grok));
+  assert.ok(Array.isArray(refreshRes.body.catalog.openai));
+  assert.ok(Array.isArray(refreshRes.body.catalog.fcc));
+  assert.ok(refreshRes.body.statuses.claude);
+  assert.ok(refreshRes.body.statuses.openai);
 
   // LSP API
   const lspRes = await request(port, "POST", "/api/lsp/diagnostics", {

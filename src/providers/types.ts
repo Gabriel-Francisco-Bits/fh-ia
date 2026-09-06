@@ -8,6 +8,16 @@ export function isProviderId(value: string): value is ProviderId {
 export type AuthKind = "apiKey" | "session";
 export type AuthSource = "settings" | "env" | "terminal";
 
+export interface ProviderAccount {
+  id: string;
+  provider: ProviderId;
+  name: string;
+  apiKey: string;
+  baseUrl?: string;
+  model?: string;
+  enabled?: boolean;
+}
+
 export interface ProviderSettings {
   id: ProviderId;
   apiKey: string;
@@ -16,6 +26,8 @@ export interface ProviderSettings {
   authKind?: AuthKind;
   authSource?: AuthSource;
   extraHeaders?: Record<string, string>;
+  accounts?: ProviderAccount[];
+  activeAccountId?: string;
 }
 
 export interface ProviderBundle {
@@ -24,6 +36,7 @@ export interface ProviderBundle {
   grok: ProviderSettings;
   openai: ProviderSettings;
   fcc: ProviderSettings;
+  accounts?: ProviderAccount[];
 }
 
 export interface ChatMessage {
