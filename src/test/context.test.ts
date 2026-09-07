@@ -191,3 +191,123 @@ test("node file port lists workspace files and skips node_modules", async () => 
   assert.ok(tree?.includes("src/app.ts"));
   assert.equal(tree?.some((p) => p.includes("node_modules")), false);
 });
+
+test("extractSymbolsFromCode extracts functions, classes, interfaces, types, and enums with signatures (Issue #24)", () => {
+  const { extractSymbolsFromCode } = require("../workspace/context");
+  const code = `
+export function computeTotal(price: number, tax: number): number {
+  return price + tax;
+}
+
+export const formatCurrency = (val: number): string => "$" + val;
+
+export class PaymentProcessor extends BaseProcessor implements IPayment {
+  process() {}
+}
+
+export interface IPayment {
+  id: string;
+}
+
+export type PaymentStatus = "pending" | "completed" | "failed";
+
+export enum Currency {
+  USD = "USD",
+  EUR = "EUR"
+}
+`;
+  const symbols = extractSymbolsFromCode(code);
+  assert.ok(symbols.length >= 6);
+
+  const fn1 = symbols.find((s: any) => s.name === "computeTotal");
+  assert.ok(fn1 && fn1.kind === "function");
+  assert.match(fn1.signature, /function computeTotal\(price: number, tax: number\): number/);
+
+  const fn2 = symbols.find((s: any) => s.name === "formatCurrency");
+  assert.ok(fn2 && fn2.kind === "function");
+
+  const cls = symbols.find((s: any) => s.name === "PaymentProcessor");
+  assert.ok(cls && cls.kind === "class");
+  assert.match(cls.signature, /class PaymentProcessor extends BaseProcessor implements IPayment/);
+
+  const iface = symbols.find((s: any) => s.name === "IPayment");
+  assert.ok(iface && iface.kind === "interface");
+
+  const tp = symbols.find((s: any) => s.name === "PaymentStatus");
+  assert.ok(tp && tp.kind === "type");
+
+  const en = symbols.find((s: any) => s.name === "Currency");
+  assert.ok(en && en.kind === "enum");
+});
+
+test("resolveImportedSymbols resolves signatures from imported local files (Issue #24)", async () => {
+  const { resolveImportedSymbols, buildCodeIntelligenceContext } = require("../workspace/context");
+
+  const filesMap: Record<string, string> = {
+    "src/math/calc.ts": `
+export function multiply(a: number, b: number): number { return a * b; }
+export interface CalcOptions { precision: number; }
+`,
+  };
+
+  const dummyFiles: FilePort = {
+    async read(p: string) {
+      if (filesMap[p]) return filesMap[p];
+      throw new Error("File not found: " + p);
+    },
+    async write() { throw new Error("not used"); },
+    async exists(p: string) { return Boolean(filesMap[p]); },
+  };
+
+  const activeContent = `
+import { multiply } from "./math/calc";
+
+export function runCalculation() {
+  return multiply(2, 3);
+}
+`;
+  const resolved = await resolveImportedSymbols("src/app.ts", activeContent, dummyFiles);
+  assert.equal(resolved.length, 1);
+  assert.equal(resolved[0].moduleSpecifier, "./math/calc");
+  assert.ok(resolved[0].exportedSymbols.some((s: any) => s.name === "multiply"));
+  assert.ok(resolved[0].exportedSymbols.some((s: any) => s.name === "CalcOptions"));
+
+  const summary = await buildCodeIntelligenceContext(
+    { path: "src/app.ts", content: activeContent },
+    dummyFiles,
+  );
+  assert.match(summary, /Symbols in src\/app\.ts/);
+  assert.match(summary, /Imported Module Signatures & Types/);
+  assert.match(summary, /multiply/);
+});
+
+test("gatherContext integrates @docs and code intelligence automatically (Issue #24)", async () => {
+  const { gatherContext, renderContextBlock } = require("../workspace/context");
+
+  const filesMap: Record<string, string> = {
+    "src/helper.ts": "export function helpUser() { return 'helped'; }",
+  };
+  const dummyFiles: FilePort = {
+    async read(p: string) { return filesMap[p] || ""; },
+    async write() { throw new Error("not used"); },
+    async exists(p: string) { return Boolean(filesMap[p]); },
+  };
+
+  const editor: EditorPort = {
+    activeFile: {
+      path: "src/main.ts",
+      content: 'import { helpUser } from "./helper";\nexport class AppRunner {}\n',
+    },
+  };
+
+  const ctx = await gatherContext("how do I run @docs and check @symbols?", editor, dummyFiles);
+  assert.ok(ctx.docsContext, "Should generate docsContext when @docs is mentioned");
+  assert.match(ctx.docsContext!, /Framework Documentation/);
+  assert.ok(ctx.symbolsContext, "Should auto-generate symbolsContext with AST intelligence");
+  assert.match(ctx.symbolsContext!, /AppRunner/);
+  assert.match(ctx.symbolsContext!, /helpUser/);
+
+  const block = renderContextBlock(ctx);
+  assert.match(block, /Framework Documentation Context \(@docs\)/);
+  assert.match(block, /Code Symbols \(@symbols\)/);
+});

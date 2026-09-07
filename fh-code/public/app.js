@@ -3882,7 +3882,138 @@
   providerEl.addEventListener("change", fillModels);
   if (modelEl) modelEl.addEventListener("change", () => renderAiLimitsBar());
   document.getElementById("send").addEventListener("click", send);
+  // Contextual Mentions (@) Autocomplete (Issue #24)
+  const mentionMenu = document.getElementById("mention-menu");
+  const mentionList = document.getElementById("mention-menu-list");
+
+  const CONTEXT_MENTIONS = [
+    { tag: "@codebase", label: "@codebase", desc: "Búsqueda Semántica Vectorial / BM25", icon: "🔍" },
+    { tag: "@symbols", label: "@symbols", desc: "Extracción AST y firmas de funciones y clases", icon: "🏷️" },
+    { tag: "@git", label: "@git", desc: "Diff de cambios y estado de ramas de Git", icon: "🌿" },
+    { tag: "@terminal", label: "@terminal", desc: "Últimos buffers y salidas de consola", icon: "💻" },
+    { tag: "@file", label: "@file", desc: "Adjuntar un archivo completo del workspace", icon: "📄" },
+    { tag: "@docs", label: "@docs", desc: "Contexto de documentación de librerías y APIs", icon: "📚" },
+    { tag: "@web", label: "@web", desc: "Búsqueda web contextual en tiempo real", icon: "🌐" },
+  ];
+
+  let activeMentionIndex = 0;
+  let mentionQuery = null;
+
+  function hideMentionMenu() {
+    if (mentionMenu) mentionMenu.style.display = "none";
+    mentionQuery = null;
+    activeMentionIndex = 0;
+  }
+
+  function renderMentionItems(filterText) {
+    if (!mentionList) return;
+    mentionList.innerHTML = "";
+    const cleanFilter = (filterText || "").toLowerCase().replace(/^@/, "");
+    const filtered = CONTEXT_MENTIONS.filter(
+      (m) => m.tag.toLowerCase().includes(cleanFilter) || m.desc.toLowerCase().includes(cleanFilter)
+    );
+
+    if (filtered.length === 0) {
+      hideMentionMenu();
+      return;
+    }
+
+    if (activeMentionIndex >= filtered.length) {
+      activeMentionIndex = 0;
+    }
+
+    filtered.forEach((item, idx) => {
+      const row = document.createElement("div");
+      row.className = "mention-item " + (idx === activeMentionIndex ? "active" : "");
+      row.innerHTML = `
+        <span class="mention-item-icon">${item.icon}</span>
+        <span class="mention-item-tag">${item.tag}</span>
+        <span class="mention-item-desc">${item.desc}</span>
+      `;
+      row.addEventListener("click", () => {
+        applyMention(item.tag);
+      });
+      mentionList.appendChild(row);
+    });
+
+    if (mentionMenu) mentionMenu.style.display = "flex";
+  }
+
+  function applyMention(tag) {
+    if (!inputEl) return;
+    const val = inputEl.value;
+    const cursorPos = inputEl.selectionStart || val.length;
+    const textBefore = val.slice(0, cursorPos);
+    const textAfter = val.slice(cursorPos);
+
+    const atMatch = textBefore.match(/@([a-zA-Z0-9_-]*)$/);
+    if (atMatch) {
+      const startPos = atMatch.index;
+      inputEl.value = val.slice(0, startPos) + tag + " " + textAfter;
+      const newPos = startPos + tag.length + 1;
+      inputEl.selectionStart = newPos;
+      inputEl.selectionEnd = newPos;
+    } else {
+      inputEl.value = val + (val.endsWith(" ") ? "" : " ") + tag + " ";
+    }
+    inputEl.focus();
+    hideMentionMenu();
+  }
+
+  function handleMentionInput() {
+    if (!inputEl) return;
+    const val = inputEl.value;
+    const cursorPos = inputEl.selectionStart || val.length;
+    const textBefore = val.slice(0, cursorPos);
+    const match = textBefore.match(/@([a-zA-Z0-9_-]*)$/);
+
+    if (match) {
+      mentionQuery = match[1];
+      renderMentionItems(match[1]);
+    } else {
+      hideMentionMenu();
+    }
+  }
+
+  inputEl.addEventListener("input", handleMentionInput);
+
   inputEl.addEventListener("keydown", (ev) => {
+    if (mentionMenu && mentionMenu.style.display !== "none") {
+      const items = mentionList ? mentionList.querySelectorAll(".mention-item") : [];
+      if (ev.key === "ArrowDown") {
+        ev.preventDefault();
+        if (items.length > 0) {
+          activeMentionIndex = (activeMentionIndex + 1) % items.length;
+          renderMentionItems(mentionQuery || "");
+        }
+        return;
+      }
+      if (ev.key === "ArrowUp") {
+        ev.preventDefault();
+        if (items.length > 0) {
+          activeMentionIndex = (activeMentionIndex - 1 + items.length) % items.length;
+          renderMentionItems(mentionQuery || "");
+        }
+        return;
+      }
+      if (ev.key === "Enter" || ev.key === "Tab") {
+        const active = items[activeMentionIndex];
+        if (active) {
+          ev.preventDefault();
+          const tagEl = active.querySelector(".mention-item-tag");
+          if (tagEl) {
+            applyMention(tagEl.textContent.trim());
+            return;
+          }
+        }
+      }
+      if (ev.key === "Escape") {
+        ev.preventDefault();
+        hideMentionMenu();
+        return;
+      }
+    }
+
     if (ev.key === "Enter" && !ev.shiftKey) {
       ev.preventDefault();
       send();
