@@ -76,3 +76,27 @@ test("app.css and app.js include tool calls and reasoning UI components (Issue #
   assert.match(js, /thought-card/);
   assert.match(js, /tool-calls-container/);
 });
+
+test("app.css, app.js and index.html include surgical diffs, monaco preview and hunk shortcuts (Issue #23)", () => {
+  const html = fs.readFileSync(path.join(__dirname, "public", "index.html"), "utf8");
+  assert.match(html, /id="diff-editor-toolbar"/);
+  assert.match(html, /id="btn-diff-toggle-split"/);
+  assert.match(html, /id="btn-diff-accept-all"/);
+  assert.match(html, /id="btn-diff-reject-all"/);
+  assert.match(html, /id="btn-diff-close"/);
+
+  const css = fs.readFileSync(path.join(__dirname, "public", "app.css"), "utf8");
+  assert.match(css, /\.diff-delete-line/);
+  assert.match(css, /\.diff-add-line/);
+  assert.match(css, /\.diff-delete-gutter/);
+  assert.match(css, /\.diff-add-gutter/);
+  assert.match(css, /\.diff-hunk-widget/);
+  assert.match(css, /\.diff-editor-toolbar/);
+
+  const js = fs.readFileSync(path.join(__dirname, "public", "app.js"), "utf8");
+  assert.match(js, /monaco\.editor\.createDiffEditor/);
+  assert.match(js, /applyInlineHunkDecorations/);
+  assert.match(js, /acceptSingleHunk/);
+  assert.match(js, /rejectSingleHunk/);
+  assert.match(js, /monaco\.KeyCode\.Backspace/);
+});

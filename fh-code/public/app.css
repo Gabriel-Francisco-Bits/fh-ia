@@ -5659,3 +5659,194 @@ body.mode-fullchat #chat-doc-view .doc-composer {
   color: var(--muted, #94a3b8);
 }
 
+/* ==========================================================================
+   Surgical Hunk Diffs & Monaco Previews (Issue #23)
+   ========================================================================== */
+.diff-delete-line {
+  background: rgba(239, 68, 68, 0.18) !important;
+  border-left: 3px solid #ef4444 !important;
+}
+
+.diff-add-line {
+  background: rgba(34, 197, 94, 0.18) !important;
+  border-left: 3px solid #22c55e !important;
+}
+
+.diff-delete-gutter {
+  background: #ef4444;
+  width: 5px !important;
+  margin-left: 3px;
+  border-radius: 2px;
+}
+
+.diff-add-gutter {
+  background: #22c55e;
+  width: 5px !important;
+  margin-left: 3px;
+  border-radius: 2px;
+}
+
+.diff-delete-char {
+  background: rgba(239, 68, 68, 0.45) !important;
+  border-radius: 2px;
+}
+
+.diff-add-char {
+  background: rgba(34, 197, 94, 0.45) !important;
+  border-radius: 2px;
+}
+
+/* Floating Hunk Widget */
+.diff-hunk-widget {
+  position: absolute;
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background: var(--bg2, #181824);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.15));
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  font-size: 11px;
+  font-family: inherit;
+  user-select: none;
+  pointer-events: auto;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.diff-hunk-widget:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+  transform: translateY(-1px);
+}
+
+.diff-hunk-label {
+  color: var(--muted, #94a3b8);
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.diff-hunk-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  line-height: 1.2;
+  transition: all 0.12s ease;
+}
+
+.diff-hunk-btn-accept {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.diff-hunk-btn-accept:hover {
+  background: #22c55e;
+  color: #052e16;
+}
+
+.diff-hunk-btn-reject {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.diff-hunk-btn-reject:hover {
+  background: #ef4444;
+  color: #450a0a;
+}
+
+.diff-hunk-shortcut {
+  font-size: 9px;
+  opacity: 0.8;
+  margin-left: 2px;
+}
+
+/* Split Diff Toolbar */
+.diff-editor-toolbar {
+  height: 38px;
+  min-height: 38px;
+  padding: 0 14px;
+  background: var(--bg2, #181824);
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-sizing: border-box;
+  z-index: 20;
+}
+
+.diff-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.diff-toolbar-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg, #f8fafc);
+}
+
+.diff-toolbar-stats {
+  font-size: 11px;
+  color: var(--muted, #94a3b8);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.diff-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.diff-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--fg, #e2e8f0);
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.diff-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.diff-btn-success {
+  background: rgba(34, 197, 94, 0.18);
+  border-color: rgba(34, 197, 94, 0.35);
+  color: #4ade80;
+}
+
+.diff-btn-success:hover {
+  background: #22c55e;
+  color: #052e16;
+}
+
+.diff-btn-danger {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #f87171;
+}
+
+.diff-btn-danger:hover {
+  background: #ef4444;
+  color: #450a0a;
+}
+
