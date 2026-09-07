@@ -54,6 +54,29 @@ const dynamicModelCatalog = {
   fcc: [...MODEL_CATALOG.fcc],
 };
 
+const providerLimitsStore = {
+  claude: { usedPercent: null, remaining: null, limit: null, totalTokens: 0, status: "ready" },
+  openai: { usedPercent: null, remaining: null, limit: null, totalTokens: 0, status: "ready" },
+  grok: { usedPercent: null, remaining: null, limit: null, totalTokens: 0, status: "ready" },
+  fcc: { usedPercent: 0, remaining: null, limit: null, totalTokens: 0, unlimited: true, status: "unlimited" },
+};
+
+function recordProviderLimit(provider, rateLimit, usage) {
+  if (!provider || !providerLimitsStore[provider]) return;
+  const store = providerLimitsStore[provider];
+  if (rateLimit) {
+    if (rateLimit.usedPercent != null) store.usedPercent = rateLimit.usedPercent;
+    if (rateLimit.remaining != null) store.remaining = rateLimit.remaining;
+    if (rateLimit.limit != null) store.limit = rateLimit.limit;
+    if (rateLimit.kind != null) store.kind = rateLimit.kind;
+    if (rateLimit.reset != null) store.reset = rateLimit.reset;
+  }
+  if (usage && (usage.totalTokens || usage.completionTokens)) {
+    store.totalTokens = (store.totalTokens || 0) + (usage.totalTokens || usage.completionTokens || 0);
+  }
+  store.lastUpdated = Date.now();
+}
+
 function getModelsFor(provider, current) {
   const base = dynamicModelCatalog[provider] || MODEL_CATALOG[provider] || [];
   const list = uniqueModels ? uniqueModels([...base]) : [...base];
@@ -928,6 +951,14 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === "GET" && url.pathname === "/api/providers/limits") {
+      json(res, 200, {
+        ok: true,
+        limits: providerLimitsStore,
+      });
+      return;
+    }
+
     // Chat / Agent
     if (req.method === "POST" && url.pathname === "/api/chat") {
       const body = await readBody(req);
@@ -1024,7 +1055,10 @@ const server = http.createServer(async (req, res) => {
           if (ev.type === "text") send({ type: "delta", text: ev.text });
           if (ev.type === "status") send({ type: "status", text: ev.text });
           if (ev.type === "error") send({ type: "error", message: ev.error });
-          if (ev.type === "meta") streamMeta = { ...streamMeta, ...ev };
+          if (ev.type === "meta") {
+            streamMeta = { ...streamMeta, ...ev };
+            recordProviderLimit(body.provider, ev.rateLimit, ev.usage);
+          }
         }, mode);
 
         const durationMs = Date.now() - startTime;
@@ -1040,6 +1074,8 @@ const server = http.createServer(async (req, res) => {
             }
           }
         }
+
+        recordProviderLimit(result.provider || body.provider, streamMeta.rateLimit, streamMeta.usage);
 
         send({
           type: "done",

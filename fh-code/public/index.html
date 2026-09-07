@@ -134,6 +134,61 @@
                   <button id="send" class="send" type="button"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" style="margin-right: 4px; vertical-align: -2px;"><path d="M15.85 7.15l-14-6A1 1 0 0 0 .55 2.45L3.4 8 .55 13.55a1 1 0 0 0 1.3 1.3l14-6a1 1 0 0 0 0-1.7zM3.8 9L2.4 12.2 12.1 8 2.4 3.8 3.8 7h5.7v2H3.8z"/></svg>Enviar ↵</button>
                 </div>
               </div>
+
+              <!-- Barra resumen de límites de uso de todas las IAs -->
+              <div class="composer-limits-bar" id="composer-limits-bar">
+                <div class="limits-bar-header">
+                  <div class="limits-bar-title" title="Resumen de cuotas y límites de uso en tiempo real">
+                    <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 14h14v1H1v-1zm2-3h2v2H3v-2zm4-4h2v6H7V7zm4-4h2v10h-2V3z"/></svg>
+                    <span>Límites de IA:</span>
+                  </div>
+                  <div class="limits-bar-chips" id="limits-bar-chips">
+                    <button type="button" class="limit-chip" id="limit-chip-claude" data-provider="claude" title="Claude (Anthropic) - Clic para cambiar">
+                      <span class="limit-dot dot-claude"></span>
+                      <span class="limit-name">Claude</span>
+                      <span class="limit-val" id="limit-val-claude">100% disp.</span>
+                      <span class="limit-track"><span class="limit-fill" id="limit-fill-claude" style="width: 0%;"></span></span>
+                    </button>
+                    <button type="button" class="limit-chip" id="limit-chip-openai" data-provider="openai" title="ChatGPT / OpenAI - Clic para cambiar">
+                      <span class="limit-dot dot-openai"></span>
+                      <span class="limit-name">ChatGPT</span>
+                      <span class="limit-val" id="limit-val-openai">100% disp.</span>
+                      <span class="limit-track"><span class="limit-fill" id="limit-fill-openai" style="width: 0%;"></span></span>
+                    </button>
+                    <button type="button" class="limit-chip" id="limit-chip-grok" data-provider="grok" title="Grok (xAI) - Clic para cambiar">
+                      <span class="limit-dot dot-grok"></span>
+                      <span class="limit-name">Grok</span>
+                      <span class="limit-val" id="limit-val-grok">100% disp.</span>
+                      <span class="limit-track"><span class="limit-fill" id="limit-fill-grok" style="width: 0%;"></span></span>
+                    </button>
+                    <button type="button" class="limit-chip" id="limit-chip-fcc" data-provider="fcc" title="FCC Local - Servidor local ilimitado">
+                      <span class="limit-dot dot-fcc"></span>
+                      <span class="limit-name">FCC Local</span>
+                      <span class="limit-val is-unlimited" id="limit-val-fcc">Ilimitado</span>
+                      <span class="limit-track"><span class="limit-fill is-unlimited" id="limit-fill-fcc" style="width: 100%;"></span></span>
+                    </button>
+                  </div>
+                  <button type="button" class="btn-limits-details" id="btn-limits-details" title="Ver desglose detallado de uso y tokens">
+                    <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="6"></circle><line x1="8" y1="7" x2="8" y2="11"></line><circle cx="8" cy="4.5" r="0.75" fill="currentColor"></circle></svg>
+                  </button>
+                </div>
+
+                <!-- Popover desplegable con el desglose detallado -->
+                <div class="limits-details-popover" id="limits-details-popover" style="display: none;">
+                  <div class="limits-popover-head">
+                    <span class="limits-popover-title">
+                      <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; vertical-align: -2px;"><path d="M1 14h14v1H1v-1zm2-3h2v2H3v-2zm4-4h2v6H7V7zm4-4h2v10h-2V3z"/></svg>
+                      Desglose de Límites & Cuotas
+                    </span>
+                    <button type="button" id="btn-close-limits-popover" class="limits-popover-close" title="Cerrar">✕</button>
+                  </div>
+                  <div class="limits-popover-grid" id="limits-popover-grid"></div>
+                  <div class="limits-popover-foot">
+                    <span class="limits-popover-tip">Valores obtenidos de las cabeceras de respuesta oficiales de cada proveedor.</span>
+                    <button type="button" id="btn-reset-session-tokens" class="btn-limits-reset">Reiniciar contadores</button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

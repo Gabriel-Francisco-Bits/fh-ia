@@ -242,3 +242,18 @@ test("/api/chat handles streaming requests gracefully without reference errors",
   assert.match(sseChunks, /data: /);
 });
 
+test("/api/providers/limits returns provider limits summary structure", async (t) => {
+  const { server, port } = await startServer(0);
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const res = await request(port, "GET", "/api/providers/limits");
+  assert.equal(res.status, 200);
+  assert.equal(res.body.ok, true);
+  assert.ok(res.body.limits);
+  assert.ok(res.body.limits.claude);
+  assert.ok(res.body.limits.openai);
+  assert.ok(res.body.limits.grok);
+  assert.ok(res.body.limits.fcc);
+  assert.equal(res.body.limits.fcc.unlimited, true);
+});
+

@@ -760,6 +760,295 @@ html, body { margin: 0; height: 100%; overflow: hidden; }
 }
 
 /* ==========================================================================
+   AI Usage Limits Summary Bar (Bottom of Composer)
+   ========================================================================== */
+.composer-limits-bar {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  user-select: none;
+}
+
+.limits-bar-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.limits-bar-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.limits-bar-chips {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.limit-chip {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 4px 7px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+}
+
+.limit-chip:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.limit-chip.selected {
+  border-color: rgba(59, 130, 246, 0.6);
+  background: rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.15);
+}
+
+.limit-dot {
+  width: 6.5px;
+  height: 6.5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-claude { background: #c084fc; box-shadow: 0 0 6px rgba(192, 132, 252, 0.7); }
+.dot-openai { background: #34d399; box-shadow: 0 0 6px rgba(52, 211, 153, 0.7); }
+.dot-grok { background: #38bdf8; box-shadow: 0 0 6px rgba(56, 189, 248, 0.7); }
+.dot-fcc { background: #818cf8; box-shadow: 0 0 6px rgba(129, 140, 248, 0.7); }
+
+.limit-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #e2e8f0;
+  white-space: nowrap;
+}
+
+.limit-val {
+  font-size: 10px;
+  font-weight: 500;
+  color: #94a3b8;
+  margin-left: auto;
+  white-space: nowrap;
+}
+.limit-val.is-unlimited {
+  color: #818cf8;
+  font-weight: 600;
+}
+.limit-val.warning {
+  color: #f59e0b;
+  font-weight: 600;
+}
+.limit-val.danger {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.limit-track {
+  width: 28px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: block;
+}
+
+.limit-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: #10b981;
+  transition: width 0.35s ease, background-color 0.35s ease;
+}
+.limit-fill.warning {
+  background: #f59e0b;
+}
+.limit-fill.danger {
+  background: #ef4444;
+}
+.limit-fill.is-unlimited {
+  background: #6366f1;
+}
+
+.btn-limits-details {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  color: #94a3b8;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+.btn-limits-details:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Popover Desplegable */
+.limits-details-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  width: 360px;
+  background: #181c24;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  padding: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 1px rgba(255, 255, 255, 0.2);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: modalFadeIn 0.15s ease-out;
+}
+
+.limits-popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 8px;
+}
+
+.limits-popover-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f1f5f9;
+  display: inline-flex;
+  align-items: center;
+}
+
+.limits-popover-close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+.limits-popover-close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.limits-popover-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.limits-popover-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.limits-popover-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.limits-popover-item-name {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.limits-popover-item-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+}
+
+.limits-popover-item-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.limits-popover-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 8px;
+}
+
+.limits-popover-tip {
+  font-size: 9.5px;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.btn-limits-reset {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: #cbd5e1;
+  font-size: 10px;
+  padding: 4px 7px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-limits-reset:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+@media (max-width: 900px) {
+  .limits-bar-chips {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+
+/* ==========================================================================
    Chat Sidebar (Dedicated Historial de Chats panel)
    ========================================================================== */
 .chat-sidebar-head {

@@ -214,6 +214,7 @@
       });
       if (list.length) modelEl.value = list[0];
     }
+    if (typeof renderAiLimitsBar === "function") renderAiLimitsBar();
   }
 
   async function loadMeta() {
@@ -2801,6 +2802,246 @@
     return bar;
   }
 
+  /* ==========================================================================
+     AI Usage & Rate Limits Summary Bar Manager
+     ========================================================================== */
+  const AI_LIMITS_KEY = "fhIa.providerLimits";
+
+  const defaultProviderLimits = {
+    claude: { usedPercent: null, remaining: null, limit: null, kind: "tokens", totalTokens: 0, status: "ready" },
+    openai: { usedPercent: null, remaining: null, limit: null, kind: "tokens", totalTokens: 0, status: "ready" },
+    grok: { usedPercent: null, remaining: null, limit: null, kind: "tokens", totalTokens: 0, status: "ready" },
+    fcc: { unlimited: true, totalTokens: 0, status: "unlimited" },
+  };
+
+  function getAiLimits() {
+    try {
+      const raw = localStorage.getItem(AI_LIMITS_KEY);
+      if (raw) return { ...defaultProviderLimits, ...JSON.parse(raw) };
+    } catch {}
+    return { ...defaultProviderLimits };
+  }
+
+  function saveAiLimits(data) {
+    try {
+      localStorage.setItem(AI_LIMITS_KEY, JSON.stringify(data));
+    } catch {}
+  }
+
+  function formatTokenCount(num) {
+    if (num == null) return "0";
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
+    if (num >= 1000) return (num / 1000).toFixed(1) + "k";
+    return String(num);
+  }
+
+  function updateAiLimitsUI(targetProvider, rateLimit, usage) {
+    const limits = getAiLimits();
+    if (targetProvider && limits[targetProvider]) {
+      const p = limits[targetProvider];
+      if (rateLimit) {
+        if (rateLimit.usedPercent != null) p.usedPercent = Math.max(0, Math.min(100, Math.round(rateLimit.usedPercent)));
+        if (rateLimit.remaining != null) p.remaining = rateLimit.remaining;
+        if (rateLimit.limit != null) p.limit = rateLimit.limit;
+        if (rateLimit.kind != null) p.kind = rateLimit.kind;
+      }
+      if (usage && (usage.totalTokens || usage.completionTokens)) {
+        p.totalTokens = (p.totalTokens || 0) + (usage.totalTokens || usage.completionTokens || 0);
+      }
+      p.lastUpdated = Date.now();
+      saveAiLimits(limits);
+    }
+    renderAiLimitsBar(limits);
+  }
+
+  function renderAiLimitsBar(limits) {
+    const data = limits || getAiLimits();
+    const currentProv = providerEl ? providerEl.value : "claude";
+
+    const provs = ["claude", "openai", "grok", "fcc"];
+    provs.forEach((pid) => {
+      const p = data[pid] || {};
+      const chip = document.getElementById(`limit-chip-${pid}`);
+      const valEl = document.getElementById(`limit-val-${pid}`);
+      const fillEl = document.getElementById(`limit-fill-${pid}`);
+
+      if (!chip || !valEl || !fillEl) return;
+
+      if (pid === currentProv) {
+        chip.classList.add("selected");
+      } else {
+        chip.classList.remove("selected");
+      }
+
+      if (pid === "fcc" || p.unlimited) {
+        valEl.textContent = "Ilimitado";
+        valEl.className = "limit-val is-unlimited";
+        fillEl.className = "limit-fill is-unlimited";
+        fillEl.style.width = "100%";
+        chip.title = `FCC Local (Servidor propio)\n• Cuota ilimitada sin coste ni API Key\n• Tokens en esta sesión: ${formatTokenCount(p.totalTokens || 0)}`;
+        return;
+      }
+
+      let usedPct = p.usedPercent;
+      let dispPct = usedPct != null ? Math.max(0, 100 - usedPct) : 100;
+
+      let statusClass = "";
+      if (usedPct != null) {
+        if (usedPct >= 90) statusClass = "danger";
+        else if (usedPct >= 65) statusClass = "warning";
+      }
+
+      valEl.className = `limit-val ${statusClass}`.trim();
+      fillEl.className = `limit-fill ${statusClass}`.trim();
+
+      if (usedPct != null) {
+        valEl.textContent = `${dispPct}% disp.`;
+        fillEl.style.width = `${Math.min(100, Math.max(4, usedPct))}%`;
+      } else {
+        valEl.textContent = p.totalTokens > 0 ? `${formatTokenCount(p.totalTokens)} tok` : "100% disp.";
+        fillEl.style.width = p.totalTokens > 0 ? "10%" : "0%";
+      }
+
+      const provName = pid === "openai" ? "ChatGPT / OpenAI" : (pid === "claude" ? "Claude (Anthropic)" : "Grok (xAI)");
+      let tooltip = `${provName}:\n`;
+      if (usedPct != null) {
+        tooltip += `• Disponibilidad: ${dispPct}% restante (${usedPct}% consumido)\n`;
+      } else {
+        tooltip += `• Estado: Disponible para consultas\n`;
+      }
+      if (p.remaining != null && p.limit != null) {
+        tooltip += `• Cuota: ${formatTokenCount(p.remaining)} / ${formatTokenCount(p.limit)} ${p.kind || "tokens"}\n`;
+      }
+      tooltip += `• Tokens usados en sesión: ${formatTokenCount(p.totalTokens || 0)}\n(Haz clic para seleccionar esta IA)`;
+      chip.title = tooltip;
+    });
+
+    renderLimitsPopoverGrid(data);
+  }
+
+  function renderLimitsPopoverGrid(data) {
+    const grid = document.getElementById("limits-popover-grid");
+    if (!grid) return;
+    grid.innerHTML = "";
+
+    const provNames = {
+      claude: "Claude (Anthropic)",
+      openai: "ChatGPT / OpenAI",
+      grok: "Grok (xAI)",
+      fcc: "FCC Local (Servidor propio)",
+    };
+
+    const provDots = {
+      claude: "dot-claude",
+      openai: "dot-openai",
+      grok: "dot-grok",
+      fcc: "dot-fcc",
+    };
+
+    ["claude", "openai", "grok", "fcc"].forEach((pid) => {
+      const p = data[pid] || {};
+      const item = document.createElement("div");
+      item.className = "limits-popover-item";
+
+      const dispPct = p.usedPercent != null ? Math.max(0, 100 - p.usedPercent) : 100;
+      const isUnl = pid === "fcc" || p.unlimited;
+
+      item.innerHTML = `
+        <div class="limits-popover-item-header">
+          <span class="limits-popover-item-name">
+            <span class="limit-dot ${provDots[pid]}"></span>
+            <strong>${provNames[pid]}</strong>
+          </span>
+          <span class="limits-popover-item-badge">${isUnl ? "ILIMITADO" : (p.usedPercent != null ? `${dispPct}% disponible` : "ACTIVO")}</span>
+        </div>
+        <div class="limits-popover-item-stats">
+          <div><strong>Tokens sesión:</strong> ${formatTokenCount(p.totalTokens || 0)}</div>
+          <div><strong>Límite:</strong> ${isUnl ? "Sin restricción" : (p.limit != null ? `${formatTokenCount(p.limit)} ${p.kind || "tok"}` : "Dinámico")}</div>
+          <div><strong>Restante:</strong> ${isUnl ? "∞" : (p.remaining != null ? formatTokenCount(p.remaining) : "Cuota estándar")}</div>
+          <div><strong>Consumo:</strong> ${isUnl ? "0%" : (p.usedPercent != null ? `${p.usedPercent}%` : "< 1%")}</div>
+        </div>
+      `;
+      grid.appendChild(item);
+    });
+  }
+
+  function setupAiLimitsBar() {
+    const chipsContainer = document.getElementById("limits-bar-chips");
+    if (chipsContainer) {
+      chipsContainer.addEventListener("click", (e) => {
+        const chip = e.target.closest(".limit-chip");
+        if (!chip) return;
+        const pid = chip.getAttribute("data-provider");
+        if (pid && providerEl && providerEl.value !== pid) {
+          providerEl.value = pid;
+          fillModels();
+          renderAiLimitsBar();
+        }
+      });
+    }
+
+    const btnDetails = document.getElementById("btn-limits-details");
+    const popover = document.getElementById("limits-details-popover");
+    const btnClosePopover = document.getElementById("btn-close-limits-popover");
+    const btnResetTokens = document.getElementById("btn-reset-session-tokens");
+
+    if (btnDetails && popover) {
+      btnDetails.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const isOpen = popover.style.display !== "none";
+        popover.style.display = isOpen ? "none" : "flex";
+        if (!isOpen) renderAiLimitsBar();
+      });
+    }
+
+    if (btnClosePopover && popover) {
+      btnClosePopover.addEventListener("click", (e) => {
+        e.stopPropagation();
+        popover.style.display = "none";
+      });
+    }
+
+    if (btnResetTokens) {
+      btnResetTokens.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const limits = getAiLimits();
+        Object.keys(limits).forEach((k) => {
+          limits[k].totalTokens = 0;
+          limits[k].usedPercent = null;
+          limits[k].remaining = null;
+        });
+        saveAiLimits(limits);
+        renderAiLimitsBar(limits);
+      });
+    }
+
+    document.addEventListener("click", (e) => {
+      if (popover && popover.style.display !== "none") {
+        if (!popover.contains(e.target) && e.target !== btnDetails && !btnDetails?.contains(e.target)) {
+          popover.style.display = "none";
+        }
+      }
+    });
+
+    fetch("/api/providers/limits")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.ok && data.limits) {
+          const current = getAiLimits();
+          Object.keys(data.limits).forEach((k) => {
+            if (data.limits[k] && data.limits[k].usedPercent != null) {
+              current[k] = { ...current[k], ...data.limits[k] };
+            }
+          });
+          saveAiLimits(current);
+          renderAiLimitsBar(current);
+        }
+      })
+      .catch(() => {});
+
+    renderAiLimitsBar();
+  }
+
   function renderCurrentThreadMessages() {
     messagesEl.innerHTML = "";
     const thread = getActiveThread();
@@ -2931,6 +3172,11 @@
             thread.messages.push({ role: "error", text: msg.message || "Error", timestamp: Date.now() });
             saveChatThreads();
           }
+          else if (msg.type === "meta") {
+            if (typeof updateAiLimitsUI === "function") {
+              updateAiLimitsUI(providerEl.value, msg.rateLimit, msg.usage);
+            }
+          }
           else if (msg.type === "done") {
             if (thinkingNode.parentNode) thinkingNode.remove();
             node.style.display = "";
@@ -2946,6 +3192,9 @@
               rateLimit: msg.rateLimit,
             };
             updateAssistantMessage(node, assistantText, true, meta);
+            if (typeof updateAiLimitsUI === "function") {
+              updateAiLimitsUI(msg.provider || providerEl.value, msg.rateLimit, msg.usage);
+            }
 
             // Save assistant message with metadata to persistent thread
             thread.messages.push({
@@ -3671,4 +3920,5 @@
   }
 
   initComposer();
+  setupAiLimitsBar();
 })();
