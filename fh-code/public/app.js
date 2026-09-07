@@ -974,6 +974,8 @@
     try {
       const res = await (await fetch("/api/git/status")).json();
       gitBranch.textContent = "⎇ " + (res.branch || "HEAD");
+      const sbGit = document.getElementById("sb-git-text");
+      if (sbGit) sbGit.textContent = res.branch || "main";
       gitFileLists.innerHTML = "";
 
       if (!res.isRepo) {
@@ -2861,24 +2863,24 @@
     const provs = ["claude", "openai", "grok", "fcc"];
     provs.forEach((pid) => {
       const p = data[pid] || {};
-      const chip = document.getElementById(`limit-chip-${pid}`);
-      const valEl = document.getElementById(`limit-val-${pid}`);
-      const fillEl = document.getElementById(`limit-fill-${pid}`);
+      const pill = document.getElementById(`status-pill-${pid}`);
+      const valEl = document.getElementById(`sb-pct-${pid}`);
+      const fillEl = document.getElementById(`sb-fill-${pid}`);
 
-      if (!chip || !valEl || !fillEl) return;
+      if (!pill || !valEl || !fillEl) return;
 
       if (pid === currentProv) {
-        chip.classList.add("selected");
+        pill.classList.add("selected");
       } else {
-        chip.classList.remove("selected");
+        pill.classList.remove("selected");
       }
 
       if (pid === "fcc" || p.unlimited) {
-        valEl.textContent = "Ilimitado";
-        valEl.className = "limit-val is-unlimited";
-        fillEl.className = "limit-fill is-unlimited";
+        valEl.textContent = "∞";
+        valEl.className = "status-usage-pct is-unlimited";
+        fillEl.className = "status-usage-fill is-unlimited";
         fillEl.style.width = "100%";
-        chip.title = `FCC Local (Servidor propio)\n• Cuota ilimitada sin coste ni API Key\n• Tokens en esta sesión: ${formatTokenCount(p.totalTokens || 0)}`;
+        pill.title = `FCC Local (Servidor propio)\n• Cuota ilimitada sin coste ni API Key\n• Tokens en esta sesión: ${formatTokenCount(p.totalTokens || 0)}\n(Haz clic para seleccionar esta IA)`;
         return;
       }
 
@@ -2891,14 +2893,14 @@
         else if (usedPct >= 65) statusClass = "warning";
       }
 
-      valEl.className = `limit-val ${statusClass}`.trim();
-      fillEl.className = `limit-fill ${statusClass}`.trim();
+      valEl.className = `status-usage-pct ${statusClass}`.trim();
+      fillEl.className = `status-usage-fill ${statusClass}`.trim();
 
       if (usedPct != null) {
-        valEl.textContent = `${dispPct}% disp.`;
+        valEl.textContent = `${dispPct}%`;
         fillEl.style.width = `${Math.min(100, Math.max(4, usedPct))}%`;
       } else {
-        valEl.textContent = p.totalTokens > 0 ? `${formatTokenCount(p.totalTokens)} tok` : "100% disp.";
+        valEl.textContent = p.totalTokens > 0 ? `${formatTokenCount(p.totalTokens)}` : "100%";
         fillEl.style.width = p.totalTokens > 0 ? "10%" : "0%";
       }
 
@@ -2913,16 +2915,24 @@
         tooltip += `• Cuota: ${formatTokenCount(p.remaining)} / ${formatTokenCount(p.limit)} ${p.kind || "tokens"}\n`;
       }
       tooltip += `• Tokens usados en sesión: ${formatTokenCount(p.totalTokens || 0)}\n(Haz clic para seleccionar esta IA)`;
-      chip.title = tooltip;
+      pill.title = tooltip;
     });
+
+    const activeAiText = document.getElementById("sb-active-ai-text");
+    if (activeAiText) {
+      const provNamesShort = { claude: "Claude", openai: "ChatGPT", grok: "Grok", fcc: "FCC" };
+      const curName = provNamesShort[currentProv] || currentProv;
+      const curModel = modelEl && modelEl.value ? modelEl.value : "";
+      activeAiText.textContent = curModel ? `${curName} (${curModel})` : curName;
+    }
 
     renderLimitsPopoverGrid(data);
   }
 
   function renderLimitsPopoverGrid(data) {
-    const grid = document.getElementById("limits-popover-grid");
-    if (!grid) return;
-    grid.innerHTML = "";
+    const list = document.getElementById("usage-popover-list");
+    if (!list) return;
+    list.innerHTML = "";
 
     const provNames = {
       claude: "Claude (Anthropic)",
@@ -2940,38 +2950,43 @@
 
     ["claude", "openai", "grok", "fcc"].forEach((pid) => {
       const p = data[pid] || {};
-      const item = document.createElement("div");
-      item.className = "limits-popover-item";
+      const card = document.createElement("div");
+      card.className = "usage-popover-card";
 
       const dispPct = p.usedPercent != null ? Math.max(0, 100 - p.usedPercent) : 100;
       const isUnl = pid === "fcc" || p.unlimited;
 
-      item.innerHTML = `
-        <div class="limits-popover-item-header">
-          <span class="limits-popover-item-name">
-            <span class="limit-dot ${provDots[pid]}"></span>
+      let badgeText = "ACTIVO";
+      if (isUnl) badgeText = "ILIMITADO";
+      else if (p.usedPercent != null) badgeText = `${dispPct}% disponible`;
+
+      card.innerHTML = `
+        <div class="usage-popover-card-head">
+          <span class="usage-popover-card-title">
+            <span class="status-provider-dot ${provDots[pid]}"></span>
             <strong>${provNames[pid]}</strong>
           </span>
-          <span class="limits-popover-item-badge">${isUnl ? "ILIMITADO" : (p.usedPercent != null ? `${dispPct}% disponible` : "ACTIVO")}</span>
+          <span class="usage-popover-card-badge">${badgeText}</span>
         </div>
-        <div class="limits-popover-item-stats">
+        <div class="usage-popover-card-grid">
           <div><strong>Tokens sesión:</strong> ${formatTokenCount(p.totalTokens || 0)}</div>
           <div><strong>Límite:</strong> ${isUnl ? "Sin restricción" : (p.limit != null ? `${formatTokenCount(p.limit)} ${p.kind || "tok"}` : "Dinámico")}</div>
           <div><strong>Restante:</strong> ${isUnl ? "∞" : (p.remaining != null ? formatTokenCount(p.remaining) : "Cuota estándar")}</div>
           <div><strong>Consumo:</strong> ${isUnl ? "0%" : (p.usedPercent != null ? `${p.usedPercent}%` : "< 1%")}</div>
         </div>
       `;
-      grid.appendChild(item);
+      list.appendChild(card);
     });
   }
 
   function setupAiLimitsBar() {
-    const chipsContainer = document.getElementById("limits-bar-chips");
-    if (chipsContainer) {
-      chipsContainer.addEventListener("click", (e) => {
-        const chip = e.target.closest(".limit-chip");
-        if (!chip) return;
-        const pid = chip.getAttribute("data-provider");
+    const pillsContainer = document.getElementById("statusbar-roster-pills");
+    if (pillsContainer) {
+      pillsContainer.addEventListener("click", (e) => {
+        const pill = e.target.closest(".status-provider-pill");
+        if (!pill) return;
+        e.stopPropagation();
+        const pid = pill.getAttribute("data-provider");
         if (pid && providerEl && providerEl.value !== pid) {
           providerEl.value = pid;
           fillModels();
@@ -2980,13 +2995,15 @@
       });
     }
 
-    const btnDetails = document.getElementById("btn-limits-details");
-    const popover = document.getElementById("limits-details-popover");
-    const btnClosePopover = document.getElementById("btn-close-limits-popover");
-    const btnResetTokens = document.getElementById("btn-reset-session-tokens");
+    const btnUsage = document.getElementById("btn-statusbar-usage");
+    const popover = document.getElementById("statusbar-usage-popover");
+    const btnClosePopover = document.getElementById("btn-close-sb-popover");
+    const btnResetCounters = document.getElementById("btn-sb-reset-counters");
+    const btnOpenSettings = document.getElementById("btn-sb-open-settings");
+    const btnRefresh = document.getElementById("btn-statusbar-refresh");
 
-    if (btnDetails && popover) {
-      btnDetails.addEventListener("click", (e) => {
+    if (btnUsage && popover) {
+      btnUsage.addEventListener("click", (e) => {
         e.stopPropagation();
         const isOpen = popover.style.display !== "none";
         popover.style.display = isOpen ? "none" : "flex";
@@ -3001,8 +3018,8 @@
       });
     }
 
-    if (btnResetTokens) {
-      btnResetTokens.addEventListener("click", (e) => {
+    if (btnResetCounters) {
+      btnResetCounters.addEventListener("click", (e) => {
         e.stopPropagation();
         const limits = getAiLimits();
         Object.keys(limits).forEach((k) => {
@@ -3015,9 +3032,65 @@
       });
     }
 
+    if (btnOpenSettings) {
+      btnOpenSettings.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (popover) popover.style.display = "none";
+        if (typeof showSettingsModal === "function") showSettingsModal();
+      });
+    }
+
+    if (btnRefresh) {
+      btnRefresh.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        btnRefresh.classList.add("spinning");
+        try {
+          const res = await fetch("/api/providers/limits");
+          const data = await res.json();
+          if (data.ok && data.limits) {
+            const current = getAiLimits();
+            Object.keys(data.limits).forEach((k) => {
+              if (data.limits[k] && data.limits[k].usedPercent != null) {
+                current[k] = { ...current[k], ...data.limits[k] };
+              }
+            });
+            saveAiLimits(current);
+            renderAiLimitsBar(current);
+          }
+        } catch (_) {}
+        setTimeout(() => btnRefresh.classList.remove("spinning"), 500);
+      });
+    }
+
+    // Status bar right items
+    const sbGitBranch = document.getElementById("sb-git-branch");
+    if (sbGitBranch) {
+      sbGitBranch.addEventListener("click", () => {
+        if (typeof openBottomPanel === "function") openBottomPanel("git");
+      });
+    }
+
+    const sbToggleTerminal = document.getElementById("sb-toggle-terminal");
+    if (sbToggleTerminal) {
+      sbToggleTerminal.addEventListener("click", () => {
+        if (typeof toggleTerminalPanel === "function") toggleTerminalPanel();
+      });
+    }
+
+    const sbActiveAi = document.getElementById("sb-active-ai");
+    if (sbActiveAi) {
+      sbActiveAi.addEventListener("click", () => {
+        if (popover) {
+          const isOpen = popover.style.display !== "none";
+          popover.style.display = isOpen ? "none" : "flex";
+          if (!isOpen) renderAiLimitsBar();
+        }
+      });
+    }
+
     document.addEventListener("click", (e) => {
       if (popover && popover.style.display !== "none") {
-        if (!popover.contains(e.target) && e.target !== btnDetails && !btnDetails?.contains(e.target)) {
+        if (!popover.contains(e.target) && e.target !== btnUsage && !btnUsage?.contains(e.target) && e.target !== sbActiveAi && !sbActiveAi?.contains(e.target)) {
           popover.style.display = "none";
         }
       }
@@ -3234,6 +3307,7 @@
 
   // Event Listeners
   providerEl.addEventListener("change", fillModels);
+  if (modelEl) modelEl.addEventListener("change", () => renderAiLimitsBar());
   document.getElementById("send").addEventListener("click", send);
   inputEl.addEventListener("keydown", (ev) => {
     if (ev.key === "Enter" && !ev.shiftKey) {
