@@ -964,6 +964,14 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const id = String(body.sessionId || "default");
       const rec = sessionFor(id, body.provider, body.model);
+      if (Array.isArray(body.history) && body.history.length > 0) {
+        const cleanHistory = body.history
+          .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content.trim().length > 0)
+          .map((m) => ({ role: m.role, content: m.content }));
+        if (cleanHistory.length > 0) {
+          rec.agent.setHistory(cleanHistory);
+        }
+      }
       rec.activePath = String(body.activePath || rec.activePath || "");
       rec.activeContent = typeof body.activeContent === "string" ? body.activeContent : undefined;
       rec.selection = body.selection;

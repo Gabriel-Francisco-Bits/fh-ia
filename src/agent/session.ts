@@ -74,7 +74,7 @@ export class AgentSession {
     const user = outbound[1];
     const messages: ChatMessage[] = [systemMsg, ...this.history, user];
     const text = await this.dispatcher.chat(messages, onEvent);
-    this.history = capHistory([...this.history, user, { role: "assistant", content: text }]);
+    this.history = capHistory([...this.history, { role: "user", content: userText }, { role: "assistant", content: text }]);
     const originals: Record<string, string> = {};
     if (ctx.activeFile) {
       originals[ctx.activeFile.path] = ctx.activeFile.content;

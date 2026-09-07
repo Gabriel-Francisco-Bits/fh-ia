@@ -242,6 +242,47 @@ test("/api/chat handles streaming requests gracefully without reference errors",
   assert.match(sseChunks, /data: /);
 });
 
+test("/api/chat accepts conversation history from client payload", async (t) => {
+  const { server, port } = await startServer(0);
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const sseChunks = await new Promise((resolve, reject) => {
+    const data = Buffer.from(
+      JSON.stringify({
+        sessionId: "test-history-session",
+        text: "dimelo con los id",
+        history: [
+          { role: "user", content: "hay issues abiertos?" },
+          { role: "assistant", content: "Si, estan GW-04, GW-06, IS-02" },
+        ],
+        provider: "openai",
+      }),
+    );
+    const req = http.request(
+      {
+        hostname: "127.0.0.1",
+        port,
+        path: "/api/chat",
+        method: "POST",
+        headers: { "content-type": "application/json", "content-length": data.length },
+      },
+      (res) => {
+        assert.equal(res.statusCode, 200);
+        assert.match(res.headers["content-type"], /text\/event-stream/);
+        let raw = "";
+        res.on("data", (c) => (raw += c));
+        res.on("end", () => resolve(raw));
+      },
+    );
+    req.on("error", reject);
+    req.write(data);
+    req.end();
+  });
+
+  assert.ok(sseChunks.length > 0);
+  assert.match(sseChunks, /data: /);
+});
+
 test("/api/providers/limits returns provider limits summary structure", async (t) => {
   const { server, port } = await startServer(0);
   t.after(() => new Promise((resolve) => server.close(resolve)));

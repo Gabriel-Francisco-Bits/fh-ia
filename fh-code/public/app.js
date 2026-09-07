@@ -3285,22 +3285,42 @@
     const activeContent = (editor && activePath) ? editor.getValue() : undefined;
     const openFileList = openTabs.filter((t) => t.type !== "chat" && t.path).map((t) => t.path);
 
+    const history = (thread.messages || [])
+      .slice(0, -1)
+      .filter((m) => (m.role === "user" || m.role === "assistant") && m.text && typeof m.text === "string" && m.text.trim().length > 0)
+      .slice(-20)
+      .map((m) => ({ role: m.role, content: m.text }));
+
+    const payload = JSON.stringify({
+      sessionId: thread.id,
+      text,
+      history,
+      provider: providerEl.value,
+      model: modelEl.value,
+      mode: modeEl.value,
+      activePath,
+      activeContent,
+      selection,
+      openFiles: openFileList,
+    });
+
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          sessionId: thread.id,
-          text,
-          provider: providerEl.value,
-          model: modelEl.value,
-          mode: modeEl.value,
-          activePath,
-          activeContent,
-          selection,
-          openFiles: openFileList,
-        }),
-      });
+      let res;
+      try {
+        res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: payload,
+        });
+      } catch (firstErr) {
+        // En caso de reinicio de servidor o corte efímero, reintentar una vez tras 500ms
+        await new Promise((r) => setTimeout(r, 500));
+        res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: payload,
+        });
+      }
       const reader = res.body.getReader();
       const dec = new TextDecoder();
       let buf = "";
