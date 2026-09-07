@@ -191,7 +191,9 @@ test("terminal manager spawns session and handles I/O", async (t) => {
   });
 
   session.write("echo test_output_123\n");
-  await new Promise((r) => setTimeout(r, 400));
+  for (let i = 0; i < 20 && !gotOutput; i++) {
+    await new Promise((r) => setTimeout(r, 100));
+  }
   unsub();
   assert.equal(gotOutput, true);
 });

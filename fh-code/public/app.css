@@ -5726,7 +5726,7 @@ body.mode-fullchat #chat-doc-view .doc-composer {
   margin-right: 4px;
 }
 
-.diff-hunk-btn {
+.diff-hunk-btn, .btn-hunk-accept, .btn-hunk-reject {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -5740,24 +5740,24 @@ body.mode-fullchat #chat-doc-view .doc-composer {
   transition: all 0.12s ease;
 }
 
-.diff-hunk-btn-accept {
+.diff-hunk-btn-accept, .btn-hunk-accept {
   background: rgba(34, 197, 94, 0.2);
   color: #4ade80;
   border-color: rgba(34, 197, 94, 0.35);
 }
 
-.diff-hunk-btn-accept:hover {
+.diff-hunk-btn-accept:hover, .btn-hunk-accept:hover {
   background: #22c55e;
   color: #052e16;
 }
 
-.diff-hunk-btn-reject {
+.diff-hunk-btn-reject, .btn-hunk-reject {
   background: rgba(239, 68, 68, 0.2);
   color: #f87171;
   border-color: rgba(239, 68, 68, 0.35);
 }
 
-.diff-hunk-btn-reject:hover {
+.diff-hunk-btn-reject:hover, .btn-hunk-reject:hover {
   background: #ef4444;
   color: #450a0a;
 }
@@ -5798,7 +5798,7 @@ body.mode-fullchat #chat-doc-view .doc-composer {
   color: var(--fg, #f8fafc);
 }
 
-.diff-toolbar-stats {
+.diff-toolbar-stats, .diff-toolbar-badge {
   font-size: 11px;
   color: var(--muted, #94a3b8);
   background: rgba(255, 255, 255, 0.06);
@@ -5812,7 +5812,7 @@ body.mode-fullchat #chat-doc-view .doc-composer {
   gap: 6px;
 }
 
-.diff-btn {
+.diff-btn, .btn-diff-action {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: var(--fg, #e2e8f0);
@@ -5824,29 +5824,65 @@ body.mode-fullchat #chat-doc-view .doc-composer {
   transition: all 0.12s ease;
 }
 
-.diff-btn:hover {
+.diff-btn:hover, .btn-diff-action:hover {
   background: rgba(255, 255, 255, 0.15);
 }
 
-.diff-btn-success {
+.diff-btn-success, .btn-diff-accept {
   background: rgba(34, 197, 94, 0.18);
   border-color: rgba(34, 197, 94, 0.35);
   color: #4ade80;
 }
 
-.diff-btn-success:hover {
+.diff-btn-success:hover, .btn-diff-accept:hover {
   background: #22c55e;
   color: #052e16;
 }
 
-.diff-btn-danger {
+.diff-btn-danger, .btn-diff-reject {
   background: rgba(239, 68, 68, 0.18);
   border-color: rgba(239, 68, 68, 0.35);
   color: #f87171;
 }
 
-.diff-btn-danger:hover {
+.diff-btn-danger:hover, .btn-diff-reject:hover {
   background: #ef4444;
   color: #450a0a;
+}
+
+/* --- Self-Correction Loop & Test Validation Status Badges --- */
+.msg.system.status-validating {
+  background: rgba(0, 122, 204, 0.18) !important;
+  border-left: 3px solid #007acc !important;
+  color: #e0e0e0 !important;
+  font-weight: 500;
+}
+
+.msg.system.status-healing {
+  background: rgba(220, 130, 0, 0.18) !important;
+  border-left: 3px solid #d7ba7d !important;
+  color: #f1d299 !important;
+  font-weight: 600;
+  animation: pulse-healing 2s infinite ease-in-out;
+}
+
+.msg.system.status-green {
+  background: rgba(40, 167, 69, 0.18) !important;
+  border-left: 3px solid #28a745 !important;
+  color: #4ec9b0 !important;
+  font-weight: 600;
+}
+
+.msg.system.status-limit {
+  background: rgba(220, 53, 69, 0.22) !important;
+  border-left: 3px solid #dc3545 !important;
+  color: #f48771 !important;
+  font-weight: 600;
+}
+
+@keyframes pulse-healing {
+  0% { opacity: 0.85; }
+  50% { opacity: 1; }
+  100% { opacity: 0.85; }
 }
 
