@@ -29,6 +29,7 @@ const DEFAULT_CLIENTS: Record<ProviderId, ChatFn> = {
   grok: chatOpenAiCompatible,
   openai: chatOpenAiCompatible,
   fcc: chatClaude,
+  minimax: chatOpenAiCompatible,
 };
 
 function formatTarget(target: ProviderCallTarget): string {
@@ -100,11 +101,12 @@ export class ProviderDispatcher {
       ...(this.bundle[this.selected]?.accounts || []),
       ...((this.bundle.accounts || []).filter((a) => a.provider === this.selected)),
     ];
-    const activeAcc = accounts.find((a) => a.enabled !== false && a.apiKey);
+    const activeAcc = accounts.find((a) => a.enabled !== false && (a.apiKey || a.cookie));
     const raw = activeAcc
       ? {
           ...this.bundle[this.selected],
           apiKey: activeAcc.apiKey,
+          cookie: activeAcc.cookie || this.bundle[this.selected].cookie,
           baseUrl: activeAcc.baseUrl || this.bundle[this.selected].baseUrl,
           model: activeAcc.model || this.bundle[this.selected].model,
         }
@@ -128,6 +130,7 @@ export class ProviderDispatcher {
           ? {
               ...this.bundle[id],
               apiKey: target.account.apiKey,
+              cookie: target.account.cookie || this.bundle[id].cookie,
               baseUrl: target.account.baseUrl || this.bundle[id].baseUrl,
               model: target.account.model || this.bundle[id].model,
               authKind:
@@ -138,7 +141,7 @@ export class ProviderDispatcher {
           : this.bundle[id];
         const settings = await this.credentials.resolve(id, rawSettings);
 
-        if (!settings.apiKey) {
+        if (!settings.apiKey && !settings.cookie) {
           throw new Error(missingMessage(id));
         }
         const fn = this.clients[id];

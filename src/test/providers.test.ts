@@ -38,6 +38,7 @@ function bundle(): ProviderBundle {
     grok: { id: "grok", apiKey: "xai-test", baseUrl: grok.url, model: "grok-test" },
     openai: { id: "openai", apiKey: "sk-openai-test", baseUrl: openai.url, model: "gpt-test" },
     fcc: { id: "fcc", apiKey: "freecc", baseUrl: "http://127.0.0.1:9", model: "fcc-test" },
+    minimax: { id: "minimax", apiKey: "minimax-test-key", baseUrl: "http://127.0.0.1:9", model: "MiniMax-Text-01" },
   };
 }
 
@@ -73,4 +74,30 @@ test("dispatcher routes Claude, Grok, and OpenAI to matching backends without re
   assert.equal(openai.requests[0].host, openai.host);
   assert.equal(openai.requests[0].headers.authorization, "Bearer sk-openai-test");
   assert.match(openai.requests[0].body, /ping-openai/);
+});
+
+test("dispatcher routes MiniMax API and supports Web cookie session authentication", async () => {
+  const minimaxServer = await startSseServer({ kind: "openai", pathSuffix: "/v1/chat/completions", reply: "MINIMAX-OK" });
+  try {
+    const b: ProviderBundle = {
+      ...bundle(),
+      selected: "minimax",
+      minimax: {
+        id: "minimax",
+        apiKey: "mm-key-123",
+        baseUrl: minimaxServer.url + "/v1",
+        model: "MiniMax-Text-01",
+        cookie: "session_id=web_cookie_xyz; token=abc",
+      },
+    };
+    const dispatcher = new ProviderDispatcher({ bundle: b });
+    const reply = await collectChat(dispatcher, "ping-minimax");
+    assert.equal(reply, "MINIMAX-OK");
+    assert.equal(minimaxServer.requests.length, 1);
+    assert.equal(minimaxServer.requests[0].headers.authorization, "Bearer mm-key-123");
+    assert.equal(minimaxServer.requests[0].headers.cookie, "session_id=web_cookie_xyz; token=abc");
+    assert.match(minimaxServer.requests[0].body, /ping-minimax/);
+  } finally {
+    await minimaxServer.close();
+  }
 });

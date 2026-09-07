@@ -275,6 +275,7 @@
     { id: "grok", label: "Grok" },
     { id: "openai", label: "OpenAI" },
     { id: "fcc", label: "FCC" },
+    { id: "minimax", label: "MiniMax" },
   ];
 
   function fillProviders() {
@@ -1221,6 +1222,7 @@
     { id: "select-grok", label: "Usar IA: Grok", hint: "", run: () => { if (!disabledProviders.includes("grok")) { providerEl.value = "grok"; fillModels(); } else { alert("El proveedor Grok está deshabilitado en Ajustes."); } } },
     { id: "select-openai", label: "Usar IA: OpenAI-Compatible", hint: "", run: () => { if (!disabledProviders.includes("openai")) { providerEl.value = "openai"; fillModels(); } else { alert("El proveedor OpenAI está deshabilitado en Ajustes."); } } },
     { id: "select-fcc", label: "Usar IA: FCC (Free Claude Code)", hint: "", run: () => { if (!disabledProviders.includes("fcc")) { providerEl.value = "fcc"; fillModels(); } else { alert("El proveedor FCC está deshabilitado en Ajustes."); } } },
+    { id: "select-minimax", label: "Usar IA: MiniMax", hint: "", run: () => { if (!disabledProviders.includes("minimax")) { providerEl.value = "minimax"; fillModels(); } else { alert("El proveedor MiniMax está deshabilitado en Ajustes."); } } },
     { id: "refresh-tree", label: "Explorador: Recargar árbol de archivos", hint: "", run: () => loadTree(".", treeEl) },
     { id: "collapse-tree", label: "Explorador: Colapsar carpetas", hint: "", run: collapseAllFolders },
   ];
@@ -2253,6 +2255,10 @@
       url = "https://grok.com";
       label = "1. Abrir grok.com ↗";
       guide = "1. Clic en <strong>Copiar extractor</strong> &rarr; 2. En grok.com presiona <strong>F12</strong> (Consola), pega y dale <strong>Enter</strong> &rarr; 3. Clic en <strong>Pegar cookie</strong>.";
+    } else if (provider === "minimax") {
+      url = "https://agent.minimaxi.com";
+      label = "1. Abrir minimaxi.com ↗";
+      guide = "1. Clic en <strong>Copiar extractor</strong> &rarr; 2. En minimaxi presiona <strong>F12</strong> (Consola), pega y dale <strong>Enter</strong> &rarr; 3. Clic en <strong>Pegar cookie</strong>.";
     }
 
     if (linkOpen) linkOpen.href = url;
@@ -2304,6 +2310,8 @@
           keyInput.placeholder = "Pega tu token o cookie de sesión de ChatGPT";
         } else if (providerVal === "grok") {
           keyInput.placeholder = "Pega tu cookie de sesión de Grok";
+        } else if (providerVal === "minimax") {
+          keyInput.placeholder = "Pega tu cookie de sesión de MiniMax";
         } else {
           keyInput.placeholder = "Pega tu token o cookie de sesión";
         }
@@ -2320,6 +2328,7 @@
         else if (providerVal === "openai") keyInput.placeholder = "sk-...";
         else if (providerVal === "grok") keyInput.placeholder = "xai-...";
         else if (providerVal === "fcc") keyInput.placeholder = "Bearer token o proxy key (opcional)";
+        else if (providerVal === "minimax") keyInput.placeholder = "ey... o token de MiniMax";
         else keyInput.placeholder = "sk-...";
       }
     }
@@ -2635,7 +2644,7 @@
   }
 
   function populateSettingsModelSelects(cat = catalog) {
-    const providers = ["claude", "grok", "openai", "fcc"];
+    const providers = ["claude", "grok", "openai", "fcc", "minimax"];
     providers.forEach((p) => {
       const sel = document.getElementById(`select-${p}-model`);
       const inp = document.getElementById(`set-${p}-model`);
@@ -2697,7 +2706,7 @@
   }
 
   function renderModelTogglesList(cat = catalog) {
-    const providers = ["claude", "grok", "openai", "fcc"];
+    const providers = ["claude", "grok", "openai", "fcc", "minimax"];
     providers.forEach((p) => {
       const container = document.getElementById(`list-models-${p}`);
       const stats = document.getElementById(`stats-${p}-models`);
@@ -2799,6 +2808,11 @@
         fcc: {
           baseUrl: (document.getElementById("set-fcc-base")?.value || "").trim() || undefined,
         },
+        minimax: {
+          apiKey: (document.getElementById("set-minimax-key")?.value || "").trim() || undefined,
+          baseUrl: (document.getElementById("set-minimax-base")?.value || "").trim() || undefined,
+          cookie: (document.getElementById("set-minimax-cookie")?.value || "").trim() || undefined,
+        },
       };
 
       const res = await fetch("/api/models/refresh", {
@@ -2853,6 +2867,10 @@
     document.getElementById("set-openai-base").value = res["fhIa.openai.baseUrl"] || "https://api.openai.com/v1";
     document.getElementById("set-openai-model").value = res["fhIa.openai.model"] || "gpt-4o";
     document.getElementById("set-fcc-base").value = res["fhIa.fcc.baseUrl"] || "http://127.0.0.1:8082";
+    if (document.getElementById("set-minimax-key")) document.getElementById("set-minimax-key").value = res["fhIa.minimax.apiKey"] || "";
+    if (document.getElementById("set-minimax-base")) document.getElementById("set-minimax-base").value = res["fhIa.minimax.baseUrl"] || "https://api.minimaxi.chat/v1";
+    if (document.getElementById("set-minimax-model")) document.getElementById("set-minimax-model").value = res["fhIa.minimax.model"] || "MiniMax-Text-01";
+    if (document.getElementById("set-minimax-cookie")) document.getElementById("set-minimax-cookie").value = res["fhIa.minimax.cookie"] || "";
     document.getElementById("set-failover-enabled").checked = res["fhIa.failover.enabled"] !== false;
     document.getElementById("set-failover-order").value = res["fhIa.failover.order"] || "grok,claude,openai";
     disabledModels = Array.isArray(res["fhIa.disabledModels"]) ? [...res["fhIa.disabledModels"]] : [];
@@ -2883,6 +2901,10 @@
       "fhIa.openai.baseUrl": document.getElementById("set-openai-base").value,
       "fhIa.openai.model": document.getElementById("set-openai-model").value,
       "fhIa.fcc.baseUrl": document.getElementById("set-fcc-base").value,
+      "fhIa.minimax.apiKey": document.getElementById("set-minimax-key")?.value || "",
+      "fhIa.minimax.baseUrl": document.getElementById("set-minimax-base")?.value || "https://api.minimaxi.chat/v1",
+      "fhIa.minimax.model": document.getElementById("set-minimax-model")?.value || "MiniMax-Text-01",
+      "fhIa.minimax.cookie": document.getElementById("set-minimax-cookie")?.value || "",
       "fhIa.failover.enabled": document.getElementById("set-failover-enabled").checked,
       "fhIa.failover.order": document.getElementById("set-failover-order").value,
       "fhIa.accounts": currentAccounts,
@@ -2892,6 +2914,7 @@
       "fhIa.grok.enabled": !disabledProviders.includes("grok"),
       "fhIa.openai.enabled": !disabledProviders.includes("openai"),
       "fhIa.fcc.enabled": !disabledProviders.includes("fcc"),
+      "fhIa.minimax.enabled": !disabledProviders.includes("minimax"),
     };
 
     const res = await fetch("/api/settings", {
@@ -3685,6 +3708,7 @@
     openai: { usedPercent: null, remaining: null, limit: null, kind: "tokens", totalTokens: 0, status: "ready" },
     grok: { usedPercent: null, remaining: null, limit: null, kind: "tokens", totalTokens: 0, status: "ready" },
     fcc: { unlimited: true, totalTokens: 0, status: "unlimited" },
+    minimax: { usedPercent: null, remaining: null, limit: null, kind: "tokens", totalTokens: 0, status: "ready" },
   };
 
   function getAiLimits() {
@@ -3731,7 +3755,7 @@
     const data = limits || getAiLimits();
     const currentProv = providerEl ? providerEl.value : "claude";
 
-    const provs = ["claude", "openai", "grok", "fcc"];
+    const provs = ["claude", "openai", "grok", "fcc", "minimax"];
     provs.forEach((pid) => {
       const p = data[pid] || {};
       const pill = document.getElementById(`status-pill-${pid}`);
@@ -3775,7 +3799,7 @@
         fillEl.style.width = p.totalTokens > 0 ? "10%" : "0%";
       }
 
-      const provName = pid === "openai" ? "ChatGPT / OpenAI" : (pid === "claude" ? "Claude (Anthropic)" : "Grok (xAI)");
+      const provName = pid === "openai" ? "ChatGPT / OpenAI" : (pid === "claude" ? "Claude (Anthropic)" : (pid === "minimax" ? "MiniMax" : "Grok (xAI)"));
       let tooltip = `${provName}:\n`;
       if (usedPct != null) {
         tooltip += `• Disponibilidad: ${dispPct}% restante (${usedPct}% consumido)\n`;
@@ -3791,7 +3815,7 @@
 
     const activeAiText = document.getElementById("sb-active-ai-text");
     if (activeAiText) {
-      const provNamesShort = { claude: "Claude", openai: "ChatGPT", grok: "Grok", fcc: "FCC" };
+      const provNamesShort = { claude: "Claude", openai: "ChatGPT", grok: "Grok", fcc: "FCC", minimax: "MiniMax" };
       const curName = provNamesShort[currentProv] || currentProv;
       const curModel = modelEl && modelEl.value ? modelEl.value : "";
       activeAiText.textContent = curModel ? `${curName} (${curModel})` : curName;
@@ -3810,6 +3834,7 @@
       openai: "ChatGPT / OpenAI",
       grok: "Grok (xAI)",
       fcc: "FCC Local (Servidor propio)",
+      minimax: "MiniMax (API / Web)",
     };
 
     const provDots = {
@@ -3817,9 +3842,10 @@
       openai: "dot-openai",
       grok: "dot-grok",
       fcc: "dot-fcc",
+      minimax: "dot-minimax",
     };
 
-    ["claude", "openai", "grok", "fcc"].forEach((pid) => {
+    ["claude", "openai", "grok", "fcc", "minimax"].forEach((pid) => {
       const p = data[pid] || {};
       const card = document.createElement("div");
       card.className = "usage-popover-card";
@@ -3991,6 +4017,7 @@
     const thread = getActiveThread();
     if (!thread || !thread.messages || thread.messages.length === 0) {
       append("system", "✦ Nuevo chat iniciado. ¿En qué te puedo ayudar hoy?");
+      renderPendingQueuedItems(thread ? thread.id : null);
       return;
     }
     for (const m of thread.messages) {
@@ -4007,28 +4034,138 @@
         append("error", m.text);
       }
     }
+    renderPendingQueuedItems(thread.id);
     messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  /* ==========================================================================
+     Message Queue Manager (Issue #35)
+     ========================================================================== */
+  const messageQueue = [];
+
+  function updateQueueUI() {
+    const queueBar = document.getElementById("chat-queue-bar");
+    const queueText = document.getElementById("queue-bar-text");
+    if (!queueBar) return;
+    if (messageQueue.length === 0) {
+      queueBar.style.display = "none";
+    } else {
+      queueBar.style.display = "flex";
+      if (queueText) {
+        queueText.innerHTML = `<strong>${messageQueue.length}</strong> mensaje${messageQueue.length > 1 ? "s" : ""} en cola`;
+      }
+    }
+    messageQueue.forEach((item, index) => {
+      const badge = document.querySelector(`[data-queue-id="${item.id}"] .queued-badge`);
+      if (badge) {
+        badge.textContent = `⏳ En cola (#${index + 1})`;
+      }
+    });
+  }
+
+  function renderPendingQueuedItems(threadId) {
+    if (!threadId) return;
+    messageQueue
+      .filter((item) => item.threadId === threadId)
+      .forEach((item) => {
+        const idx = messageQueue.indexOf(item);
+        const msgNode = document.createElement("div");
+        msgNode.className = "msg user queued";
+        msgNode.setAttribute("data-queue-id", item.id);
+        msgNode.innerHTML = `
+          <div class="msg-content">${escapeHtml(item.text)}</div>
+          <div class="msg-queue-pill">
+            <span class="queued-badge">⏳ En cola (#${idx + 1})</span>
+            <button type="button" class="btn-cancel-queue" title="Cancelar este mensaje">✕ Cancelar</button>
+          </div>
+        `;
+        const cancelBtn = msgNode.querySelector(".btn-cancel-queue");
+        if (cancelBtn) {
+          cancelBtn.addEventListener("click", () => cancelQueuedMessage(item.id));
+        }
+        messagesEl.appendChild(msgNode);
+      });
+  }
+
+  function cancelQueuedMessage(id) {
+    const idx = messageQueue.findIndex((m) => m.id === id);
+    if (idx !== -1) {
+      messageQueue.splice(idx, 1);
+      const node = document.querySelector(`[data-queue-id="${id}"]`);
+      if (node) node.remove();
+      updateQueueUI();
+    }
+  }
+
+  function clearAllQueuedMessages() {
+    while (messageQueue.length > 0) {
+      const item = messageQueue.pop();
+      const node = document.querySelector(`[data-queue-id="${item.id}"]`);
+      if (node) node.remove();
+    }
+    updateQueueUI();
+  }
+
+  function enqueueMessage(text) {
+    const thread = getActiveThread();
+    const item = {
+      id: "q-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6),
+      text,
+      threadId: thread.id,
+      timestamp: Date.now(),
+    };
+    messageQueue.push(item);
+
+    const msgNode = document.createElement("div");
+    msgNode.className = "msg user queued";
+    msgNode.setAttribute("data-queue-id", item.id);
+    msgNode.innerHTML = `
+      <div class="msg-content">${escapeHtml(text)}</div>
+      <div class="msg-queue-pill">
+        <span class="queued-badge">⏳ En cola (#${messageQueue.length})</span>
+        <button type="button" class="btn-cancel-queue" title="Cancelar este mensaje">✕ Cancelar</button>
+      </div>
+    `;
+    const cancelBtn = msgNode.querySelector(".btn-cancel-queue");
+    if (cancelBtn) {
+      cancelBtn.addEventListener("click", () => cancelQueuedMessage(item.id));
+    }
+    messagesEl.appendChild(msgNode);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    updateQueueUI();
   }
 
   async function send() {
     const text = String(inputEl.value || "").trim();
-    if (!text || streaming) return;
+    if (!text) return;
     inputEl.value = "";
 
-    const clientStartTime = Date.now();
-    const thread = getActiveThread();
-    if (thread.title === "Nuevo chat" || !thread.title) {
-      thread.title = text.length > 32 ? text.slice(0, 32) + "…" : text;
-      const tab = openTabs.find((t) => t.type === "chat" && t.threadId === thread.id);
-      if (tab) tab.title = thread.title;
-      if (chatDocTitle) chatDocTitle.textContent = thread.title;
-      renderTabs();
+    if (streaming) {
+      enqueueMessage(text);
+      return;
     }
-    thread.messages.push({ role: "user", text, timestamp: Date.now() });
-    thread.updatedAt = Date.now();
-    saveChatThreads();
 
-    append("user", text);
+    await executeSendMessage({ text, threadId: getActiveThread().id });
+  }
+
+  async function executeSendMessage({ text, threadId, queueId }) {
+    if (streaming) return;
+    const clientStartTime = Date.now();
+    let thread = getActiveThread();
+    if (threadId && thread.id !== threadId) {
+      const targetThread = chatThreads.find((t) => t.id === threadId);
+      if (targetThread) thread = targetThread;
+    }
+
+    let queuedDomNode = queueId ? document.querySelector(`[data-queue-id="${queueId}"]`) : null;
+    if (queuedDomNode) {
+      queuedDomNode.classList.remove("queued");
+      const pill = queuedDomNode.querySelector(".msg-queue-pill");
+      if (pill) pill.remove();
+    } else {
+      append("user", text);
+    }
 
     // Visual feedback: Thinking pill in header & animated thinking card
     if (agentThinkingPill) {
@@ -4039,11 +4176,26 @@
     const thinkingNode = document.createElement("div");
     thinkingNode.className = "thinking-card";
     thinkingNode.innerHTML = `
+      <div class="thinking-glow-effect"></div>
       <div class="thinking-card-header">
-        <span>✦ fh-ia está procesando</span>
-        <span class="typing-dots"><span></span><span></span><span></span></span>
+        <div class="thinking-icon-wrapper">
+          <svg class="thinking-sparkle-svg" viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+            <path d="M8 0C8 4.418 4.418 8 0 8C4.418 8 8 11.582 8 16C8 11.582 11.582 8 16 8C11.582 8 8 4.418 8 0Z"/>
+          </svg>
+        </div>
+        <span class="thinking-title">fh-ia está procesando</span>
+        <div class="typing-wave">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
       </div>
-      <div class="thinking-detail">Analizando contexto y código del workspace…</div>
+      <div class="thinking-detail">
+        <span class="thinking-detail-text">Analizando contexto y código del workspace…</span>
+      </div>
+      <div class="thinking-progress-track">
+        <div class="thinking-progress-thumb"></div>
+      </div>
     `;
     messagesEl.appendChild(thinkingNode);
     messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -4210,6 +4362,10 @@
           else if (msg.type === "status") {
             const statusText = msg.text || "";
             if (agentStatusLabel) agentStatusLabel.textContent = statusText || "Trabajando…";
+            const detailText = thinkingNode.querySelector(".thinking-detail-text");
+            if (detailText && statusText) {
+              detailText.textContent = statusText;
+            }
             let extraClass = "";
             let icon = "";
             if (statusText.includes("Validando tests")) {
@@ -4295,6 +4451,15 @@
       node.style.display = "";
       if (agentThinkingPill) agentThinkingPill.style.display = "none";
       streaming = false;
+
+      // Process next queued message if any
+      if (messageQueue.length > 0) {
+        const next = messageQueue.shift();
+        updateQueueUI();
+        setTimeout(() => {
+          executeSendMessage({ text: next.text, threadId: next.threadId, queueId: next.id });
+        }, 120);
+      }
     }
   }
 
@@ -4302,6 +4467,10 @@
   providerEl.addEventListener("change", fillModels);
   if (modelEl) modelEl.addEventListener("change", () => renderAiLimitsBar());
   document.getElementById("send").addEventListener("click", send);
+  const btnClearQueue = document.getElementById("btn-clear-queue");
+  if (btnClearQueue) {
+    btnClearQueue.addEventListener("click", clearAllQueuedMessages);
+  }
   // Contextual Mentions (@) Autocomplete (Issue #24)
   const mentionMenu = document.getElementById("mention-menu");
   const mentionList = document.getElementById("mention-menu-list");

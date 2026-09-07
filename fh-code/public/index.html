@@ -122,6 +122,15 @@
                 <div id="slash-menu-list" class="slash-menu-list"></div>
               </div>
 
+              <!-- Message Queue Floating Notification Bar -->
+              <div id="chat-queue-bar" class="chat-queue-bar" style="display: none;">
+                <div class="queue-bar-left">
+                  <span class="queue-bar-icon">⏳</span>
+                  <span id="queue-bar-text" class="queue-bar-text">1 mensaje en cola</span>
+                </div>
+                <button type="button" id="btn-clear-queue" class="btn-clear-queue" title="Vaciar cola de mensajes pendientes">Vaciar cola</button>
+              </div>
+
               <textarea id="input" placeholder="Pregunta a fh-ia, usa / para comandos rápidos o pide cambios en el código (Ctrl+Enter para enviar)…"></textarea>
 
               <div class="composer-toolbar">
@@ -133,6 +142,7 @@
                       <option value="grok">Grok</option>
                       <option value="openai">OpenAI</option>
                       <option value="fcc">FCC</option>
+                      <option value="minimax">MiniMax</option>
                     </select>
                   </div>
 
@@ -278,6 +288,16 @@
                 <div class="status-usage-fill is-unlimited" id="sb-fill-fcc" style="width: 100%;"></div>
               </div>
               <span class="status-usage-pct is-unlimited" id="sb-pct-fcc">∞</span>
+            </div>
+
+            <!-- MiniMax -->
+            <div class="status-provider-pill" id="status-pill-minimax" data-provider="minimax" role="button" tabindex="0" title="MiniMax (API / Web Cookie)">
+              <span class="status-provider-dot dot-minimax"></span>
+              <span class="status-provider-label">MiniMax</span>
+              <div class="status-usage-bar" data-usage-bar="true">
+                <div class="status-usage-fill" id="sb-fill-minimax" style="width: 100%;"></div>
+              </div>
+              <span class="status-usage-pct" id="sb-pct-minimax">100%</span>
             </div>
           </div>
         </div>
@@ -477,6 +497,16 @@
                   <span class="toggle-slider"></span>
                 </label>
               </div>
+              <div class="provider-toggle-item" id="item-prov-minimax">
+                <div class="provider-toggle-info">
+                  <span class="provider-toggle-name">MiniMax</span>
+                  <span class="provider-toggle-sub">API / Web Cookie</span>
+                </div>
+                <label class="toggle-switch" title="Habilitar o deshabilitar MiniMax">
+                  <input type="checkbox" id="toggle-prov-minimax" class="toggle-prov-checkbox" data-provider="minimax" checked />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
             </div>
           </div>
 
@@ -607,6 +637,38 @@
             </div>
             <div class="drawer-content" id="list-models-fcc" style="display: none;"></div>
           </div>
+
+          <!-- MiniMax Provider -->
+          <div class="settings-card" id="card-provider-minimax">
+            <div class="settings-card-label">
+              <div class="label-with-badge">
+                <strong>Modelo de MiniMax</strong>
+                <span id="badge-minimax-models" class="models-count-badge">Auto</span>
+                <span id="status-badge-minimax" class="provider-status-badge enabled">Activo</span>
+              </div>
+              <span>Modelo de MiniMax (detectado o personalizado)</span>
+            </div>
+            <div class="settings-card-field model-field-combo">
+              <select id="select-minimax-model" class="settings-select model-dynamic-select"></select>
+              <input id="set-minimax-model" class="settings-input model-custom-input" type="text" placeholder="MiniMax-Text-01" style="display: none;" />
+              <button type="button" class="btn-icon-subtle btn-toggle-custom-model" data-target="minimax" title="Alternar entre lista detectada y modelo personalizado"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2l3 3L5 14H2v-3L11 2z"/></svg></button>
+              <button type="button" class="btn-icon-subtle btn-refresh-single" data-provider="minimax" title="Refrescar modelos de MiniMax"><svg class="refresh-spinner-svg" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v4h4M15 12v-4h-4"/><path d="M13.5 6A6 6 0 0 0 3.2 4.2L1 8m13.8 0a6 6 0 0 1-10.3 3.8L15 8"/></svg></button>
+            </div>
+          </div>
+          <div class="provider-models-drawer" id="drawer-minimax">
+            <div class="drawer-header">
+              <button type="button" class="btn-drawer-toggle" data-provider="minimax" title="Mostrar/ocultar lista de modelos para habilitar o deshabilitar">
+                <svg class="drawer-arrow-svg" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>
+                <span class="drawer-title-text">Habilitar / Deshabilitar modelos de MiniMax (<span id="stats-minimax-models">0 activos</span>)</span>
+              </button>
+              <div class="drawer-bulk-actions">
+                <button type="button" class="btn-bulk-action" data-provider="minimax" data-action="all">Habilitar todos</button>
+                <span class="bulk-sep">•</span>
+                <button type="button" class="btn-bulk-action" data-provider="minimax" data-action="none">Deshabilitar todos</button>
+              </div>
+            </div>
+            <div class="drawer-content" id="list-models-minimax" style="display: none;"></div>
+          </div>
         </div>
 
         <!-- Pane: Keys & Connection -->
@@ -661,6 +723,38 @@
             </div>
             <div class="settings-card-field">
               <input id="set-fcc-base" class="settings-input" type="text" placeholder="http://127.0.0.1:8082" />
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-label">
+              <strong>MiniMax API Key</strong>
+              <span>Clave oficial de MiniMax (Bearer token)</span>
+            </div>
+            <div class="settings-card-field key-field-wrap">
+              <input id="set-minimax-key" class="settings-input" type="password" placeholder="ey..." />
+              <button type="button" class="btn-toggle-peek" title="Mostrar/Ocultar clave"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"></path><circle cx="8" cy="8" r="2.5"></circle></svg></button>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-label">
+              <strong>MiniMax Base URL</strong>
+              <span>URL base del endpoint de MiniMax</span>
+            </div>
+            <div class="settings-card-field">
+              <input id="set-minimax-base" class="settings-input" type="text" placeholder="https://api.minimaxi.chat/v1" />
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-label">
+              <strong>MiniMax Cookie Web</strong>
+              <span>Cookie de sesión Web para usar MiniMax sin clave de API</span>
+            </div>
+            <div class="settings-card-field key-field-wrap">
+              <input id="set-minimax-cookie" class="settings-input" type="password" placeholder="session_id=...; token=..." />
+              <button type="button" class="btn-toggle-peek" title="Mostrar/Ocultar cookie"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"></path><circle cx="8" cy="8" r="2.5"></circle></svg></button>
             </div>
           </div>
 
@@ -843,6 +937,10 @@
               <span class="acc-prov-dot prov-fcc"></span>
               <span class="acc-prov-label">FCC Local</span>
             </button>
+            <button type="button" class="acc-prov-chip" data-provider="minimax">
+              <span class="acc-prov-dot prov-minimax"></span>
+              <span class="acc-prov-label">MiniMax</span>
+            </button>
           </div>
           <!-- Hidden select to keep full backward compatibility with any direct code -->
           <select id="acc-provider" style="display: none;">
@@ -850,6 +948,7 @@
             <option value="openai">ChatGPT / OpenAI</option>
             <option value="grok">Grok (xAI)</option>
             <option value="fcc">FCC (Free Claude Code)</option>
+            <option value="minimax">MiniMax (API / Web)</option>
           </select>
         </div>
 

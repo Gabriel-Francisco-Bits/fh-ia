@@ -53,6 +53,7 @@ const dynamicModelCatalog = {
   grok: [...MODEL_CATALOG.grok],
   openai: [...MODEL_CATALOG.openai],
   fcc: [...MODEL_CATALOG.fcc],
+  minimax: [...(MODEL_CATALOG.minimax || [])],
 };
 
 const providerLimitsStore = {
@@ -60,6 +61,7 @@ const providerLimitsStore = {
   openai: { usedPercent: null, remaining: null, limit: null, totalTokens: 0, status: "ready" },
   grok: { usedPercent: null, remaining: null, limit: null, totalTokens: 0, status: "ready" },
   fcc: { usedPercent: 0, remaining: null, limit: null, totalTokens: 0, unlimited: true, status: "unlimited" },
+  minimax: { usedPercent: null, remaining: null, limit: null, totalTokens: 0, status: "ready" },
 };
 
 function recordProviderLimit(provider, rateLimit, usage) {
@@ -613,6 +615,7 @@ const server = http.createServer(async (req, res) => {
           grok: getModelsFor("grok", bundle.grok.model),
           openai: getModelsFor("openai", bundle.openai.model),
           fcc: getModelsFor("fcc", bundle.fcc.model),
+          minimax: getModelsFor("minimax", bundle.minimax?.model),
         },
         settings: getMergedSettings(),
       });
@@ -921,7 +924,7 @@ const server = http.createServer(async (req, res) => {
 
       const targetProviders = (body.provider && body.provider !== "all")
         ? [body.provider]
-        : ["claude", "grok", "openai", "fcc"];
+        : ["claude", "grok", "openai", "fcc", "minimax"];
 
       const statuses = {};
 
@@ -943,6 +946,7 @@ const server = http.createServer(async (req, res) => {
             apiKey: resolved.apiKey || provSettings.apiKey,
             baseUrl: resolved.baseUrl || provSettings.baseUrl,
             authKind: resolved.authKind,
+            cookie: resolved.cookie || provSettings.cookie,
           }, 4500);
 
           if (res.ok && res.models && res.models.length > 0) {
@@ -965,6 +969,7 @@ const server = http.createServer(async (req, res) => {
           grok: getModelsFor("grok", bundle.grok.model),
           openai: getModelsFor("openai", bundle.openai.model),
           fcc: getModelsFor("fcc", bundle.fcc.model),
+          minimax: getModelsFor("minimax", bundle.minimax?.model),
         },
         statuses,
       });

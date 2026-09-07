@@ -203,6 +203,7 @@ He obtenido la información requerida con éxito.
       grok: { id: "grok", apiKey: "x", baseUrl: "http://127.0.0.1:9", model: "g" },
       openai: { id: "openai", apiKey: "x", baseUrl: fake.url, model: "gpt-4o" },
       fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "f" },
+      minimax: { id: "minimax", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "m" },
     },
   });
 

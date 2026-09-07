@@ -41,6 +41,7 @@ test("dispatcher talks to FCC over Anthropic messages with Bearer token", async 
         grok: { id: "grok", apiKey: "x", baseUrl: "http://127.0.0.1:9", model: "g" },
         openai: { id: "openai", apiKey: "x", baseUrl: "http://127.0.0.1:9", model: "o" },
         fcc: { id: "fcc", apiKey: "freecc", baseUrl: fcc.url, model: "claude-sonnet-4-20250514" },
+        minimax: { id: "minimax", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "m" },
       },
       failover: { enabled: false, order: ["fcc"] },
     });

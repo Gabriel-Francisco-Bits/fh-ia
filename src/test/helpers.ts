@@ -7,6 +7,13 @@ export const FCC_STUB: ProviderSettings = {
   baseUrl: "http://127.0.0.1:9",
   model: "fcc-test",
 };
+
+export const MINIMAX_STUB: ProviderSettings = {
+  id: "minimax",
+  apiKey: "",
+  baseUrl: "http://127.0.0.1:9",
+  model: "minimax-test",
+};
 import type { AddressInfo } from "node:net";
 
 export interface CapturedRequest {

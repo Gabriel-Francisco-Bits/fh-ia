@@ -26,6 +26,7 @@ function emptyBundle(base: { claude: string; grok: string; openai: string }): Pr
     grok: { id: "grok", apiKey: "", baseUrl: base.grok, model: "grok-test" },
     openai: { id: "openai", apiKey: "", baseUrl: base.openai, model: "gpt-test" },
     fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "fcc-test" },
+    minimax: { id: "minimax", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "minimax-test" },
   };
 }
 

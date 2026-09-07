@@ -24,8 +24,12 @@ export function requestAuthHeaders(settings: ProviderSettings): Record<string, s
     }
     return headers;
   }
-  return {
-    authorization: `Bearer ${settings.apiKey}`,
-    ...extra,
-  };
+  const headers: Record<string, string> = { ...extra };
+  if (settings.apiKey) {
+    headers.authorization = `Bearer ${settings.apiKey}`;
+  }
+  if (settings.cookie) {
+    headers.cookie = settings.cookie;
+  }
+  return headers;
 }

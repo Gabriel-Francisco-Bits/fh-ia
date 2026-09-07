@@ -115,6 +115,7 @@ test("AgentSession injects project skills into Grok payloads", async () => {
         grok: { id: "grok", apiKey: "k", baseUrl: grok.url, model: "grok-test" },
         openai: { id: "openai", apiKey: "x", baseUrl: "http://127.0.0.1:9", model: "o" },
         fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "f" },
+        minimax: { id: "minimax", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "m" },
       },
     });
     const files = {
