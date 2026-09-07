@@ -131,8 +131,12 @@
 
     // Update active indicators
     if (actFiles) {
-      if (explorerVisible) actFiles.classList.add("active");
+      if (explorerVisible && (!searchContainer || searchContainer.style.display !== "flex")) actFiles.classList.add("active");
       else actFiles.classList.remove("active");
+    }
+    if (actSearch) {
+      if (explorerVisible && searchContainer && searchContainer.style.display === "flex") actSearch.classList.add("active");
+      else actSearch.classList.remove("active");
     }
     if (actChat) {
       if (chatVisible) actChat.classList.add("active");
@@ -163,10 +167,21 @@
     if (diffEditor) diffEditor.layout();
   }
 
+  let savedExplorerVisible = false;
+  let savedChatVisible = false;
+
   function toggleChatMode() {
     isClaudeMode = !isClaudeMode;
     const btnText = btnToggleView ? btnToggleView.querySelector(".btn-text") : null;
     if (isClaudeMode) {
+      // Guardar el estado previo del explorador y panel de chat en modo IDE
+      savedExplorerVisible = explorerVisible;
+      savedChatVisible = chatVisible;
+
+      // Al entrar en Modo Chat, cerrar panel izquierdo y laterales para pantalla limpia
+      explorerVisible = false;
+      chatVisible = false;
+
       document.body.classList.add("mode-fullchat", "claude-desktop-mode");
       if (btnText) btnText.textContent = "Modo IDE";
       if (btnToggleView) {
@@ -186,6 +201,10 @@
         btnToggleView.classList.remove("active");
       }
       if (editorEl) editorEl.style.display = "block";
+
+      // Restaurar el estado de los paneles que estaban abiertos en Modo IDE
+      explorerVisible = savedExplorerVisible;
+      chatVisible = savedChatVisible;
     }
     applyShellLayout();
     if (editor) editor.layout();
