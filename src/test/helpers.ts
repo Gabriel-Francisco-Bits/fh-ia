@@ -28,7 +28,7 @@ export interface FakeServer {
 
 export function startSseServer(opts: {
   pathSuffix: string;
-  reply: string;
+  reply: string | ((reqIndex: number, reqBody: string) => string);
   kind: "claude" | "openai";
 }): Promise<FakeServer> {
   const requests: CapturedRequest[] = [];
@@ -52,18 +52,24 @@ export function startSseServer(opts: {
         "cache-control": "no-cache",
         connection: "close",
       });
+      const replyText =
+        typeof opts.reply === "function"
+          ? opts.reply(requests.length - 1, body)
+          : opts.reply;
       if (opts.kind === "claude") {
         res.write("event: content_block_delta\n");
         res.write(
           `data: ${JSON.stringify({
             type: "content_block_delta",
-            delta: { type: "text_delta", text: opts.reply },
+            delta: { type: "text_delta", text: replyText },
           })}\n\n`,
         );
         res.write("event: message_stop\n");
         res.write(`data: ${JSON.stringify({ type: "message_stop" })}\n\n`);
       } else {
-        res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: opts.reply } }] })}\n\n`);
+        res.write(
+          `data: ${JSON.stringify({ choices: [{ delta: { content: replyText } }] })}\n\n`,
+        );
         res.write("data: [DONE]\n\n");
       }
       res.end();

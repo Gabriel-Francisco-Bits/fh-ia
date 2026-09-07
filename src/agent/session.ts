@@ -21,6 +21,8 @@ export interface SessionResult {
   history: ChatMessage[];
 }
 
+import { runAgentLoop } from "./agentLoop";
+
 export class AgentSession {
   private history: ChatMessage[] = [];
 
@@ -69,6 +71,30 @@ export class AgentSession {
     } catch {
       // skills are optional; never fail a turn because a skill file is unreadable
     }
+
+    if (mode === "autonomous") {
+      const loopResult = await runAgentLoop({
+        dispatcher: this.dispatcher,
+        files: this.files,
+        workspaceRoot: editor.workspaceRoot || process.cwd(),
+        systemPrompt: system,
+        history: this.history,
+        userText,
+        onEvent,
+        maxTurns: 15,
+      });
+
+      this.history = capHistory(loopResult.history);
+
+      return {
+        text: loopResult.text,
+        edits: loopResult.edits,
+        plannedEdits: [],
+        provider: this.dispatcher.getLastUsed(),
+        history: this.history,
+      };
+    }
+
     const outbound = buildOutboundMessages(userText, ctx, system);
     const systemMsg = outbound[0];
     const user = outbound[1];

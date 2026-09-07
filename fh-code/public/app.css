@@ -1616,6 +1616,151 @@ button.send { background: var(--accent); color: #111; border: none; cursor: poin
   border-color: rgba(255, 255, 255, 0.2);
 }
 
+/* Tool Calling & ReAct Loop Cards (Issue #21) */
+.tool-calls-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 6px 0 10px 0;
+}
+
+.tool-call-card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  overflow: hidden;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tool-call-card:hover {
+  border-color: rgba(56, 189, 248, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.tool-call-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tool-call-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: #38bdf8;
+}
+
+.tool-call-icon {
+  font-size: 13px;
+}
+
+.tool-call-name {
+  color: #7dd3fc;
+  letter-spacing: 0.2px;
+}
+
+.tool-call-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.tool-call-badge.running {
+  background: rgba(234, 179, 8, 0.15);
+  color: #facc15;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  animation: pulse 1.5s infinite;
+}
+
+.tool-call-badge.success {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.tool-call-badge.error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.tool-call-body {
+  padding: 8px 10px;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.tool-call-args {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 120px;
+  overflow-y: auto;
+  color: #cbd5e1;
+}
+
+.tool-call-output-details {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.tool-call-output-details summary {
+  cursor: pointer;
+  color: #a5b4fc;
+  font-size: 11px;
+  user-select: none;
+  outline: none;
+}
+
+.tool-call-output-details summary:hover {
+  color: #c7d2fe;
+}
+
+.tool-call-output-content {
+  margin-top: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #cbd5e1;
+  font-size: 11px;
+}
+
+/* Thought / Reasoning details card */
+.thought-card {
+  background: rgba(147, 51, 234, 0.08);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 6px 0 10px 0;
+  font-size: 12px;
+}
+
+.thought-card summary {
+  cursor: pointer;
+  color: #c084fc;
+  font-weight: 500;
+  user-select: none;
+  outline: none;
+}
+
+.thought-content {
+  margin-top: 6px;
+  color: #e9d5ff;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
 /* Markdown typography in assistant message */
 .msg-body {
   font-size: 13.5px;
@@ -5329,3 +5474,188 @@ body.mode-fullchat #chat-doc-view .doc-composer {
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
 }
+
+/* ============================================================
+   Keyboard Shortcuts Modal (VS Code & fh-code shortcuts)
+   ============================================================ */
+.shortcuts-dialog {
+  width: 90%;
+  max-width: 820px;
+  max-height: 85vh;
+  background: var(--surface, #1e1e1e);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border-radius: 12px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.65);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: fadeInModal 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  color: var(--fg, #e2e8f0);
+}
+
+.shortcuts-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.shortcuts-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.shortcuts-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent, #6366f1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shortcuts-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg, #f8fafc);
+}
+
+.shortcuts-subtitle {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted, #94a3b8);
+}
+
+.shortcuts-search-wrap {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+  background: rgba(0, 0, 0, 0.15);
+}
+
+#shortcuts-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 9px 14px;
+  color: #ffffff;
+  font-size: 13.5px;
+  outline: none;
+  transition: all 0.2s;
+}
+
+#shortcuts-search-input:focus {
+  border-color: var(--accent, #6366f1);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.shortcuts-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.shortcut-category {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shortcut-cat-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent, #818cf8);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background 0.15s;
+}
+
+.shortcut-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.shortcut-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shortcut-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #f1f5f9;
+}
+
+.shortcut-desc {
+  font-size: 11.5px;
+  color: var(--muted, #94a3b8);
+}
+
+.shortcut-keys {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.shortcut-keys kbd, .shortcuts-tip kbd {
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  color: #f8fafc;
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 4px 7px;
+  white-space: nowrap;
+}
+
+.shortcut-keys .key-sep {
+  color: var(--muted, #64748b);
+  font-size: 11px;
+}
+
+.shortcuts-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  background: rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.shortcuts-tip {
+  font-size: 12px;
+  color: var(--muted, #94a3b8);
+}
+

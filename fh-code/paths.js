@@ -10,6 +10,17 @@ const SKIP_DIRS = new Set([
   "coverage",
   ".cache",
   ".vscode-test",
+  ".dart_tool",
+  "build",
+  ".gradle",
+  "target",
+  "venv",
+  ".venv",
+  "__pycache__",
+  "Pods",
+  ".next",
+  ".nuxt",
+  ".turbo",
 ]);
 
 function safeResolve(root, rel) {

@@ -63,6 +63,16 @@
   const btnSettingsSave = document.getElementById("btn-settings-save");
   const btnSettingsReset = document.getElementById("btn-settings-reset");
 
+  // File tree buttons & Shortcuts Modal
+  const btnNewFile = document.getElementById("btn-new-file");
+  const btnNewFolder = document.getElementById("btn-new-folder");
+  const btnCollapseAll = document.getElementById("btn-collapse-all");
+  const shortcutsModal = document.getElementById("shortcuts-modal");
+  const btnShortcutsClose = document.getElementById("btn-shortcuts-close");
+  const btnShortcutsOk = document.getElementById("btn-shortcuts-ok");
+  const shortcutsSearchInput = document.getElementById("shortcuts-search-input");
+  const shortcutsBody = document.getElementById("shortcuts-body");
+
   // State
   const openTabs = [];
   let activeTabType = "file"; // "file" | "chat"
@@ -73,6 +83,9 @@
   let isDiffMode = false;
   let catalog = {};
   let streaming = false;
+  let currentEditorFontSize = 15;
+  let waitingForKChord = false;
+  let kChordTimer = null;
   let allWorkspaceFiles = [];
   let paletteMode = "files"; // "files" | "commands"
   let paletteItems = [];
@@ -732,6 +745,314 @@
     });
   }
 
+  // Save All Files (Ctrl+Shift+S)
+  async function saveAll() {
+    for (const tab of openTabs) {
+      if (tab.type !== "chat" && tab.path) {
+        const content = tab.model ? tab.model.getValue() : (tab.content || "");
+        if (tab.isDirty || tab.path === activePath) {
+          tab.content = content;
+          tab.savedContent = content;
+          tab.isDirty = false;
+          await fetch("/api/file", {
+            method: "PUT",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ path: tab.path, content }),
+          });
+        }
+      }
+    }
+    renderTabs();
+  }
+
+  // Close All Tabs (Ctrl+K Ctrl+W / Ctrl+Shift+W)
+  function closeAllTabs() {
+    openTabs.length = 0;
+    activeTabType = "file";
+    activePath = "";
+    activeChatThreadId = "";
+    renderTabs();
+    if (chatDocView) chatDocView.style.display = "none";
+    if (editorEl) {
+      editorEl.style.display = "block";
+      if (editor) {
+        const empty = monaco.editor.createModel("// Abre un archivo desde el explorador (Ctrl+P) o inicia un chat (Ctrl+L)", "plaintext");
+        editor.setModel(empty);
+      }
+    }
+  }
+
+  // Tab Navigation (Ctrl+Tab, Ctrl+Shift+Tab, Ctrl+PageDown, Ctrl+PageUp)
+  function nextTab() {
+    if (openTabs.length <= 1) return;
+    const curIdx = openTabs.findIndex((t) =>
+      t.type === "chat"
+        ? (activeTabType === "chat" && activeChatThreadId === t.threadId)
+        : (activeTabType === "file" && activePath === t.path)
+    );
+    const nextIdx = (curIdx + 1) % openTabs.length;
+    activateTab(openTabs[nextIdx]);
+  }
+
+  function prevTab() {
+    if (openTabs.length <= 1) return;
+    const curIdx = openTabs.findIndex((t) =>
+      t.type === "chat"
+        ? (activeTabType === "chat" && activeChatThreadId === t.threadId)
+        : (activeTabType === "file" && activePath === t.path)
+    );
+    const prevIdx = (curIdx - 1 + openTabs.length) % openTabs.length;
+    activateTab(openTabs[prevIdx]);
+  }
+
+  function goToTab(index) {
+    if (index >= 0 && index < openTabs.length) {
+      activateTab(openTabs[index]);
+    }
+  }
+
+  function activateTab(tab) {
+    if (!tab) return;
+    if (tab.type === "chat") {
+      openChatTab(tab.threadId);
+    } else {
+      openFile(tab.path);
+    }
+  }
+
+  // File & Folder Operations (Ctrl+N, Explorer Header)
+  async function createNewFile(defaultName) {
+    const name = prompt("Nuevo archivo en el proyecto (ej: src/utils.js):", defaultName || "");
+    if (!name || !name.trim()) return;
+    const rel = name.trim();
+    try {
+      await fetch("/api/file", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path: rel, content: "" }),
+      });
+      await loadTree(".", treeEl);
+      await scanAllFiles();
+      openFile(rel);
+    } catch (err) {
+      alert("Error al crear archivo: " + err.message);
+    }
+  }
+
+  async function createNewFolder() {
+    const name = prompt("Nueva carpeta en el proyecto (ej: src/components):");
+    if (!name || !name.trim()) return;
+    const rel = name.trim();
+    try {
+      await fetch("/api/file", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path: rel + "/.gitkeep", content: "" }),
+      });
+      await loadTree(".", treeEl);
+      await scanAllFiles();
+    } catch (err) {
+      alert("Error al crear carpeta: " + err.message);
+    }
+  }
+
+  function collapseAllFolders() {
+    document.querySelectorAll(".nested").forEach((n) => {
+      n.style.display = "none";
+      n.innerHTML = "";
+    });
+    document.querySelectorAll(".tree-chevron").forEach((c) => {
+      c.innerHTML = SVGS.chevronRight;
+      c.classList.remove("open");
+    });
+    document.querySelectorAll(".dir-row").forEach((row) => {
+      const nameEl = row.querySelector(".tree-name");
+      const iconEl = row.querySelector(".tree-file-icon");
+      if (nameEl && iconEl) {
+        iconEl.innerHTML = getFileIconHtml(nameEl.textContent, true, false);
+      }
+    });
+  }
+
+  // Zoom Controls (Ctrl+=, Ctrl+-, Ctrl+0)
+  function zoomIn() {
+    currentEditorFontSize = Math.min(32, currentEditorFontSize + 1);
+    if (editor) editor.updateOptions({ fontSize: currentEditorFontSize });
+  }
+
+  function zoomOut() {
+    currentEditorFontSize = Math.max(9, currentEditorFontSize - 1);
+    if (editor) editor.updateOptions({ fontSize: currentEditorFontSize });
+  }
+
+  function resetZoom() {
+    currentEditorFontSize = 15;
+    if (editor) editor.updateOptions({ fontSize: currentEditorFontSize });
+  }
+
+  // Bottom Panel Toggle (Ctrl+J, Ctrl+`, Ctrl+ñ)
+  function toggleBottomPanel() {
+    if (bottomPanel.style.display === "none") {
+      openBottomPanel("terminal");
+    } else {
+      bottomPanel.style.display = "none";
+      if (editor) editor.layout();
+    }
+  }
+
+  const SHORTCUTS_DATA = [
+    {
+      category: "Navegación & Vistas",
+      items: [
+        { name: "Paleta de comandos", desc: "Abrir paleta de acciones y comandos", keys: ["F1", "o", "Ctrl", "Shift", "P"], run: showCommandPalette },
+        { name: "Búsqueda rápida de archivos", desc: "Abrir archivo rápidamente (Quick Open)", keys: ["Ctrl", "P"], run: showQuickOpen },
+        { name: "Ir a línea", desc: "Navegar a un número de línea específico", keys: ["Ctrl", "G"], run: () => { if (editor) { editor.focus(); editor.getAction('editor.action.gotoLine')?.run(); } } },
+        { name: "Explorador de archivos", desc: "Alternar o enfocar barra lateral izquierda", keys: ["Ctrl", "B", "o", "Ctrl", "Shift", "E"], run: () => showSidebarTab("files") },
+        { name: "Conversaciones IA", desc: "Alternar panel lateral de historial de chats", keys: ["Ctrl", "Shift", "B"], run: toggleChatSidebar },
+        { name: "Buscar en workspace", desc: "Búsqueda global de texto en todos los archivos", keys: ["Ctrl", "Shift", "F"], run: () => showSidebarTab("search") },
+        { name: "Control de versiones Git", desc: "Abrir panel de cambios Git y diffs", keys: ["Ctrl", "Shift", "G"], run: () => openBottomPanel("git") },
+        { name: "Terminal integrada", desc: "Alternar panel de terminal (estándar y teclado español)", keys: ["Ctrl", "`", "o", "Ctrl", "ñ"], run: toggleTerminalPanel },
+        { name: "Alternar panel inferior", desc: "Mostrar u ocultar panel inferior (Terminal / Git)", keys: ["Ctrl", "J"], run: toggleBottomPanel },
+        { name: "Atajos de teclado", desc: "Ver esta guía completa de atajos", keys: ["Ctrl", "K", "Ctrl", "S"], run: showShortcutsModal },
+        { name: "Ajustes de fh-code", desc: "Abrir panel de configuración y modelos", keys: ["Ctrl", ","], run: showSettingsModal },
+      ]
+    },
+    {
+      category: "Archivos & Pestañas",
+      items: [
+        { name: "Nuevo archivo", desc: "Crear un nuevo archivo en el workspace", keys: ["Ctrl", "N"], run: createNewFile },
+        { name: "Abrir carpeta", desc: "Cambiar workspace a otra carpeta del sistema", keys: ["Ctrl", "O"], run: showOpenFolderModal },
+        { name: "Guardar archivo", desc: "Guardar cambios del buffer activo al disco", keys: ["Ctrl", "S"], run: save },
+        { name: "Guardar todo", desc: "Guardar todos los archivos modificados", keys: ["Ctrl", "Shift", "S"], run: saveAll },
+        { name: "Cerrar pestaña activa", desc: "Cerrar el archivo o chat actual", keys: ["Ctrl", "W"], run: closeActiveTab },
+        { name: "Cerrar todas las pestañas", desc: "Cerrar todos los buffers abiertos", keys: ["Ctrl", "K", "Ctrl", "W"], run: closeAllTabs },
+        { name: "Siguiente pestaña", desc: "Cambiar a la pestaña siguiente", keys: ["Ctrl", "Tab", "o", "Ctrl", "PageDown"], run: nextTab },
+        { name: "Pestaña anterior", desc: "Cambiar a la pestaña anterior", keys: ["Ctrl", "Shift", "Tab", "o", "Ctrl", "PageUp"], run: prevTab },
+        { name: "Ir a pestaña 1 - 9", desc: "Activar pestaña por su número de índice", keys: ["Ctrl", "1..9"], run: null },
+      ]
+    },
+    {
+      category: "Edición de Código (Monaco / VS Code)",
+      items: [
+        { name: "Buscar en archivo", desc: "Buscar texto en el documento actual", keys: ["Ctrl", "F"], run: () => { if (editor) { editor.focus(); editor.getAction('actions.find')?.run(); } } },
+        { name: "Reemplazar en archivo", desc: "Buscar y reemplazar en el documento actual", keys: ["Ctrl", "H"], run: () => { if (editor) { editor.focus(); editor.getAction('editor.action.startFindReplaceAction')?.run(); } } },
+        { name: "Dar formato al documento", desc: "Formatear código automáticamente con LSP / prettier", keys: ["Shift", "Alt", "F"], run: () => { if (editor) editor.getAction('editor.action.formatDocument')?.run(); } },
+        { name: "Comentar línea", desc: "Alternar comentario en la línea o selección", keys: ["Ctrl", "/"], run: () => { if (editor) editor.getAction('editor.action.commentLine')?.run(); } },
+        { name: "Comentar bloque", desc: "Alternar comentario multilínea en bloque", keys: ["Shift", "Alt", "A"], run: () => { if (editor) editor.getAction('editor.action.blockComment')?.run(); } },
+        { name: "Eliminar línea", desc: "Borrar toda la línea actual sin cortarla", keys: ["Ctrl", "Shift", "K"], run: () => { if (editor) editor.getAction('editor.action.deleteLines')?.run(); } },
+        { name: "Mover línea arriba / abajo", desc: "Desplazar líneas de código verticalmente", keys: ["Alt", "↑ / ↓"], run: null },
+        { name: "Duplicar línea arriba / abajo", desc: "Copiar líneas de código arriba o abajo", keys: ["Shift", "Alt", "↑ / ↓"], run: null },
+        { name: "Insertar línea debajo", desc: "Nueva línea abajo sin romper la actual", keys: ["Ctrl", "Enter"], run: () => { if (editor) editor.getAction('editor.action.insertLineAfter')?.run(); } },
+        { name: "Insertar línea arriba", desc: "Nueva línea arriba", keys: ["Ctrl", "Shift", "Enter"], run: () => { if (editor) editor.getAction('editor.action.insertLineBefore')?.run(); } },
+        { name: "Seleccionar siguiente coincidencia", desc: "Multi-cursor en la siguiente aparición de la palabra", keys: ["Ctrl", "D"], run: () => { if (editor) editor.getAction('editor.action.addSelectionToNextFindMatch')?.run(); } },
+        { name: "Deshacer cursor", desc: "Deshacer la última selección de cursor", keys: ["Ctrl", "U"], run: () => { if (editor) editor.getAction('cursorUndo')?.run(); } },
+        { name: "Renombrar símbolo", desc: "Refactorizar nombre de variable/función", keys: ["F2"], run: () => { if (editor) editor.getAction('editor.action.rename')?.run(); } },
+        { name: "Ir a definición", desc: "Saltar a la definición de la función o clase", keys: ["F12"], run: () => { if (editor) editor.getAction('editor.action.revealDefinition')?.run(); } },
+        { name: "Ver definición (Peek)", desc: "Inspeccionar definición flotante", keys: ["Alt", "F12"], run: () => { if (editor) editor.getAction('editor.action.peekDefinition')?.run(); } },
+        { name: "Buscar referencias", desc: "Localizar todas las referencias al símbolo", keys: ["Shift", "F12"], run: () => { if (editor) editor.getAction('editor.action.referenceSearch.trigger')?.run(); } },
+        { name: "Siguiente error", desc: "Ir al siguiente error o advertencia en el archivo", keys: ["F8"], run: () => { if (editor) editor.getAction('editor.action.marker.next')?.run(); } },
+        { name: "Error anterior", desc: "Ir al error o advertencia previa", keys: ["Shift", "F8"], run: () => { if (editor) editor.getAction('editor.action.marker.prev')?.run(); } },
+      ]
+    },
+    {
+      category: "Inteligencia Artificial & Cursor",
+      items: [
+        { name: "Cursor Inline Edit", desc: "Editar y generar código flotante sobre la selección", keys: ["Ctrl", "K"], run: () => { if (typeof openInlineEdit === "function") openInlineEdit(); } },
+        { name: "Cursor Composer", desc: "Generación y edición multi-archivo con checkpoint & rollback", keys: ["Ctrl", "I"], run: () => { if (typeof openComposer === "function") openComposer(); } },
+        { name: "Cursor Tab / Ghost Text", desc: "Aceptar sugerencia predictiva inline", keys: ["Tab"], run: null },
+        { name: "Enfocar chat de IA", desc: "Llevar el foco directamente al prompt de fh-ia", keys: ["Ctrl", "L"], run: () => { if (inputEl) inputEl.focus(); } },
+        { name: "Enviar mensaje al chat", desc: "Enviar consulta en el compositor de chat", keys: ["Ctrl", "Enter"], run: () => { if (typeof send === "function") send(); } },
+      ]
+    },
+    {
+      category: "Zoom & Visualización",
+      items: [
+        { name: "Aumentar zoom", desc: "Incrementar tamaño de fuente del editor", keys: ["Ctrl", "+", "o", "Ctrl", "="], run: zoomIn },
+        { name: "Disminuir zoom", desc: "Reducir tamaño de fuente del editor", keys: ["Ctrl", "-"], run: zoomOut },
+        { name: "Restablecer zoom", desc: "Restaurar tamaño de fuente predeterminado (15px)", keys: ["Ctrl", "0"], run: resetZoom },
+      ]
+    }
+  ];
+
+  function renderShortcutsList(filterText = "") {
+    if (!shortcutsBody) return;
+    const q = filterText.toLowerCase().trim();
+    shortcutsBody.innerHTML = "";
+
+    let totalMatches = 0;
+    for (const cat of SHORTCUTS_DATA) {
+      const matchingItems = cat.items.filter((item) =>
+        !q ||
+        item.name.toLowerCase().includes(q) ||
+        item.desc.toLowerCase().includes(q) ||
+        item.keys.join(" ").toLowerCase().includes(q)
+      );
+      if (matchingItems.length === 0) continue;
+
+      totalMatches += matchingItems.length;
+      const catDiv = document.createElement("div");
+      catDiv.className = "shortcut-category";
+
+      const catTitle = document.createElement("div");
+      catTitle.className = "shortcut-cat-title";
+      catTitle.textContent = cat.category;
+      catDiv.appendChild(catTitle);
+
+      for (const item of matchingItems) {
+        const row = document.createElement("div");
+        row.className = "shortcut-row";
+        if (item.run) {
+          row.style.cursor = "pointer";
+          row.title = "Clic para ejecutar esta acción";
+          row.addEventListener("click", () => {
+            closeShortcutsModal();
+            item.run();
+          });
+        }
+
+        const info = document.createElement("div");
+        info.className = "shortcut-info";
+        info.innerHTML = `
+          <span class="shortcut-name">${escapeHtml(item.name)}</span>
+          <span class="shortcut-desc">${escapeHtml(item.desc)}</span>
+        `;
+
+        const keysDiv = document.createElement("div");
+        keysDiv.className = "shortcut-keys";
+        keysDiv.innerHTML = item.keys.map((k) => {
+          if (k === "o") return `<span class="key-sep">o</span>`;
+          return `<kbd>${escapeHtml(k)}</kbd>`;
+        }).join("");
+
+        row.appendChild(info);
+        row.appendChild(keysDiv);
+        catDiv.appendChild(row);
+      }
+
+      shortcutsBody.appendChild(catDiv);
+    }
+
+    if (totalMatches === 0) {
+      shortcutsBody.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--muted); font-size: 13.5px;">No se encontraron atajos que coincidan con la búsqueda.</div>';
+    }
+  }
+
+  function showShortcutsModal() {
+    if (!shortcutsModal) return;
+    shortcutsModal.style.display = "flex";
+    if (shortcutsSearchInput) {
+      shortcutsSearchInput.value = "";
+      shortcutsSearchInput.focus();
+    }
+    renderShortcutsList();
+  }
+
+  function closeShortcutsModal() {
+    if (!shortcutsModal) return;
+    shortcutsModal.style.display = "none";
+    if (editor) editor.focus();
+  }
+
   // Reload buffer after Accept of an edit (Issue #9 & #13)
   async function reloadBufferIfOpen(p) {
     const tab = openTabs.find((t) => t.path === p);
@@ -851,21 +1172,44 @@
   }
 
   const COMMAND_LIST = [
+    { id: "command-palette", label: "Paleta de comandos", hint: "F1 / Ctrl+Shift+P", run: showCommandPalette },
     { id: "quick-open", label: "Abrir archivo...", hint: "Ctrl+P", run: showQuickOpen },
-    { id: "open-folder", label: "Abrir carpeta en el workspace...", hint: "", run: showOpenFolderModal },
-    { id: "save-file", label: "Guardar archivo activo", hint: "Ctrl+S", run: save },
-    { id: "close-tab", label: "Cerrar pestaña activa", hint: "Ctrl+W", run: closeActiveTab },
-    { id: "search-ws", label: "Buscar en el workspace...", hint: "Ctrl+Shift+F", run: () => showSidebarTab("search") },
-    { id: "toggle-term", label: "Alternar terminal integrada", hint: "Ctrl+`", run: toggleTerminalPanel },
-    { id: "toggle-git", label: "Alternar panel Git", hint: "", run: () => openBottomPanel("git") },
-    { id: "open-settings", label: "Ajustes de fh-code...", hint: "Ctrl+,", run: showSettingsModal },
-    { id: "reset-settings", label: "Restablecer ajustes a valores de fábrica", hint: "", run: handleResetSettings },
-    { id: "new-chat", label: "Nuevo chat fh-ia", hint: "", run: () => { messagesEl.innerHTML = ""; append("system", "Nuevo chat iniciado"); } },
+    { id: "new-file", label: "Archivo: Nuevo archivo", hint: "Ctrl+N", run: createNewFile },
+    { id: "open-folder", label: "Archivo: Abrir carpeta en el workspace...", hint: "Ctrl+O", run: showOpenFolderModal },
+    { id: "save-file", label: "Archivo: Guardar", hint: "Ctrl+S", run: save },
+    { id: "save-all", label: "Archivo: Guardar todo", hint: "Ctrl+Shift+S", run: saveAll },
+    { id: "close-tab", label: "Pestaña: Cerrar pestaña activa", hint: "Ctrl+W", run: closeActiveTab },
+    { id: "close-all-tabs", label: "Pestaña: Cerrar todas las pestañas", hint: "Ctrl+K Ctrl+W", run: closeAllTabs },
+    { id: "next-tab", label: "Pestaña: Siguiente pestaña", hint: "Ctrl+Tab / Ctrl+PageDown", run: nextTab },
+    { id: "prev-tab", label: "Pestaña: Pestaña anterior", hint: "Ctrl+Shift+Tab / Ctrl+PageUp", run: prevTab },
+    { id: "search-ws", label: "Buscar: Buscar en el workspace...", hint: "Ctrl+Shift+F", run: () => showSidebarTab("search") },
+    { id: "toggle-explorer", label: "Ver: Alternar explorador de archivos", hint: "Ctrl+B", run: toggleExplorerSidebar },
+    { id: "show-explorer", label: "Ver: Mostrar explorador de archivos", hint: "Ctrl+Shift+E", run: () => showSidebarTab("files") },
+    { id: "toggle-chat-sidebar", label: "Ver: Alternar panel de conversaciones", hint: "Ctrl+Shift+B", run: toggleChatSidebar },
+    { id: "toggle-term", label: "Ver: Alternar terminal integrada", hint: "Ctrl+` / Ctrl+ñ", run: toggleTerminalPanel },
+    { id: "toggle-panel", label: "Ver: Alternar panel inferior", hint: "Ctrl+J", run: toggleBottomPanel },
+    { id: "toggle-git", label: "Ver: Alternar panel Git", hint: "Ctrl+Shift+G", run: () => openBottomPanel("git") },
+    { id: "format-doc", label: "Editor: Dar formato al documento", hint: "Shift+Alt+F", run: () => { if (editor) editor.getAction('editor.action.formatDocument')?.run(); } },
+    { id: "goto-line", label: "Editor: Ir a línea...", hint: "Ctrl+G", run: () => { if (editor) { editor.focus(); editor.getAction('editor.action.gotoLine')?.run(); } } },
+    { id: "find-file", label: "Editor: Buscar en archivo", hint: "Ctrl+F", run: () => { if (editor) { editor.focus(); editor.getAction('actions.find')?.run(); } } },
+    { id: "replace-file", label: "Editor: Reemplazar en archivo", hint: "Ctrl+H", run: () => { if (editor) { editor.focus(); editor.getAction('editor.action.startFindReplaceAction')?.run(); } } },
+    { id: "comment-line", label: "Editor: Alternar comentario de línea", hint: "Ctrl+/", run: () => { if (editor) editor.getAction('editor.action.commentLine')?.run(); } },
+    { id: "delete-line", label: "Editor: Eliminar línea", hint: "Ctrl+Shift+K", run: () => { if (editor) editor.getAction('editor.action.deleteLines')?.run(); } },
+    { id: "zoom-in", label: "Ver: Aumentar zoom", hint: "Ctrl++", run: zoomIn },
+    { id: "zoom-out", label: "Ver: Disminuir zoom", hint: "Ctrl+-", run: zoomOut },
+    { id: "zoom-reset", label: "Ver: Restablecer zoom", hint: "Ctrl+0", run: resetZoom },
+    { id: "shortcuts", label: "Preferencias: Abrir atajos de teclado", hint: "Ctrl+K Ctrl+S", run: showShortcutsModal },
+    { id: "open-settings", label: "Preferencias: Ajustes de fh-code...", hint: "Ctrl+,", run: showSettingsModal },
+    { id: "reset-settings", label: "Preferencias: Restablecer ajustes a valores de fábrica", hint: "", run: handleResetSettings },
+    { id: "inline-edit", label: "Cursor: Inline Edit", hint: "Ctrl+K", run: () => { if (typeof openInlineEdit === "function") openInlineEdit(); } },
+    { id: "composer", label: "Cursor: Composer multi-archivo", hint: "Ctrl+I", run: () => { if (typeof openComposer === "function") openComposer(); } },
+    { id: "new-chat", label: "IA: Nuevo chat fh-ia", hint: "Ctrl+L", run: () => { messagesEl.innerHTML = ""; append("system", "Nuevo chat iniciado"); } },
     { id: "select-claude", label: "Usar IA: Claude", hint: "", run: () => { if (!disabledProviders.includes("claude")) { providerEl.value = "claude"; fillModels(); } else { alert("El proveedor Claude está deshabilitado en Ajustes."); } } },
     { id: "select-grok", label: "Usar IA: Grok", hint: "", run: () => { if (!disabledProviders.includes("grok")) { providerEl.value = "grok"; fillModels(); } else { alert("El proveedor Grok está deshabilitado en Ajustes."); } } },
     { id: "select-openai", label: "Usar IA: OpenAI-Compatible", hint: "", run: () => { if (!disabledProviders.includes("openai")) { providerEl.value = "openai"; fillModels(); } else { alert("El proveedor OpenAI está deshabilitado en Ajustes."); } } },
     { id: "select-fcc", label: "Usar IA: FCC (Free Claude Code)", hint: "", run: () => { if (!disabledProviders.includes("fcc")) { providerEl.value = "fcc"; fillModels(); } else { alert("El proveedor FCC está deshabilitado en Ajustes."); } } },
-    { id: "refresh-tree", label: "Recargar árbol de archivos", hint: "", run: () => loadTree(".", treeEl) },
+    { id: "refresh-tree", label: "Explorador: Recargar árbol de archivos", hint: "", run: () => loadTree(".", treeEl) },
+    { id: "collapse-tree", label: "Explorador: Colapsar carpetas", hint: "", run: collapseAllFolders },
   ];
 
   function renderPaletteList() {
@@ -2658,7 +3002,7 @@
     return out.join("");
   }
 
-  function appendAssistant(text, meta) {
+  function appendAssistant(text, meta, toolCalls, thoughts) {
     const div = document.createElement("div");
     div.className = "msg assistant";
 
@@ -2666,7 +3010,7 @@
     header.className = "assistant-msg-header";
     header.innerHTML = `
       <div class="assistant-avatar-badge">
-        <img src="/logo.png" alt="FH" class="assistant-avatar-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+        <img src="/static/logo.png" alt="FH" class="assistant-avatar-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
         <span class="assistant-avatar-fallback" style="display:none;">FH</span>
         <span class="assistant-name">fh-ia</span>
       </div>
@@ -2675,11 +3019,51 @@
       </div>
     `;
 
+    div.appendChild(header);
+
+    if (thoughts && thoughts.length > 0) {
+      const thoughtEl = document.createElement("details");
+      thoughtEl.className = "thought-card";
+      thoughtEl.innerHTML = `<summary>💭 Razonamiento del modelo</summary><div class="thought-content">${escapeHtml(thoughts.join("\n"))}</div>`;
+      div.appendChild(thoughtEl);
+    }
+
+    if (toolCalls && toolCalls.length > 0) {
+      const toolsWrap = document.createElement("div");
+      toolsWrap.className = "tool-calls-container";
+      for (const t of toolCalls) {
+        const card = document.createElement("div");
+        card.className = "tool-call-card";
+        card.id = `tool-call-${t.id}`;
+        const isErr = Boolean(t.isError);
+        const statusClass = isErr ? "error" : "success";
+        const statusText = isErr ? "error" : "✓ completado";
+        const outLen = (t.output || "").length;
+        card.innerHTML = `
+          <div class="tool-call-header">
+            <span class="tool-call-title">
+              <span class="tool-call-icon">⚙️</span>
+              <span class="tool-call-name">${escapeHtml(t.name)}</span>
+            </span>
+            <span class="tool-call-badge ${statusClass}">${statusText}</span>
+          </div>
+          <div class="tool-call-body">
+            <pre class="tool-call-args"><code>${escapeHtml(JSON.stringify(t.args || {}, null, 2))}</code></pre>
+          </div>
+          ${t.output ? `
+          <details class="tool-call-output-details">
+            <summary>Salida (${outLen} caracteres)</summary>
+            <pre class="tool-call-output-content"><code>${escapeHtml(t.output)}</code></pre>
+          </details>` : ""}
+        `;
+        toolsWrap.appendChild(card);
+      }
+      div.appendChild(toolsWrap);
+    }
+
     const body = document.createElement("div");
     body.className = "msg-body";
     body.innerHTML = renderMarkdown(text);
-
-    div.appendChild(header);
     div.appendChild(body);
 
     if (meta) {
@@ -3212,7 +3596,7 @@
       if (m.role === "user") {
         append("user", m.text);
       } else if (m.role === "assistant") {
-        appendAssistant(m.text, m.meta);
+        appendAssistant(m.text, m.meta, m.toolCalls, m.thoughts);
         if (m.edits && m.edits.length > 0) {
           renderEditsUI(m.edits, m.mode);
         }
@@ -3270,6 +3654,8 @@
     let assistantText = "";
     let finalEdits = [];
     let finalMode = modeEl.value;
+    const sessionToolCalls = [];
+    const sessionThoughts = [];
 
     let selection = undefined;
     if (editor && activePath) {
@@ -3341,6 +3727,85 @@
             updateAssistantMessage(node, assistantText, false, null);
             if (agentStatusLabel) agentStatusLabel.textContent = "Generando respuesta…";
           }
+          else if (msg.type === "thought") {
+            if (thinkingNode.parentNode) thinkingNode.remove();
+            node.style.display = "";
+            let thoughtEl = node.querySelector(".thought-card");
+            if (!thoughtEl) {
+              thoughtEl = document.createElement("details");
+              thoughtEl.className = "thought-card";
+              thoughtEl.open = true;
+              thoughtEl.innerHTML = `<summary>💭 Razonamiento del modelo</summary><div class="thought-content"></div>`;
+              const body = node.querySelector(".msg-body");
+              node.insertBefore(thoughtEl, body);
+            }
+            const contentEl = thoughtEl.querySelector(".thought-content");
+            if (contentEl) {
+              contentEl.textContent += (contentEl.textContent ? "\n" : "") + (msg.text || "");
+            }
+            sessionThoughts.push(msg.text || "");
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+          }
+          else if (msg.type === "tool_call_start") {
+            if (thinkingNode.parentNode) thinkingNode.remove();
+            node.style.display = "";
+            if (agentStatusLabel) agentStatusLabel.textContent = `Ejecutando herramienta '${msg.name}'…`;
+            sessionToolCalls.push({ id: msg.id, name: msg.name, args: msg.args });
+            let toolsWrap = node.querySelector(".tool-calls-container");
+            if (!toolsWrap) {
+              toolsWrap = document.createElement("div");
+              toolsWrap.className = "tool-calls-container";
+              const body = node.querySelector(".msg-body");
+              node.insertBefore(toolsWrap, body);
+            }
+            const card = document.createElement("div");
+            card.className = "tool-call-card";
+            card.id = `tool-call-${msg.id}`;
+            card.innerHTML = `
+              <div class="tool-call-header">
+                <span class="tool-call-title">
+                  <span class="tool-call-icon">⚙️</span>
+                  <span class="tool-call-name">${escapeHtml(msg.name)}</span>
+                </span>
+                <span class="tool-call-badge running">ejecutando…</span>
+              </div>
+              <div class="tool-call-body">
+                <pre class="tool-call-args"><code>${escapeHtml(JSON.stringify(msg.args || {}, null, 2))}</code></pre>
+              </div>
+            `;
+            toolsWrap.appendChild(card);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+          }
+          else if (msg.type === "tool_call_output") {
+            const toolRec = sessionToolCalls.find((t) => t.id === msg.id);
+            if (toolRec) {
+              toolRec.output = msg.output;
+              toolRec.isError = msg.isError;
+            }
+            const card = node.querySelector(`#tool-call-${msg.id}`);
+            if (card) {
+              const badge = card.querySelector(".tool-call-badge");
+              if (badge) {
+                if (msg.isError) {
+                  badge.className = "tool-call-badge error";
+                  badge.textContent = "error";
+                } else {
+                  badge.className = "tool-call-badge success";
+                  badge.textContent = "✓ completado";
+                }
+              }
+              const outDetails = document.createElement("details");
+              outDetails.className = "tool-call-output-details";
+              outDetails.open = false;
+              const outLen = (msg.output || "").length;
+              outDetails.innerHTML = `
+                <summary>Salida (${outLen} caracteres)</summary>
+                <pre class="tool-call-output-content"><code>${escapeHtml(msg.output || "")}</code></pre>
+              `;
+              card.appendChild(outDetails);
+            }
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+          }
           else if (msg.type === "status") {
             if (agentStatusLabel) agentStatusLabel.textContent = msg.text || "Trabajando…";
             append("system", msg.text || "");
@@ -3382,6 +3847,8 @@
               meta,
               edits: finalEdits,
               mode: finalMode,
+              toolCalls: sessionToolCalls.length > 0 ? sessionToolCalls : undefined,
+              thoughts: sessionThoughts.length > 0 ? sessionThoughts : undefined,
               timestamp: Date.now(),
             });
             thread.updatedAt = Date.now();
@@ -3422,74 +3889,325 @@
     }
   });
 
-  // Global Shortcuts
+  // Global Shortcuts (Full VS Code Compatibility)
   window.addEventListener("keydown", (ev) => {
-    // Ctrl+S / Cmd+S: Save
-    if ((ev.ctrlKey || ev.metaKey) && ev.key === "s") {
-      ev.preventDefault();
-      save();
-      return;
+    // If waiting for second key of Ctrl+K chord:
+    if (waitingForKChord) {
+      if (kChordTimer) clearTimeout(kChordTimer);
+      waitingForKChord = false;
+      const k = ev.key.toLowerCase();
+      if (k === "s") {
+        ev.preventDefault();
+        showShortcutsModal();
+        return;
+      }
+      if (k === "w") {
+        ev.preventDefault();
+        closeAllTabs();
+        return;
+      }
+      if (k === "c") {
+        ev.preventDefault();
+        if (editor) editor.getAction('editor.action.addCommentLine')?.run();
+        return;
+      }
+      if (k === "u") {
+        ev.preventDefault();
+        if (editor) editor.getAction('editor.action.removeCommentLine')?.run();
+        return;
+      }
     }
-    // Ctrl+L / Cmd+L: Focus chat input
-    if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && (ev.key === "l" || ev.key === "L")) {
-      ev.preventDefault();
-      inputEl.focus();
-      return;
-    }
-    // Ctrl+P / Cmd+P: Quick Open Files
-    if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && (ev.key === "p" || ev.key === "P")) {
-      ev.preventDefault();
-      showQuickOpen();
-      return;
-    }
-    // Ctrl+Shift+P / Cmd+Shift+P: Command Palette
-    if ((ev.ctrlKey || ev.metaKey) && ev.shiftKey && (ev.key === "P" || ev.key === "p")) {
+
+    const isCtrlCmd = ev.ctrlKey || ev.metaKey;
+
+    // F1: Command Palette
+    if (ev.key === "F1") {
       ev.preventDefault();
       showCommandPalette();
       return;
     }
-      // Ctrl+B / Cmd+B: Toggle Explorador
-    if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && (ev.key === "b" || ev.key === "B")) {
+
+    // F2: Rename Symbol
+    if (ev.key === "F2") {
       ev.preventDefault();
-      toggleExplorerSidebar();
+      if (editor) editor.getAction('editor.action.rename')?.run();
       return;
     }
-    // Ctrl+Shift+B / Cmd+Shift+B: Toggle Conversaciones
-    if ((ev.ctrlKey || ev.metaKey) && ev.shiftKey && (ev.key === "b" || ev.key === "B")) {
+
+    // F8 / Shift+F8: Next / Prev Marker/Error
+    if (ev.key === "F8") {
       ev.preventDefault();
-      toggleChatSidebar();
+      if (ev.shiftKey) {
+        if (editor) editor.getAction('editor.action.marker.prev')?.run();
+      } else {
+        if (editor) editor.getAction('editor.action.marker.next')?.run();
+      }
       return;
     }
-    // Ctrl+Shift+F: Search in Workspace
-    if ((ev.ctrlKey || ev.metaKey) && ev.shiftKey && (ev.key === "F" || ev.key === "f")) {
+
+    // F12 / Shift+F12 / Alt+F12: Definition / References
+    if (ev.key === "F12") {
       ev.preventDefault();
-      showSidebarTab("search");
+      if (ev.shiftKey) {
+        if (editor) editor.getAction('editor.action.referenceSearch.trigger')?.run();
+      } else if (ev.altKey) {
+        if (editor) editor.getAction('editor.action.peekDefinition')?.run();
+      } else {
+        if (editor) editor.getAction('editor.action.revealDefinition')?.run();
+      }
       return;
     }
-    // Ctrl+W: Close active tab
-    if ((ev.ctrlKey || ev.metaKey) && (ev.key === "w" || ev.key === "W")) {
+
+    // Shift+Alt+F: Format Document
+    if (ev.shiftKey && ev.altKey && (ev.key === "F" || ev.key === "f")) {
       ev.preventDefault();
-      closeActiveTab();
+      if (editor) editor.getAction('editor.action.formatDocument')?.run();
       return;
     }
-    // Ctrl+`: Toggle Terminal
-    if ((ev.ctrlKey || ev.metaKey) && ev.key === "`") {
+
+    // Shift+Alt+A: Toggle Block Comment
+    if (ev.shiftKey && ev.altKey && (ev.key === "A" || ev.key === "a")) {
       ev.preventDefault();
-      toggleTerminalPanel();
+      if (editor) editor.getAction('editor.action.blockComment')?.run();
       return;
     }
-    // Ctrl+,: Open Settings
-    if ((ev.ctrlKey || ev.metaKey) && ev.key === ",") {
-      ev.preventDefault();
-      showSettingsModal();
-      return;
+
+    // All Ctrl/Cmd combinations:
+    if (isCtrlCmd) {
+      const k = ev.key;
+
+      // With Shift:
+      if (ev.shiftKey) {
+        // Ctrl+Shift+P: Command Palette
+        if (k === "P" || k === "p") {
+          ev.preventDefault();
+          showCommandPalette();
+          return;
+        }
+        // Ctrl+Shift+S: Save All
+        if (k === "S" || k === "s") {
+          ev.preventDefault();
+          saveAll();
+          return;
+        }
+        // Ctrl+Shift+F: Search in Workspace
+        if (k === "F" || k === "f") {
+          ev.preventDefault();
+          showSidebarTab("search");
+          return;
+        }
+        // Ctrl+Shift+E: Focus Explorer
+        if (k === "E" || k === "e") {
+          ev.preventDefault();
+          showSidebarTab("files");
+          return;
+        }
+        // Ctrl+Shift+G: Open Git
+        if (k === "G" || k === "g") {
+          ev.preventDefault();
+          openBottomPanel("git");
+          return;
+        }
+        // Ctrl+Shift+B: Toggle Conversations
+        if (k === "B" || k === "b") {
+          ev.preventDefault();
+          toggleChatSidebar();
+          return;
+        }
+        // Ctrl+Shift+W: Close All Tabs
+        if (k === "W" || k === "w") {
+          ev.preventDefault();
+          closeAllTabs();
+          return;
+        }
+        // Ctrl+Shift+K: Delete Lines
+        if (k === "K" || k === "k") {
+          ev.preventDefault();
+          if (editor) editor.getAction('editor.action.deleteLines')?.run();
+          return;
+        }
+        // Ctrl+Shift+Tab: Prev Tab
+        if (k === "Tab") {
+          ev.preventDefault();
+          prevTab();
+          return;
+        }
+        // Ctrl+Shift+Enter: Insert Line Before
+        if (k === "Enter") {
+          if (editor && editor.hasTextFocus()) {
+            ev.preventDefault();
+            editor.getAction('editor.action.insertLineBefore')?.run();
+            return;
+          }
+        }
+      } else {
+        // Without Shift:
+        // Ctrl+S: Save
+        if (k === "s" || k === "S") {
+          ev.preventDefault();
+          save();
+          return;
+        }
+        // Ctrl+P: Quick Open
+        if (k === "p" || k === "P") {
+          ev.preventDefault();
+          showQuickOpen();
+          return;
+        }
+        // Ctrl+N: New File
+        if (k === "n" || k === "N") {
+          ev.preventDefault();
+          createNewFile();
+          return;
+        }
+        // Ctrl+O: Open Folder
+        if (k === "o" || k === "O") {
+          ev.preventDefault();
+          showOpenFolderModal();
+          return;
+        }
+        // Ctrl+W: Close Active Tab
+        if (k === "w" || k === "W") {
+          ev.preventDefault();
+          closeActiveTab();
+          return;
+        }
+        // Ctrl+B: Toggle Explorer Sidebar
+        if (k === "b" || k === "B") {
+          ev.preventDefault();
+          toggleExplorerSidebar();
+          return;
+        }
+        // Ctrl+J: Toggle Bottom Panel (Terminal/Git)
+        if (k === "j" || k === "J") {
+          ev.preventDefault();
+          toggleBottomPanel();
+          return;
+        }
+        // Ctrl+` or Ctrl+ñ: Toggle Terminal (Spanish VS Code default!)
+        if (k === "`" || k === "ñ" || k === "Ñ") {
+          ev.preventDefault();
+          toggleTerminalPanel();
+          return;
+        }
+        // Ctrl+Tab / Ctrl+PageDown: Next Tab
+        if (k === "Tab" || k === "PageDown") {
+          ev.preventDefault();
+          nextTab();
+          return;
+        }
+        // Ctrl+PageUp: Prev Tab
+        if (k === "PageUp") {
+          ev.preventDefault();
+          prevTab();
+          return;
+        }
+        // Ctrl+1 .. Ctrl+9: Switch Tab
+        if (k >= "1" && k <= "9") {
+          ev.preventDefault();
+          goToTab(parseInt(k, 10) - 1);
+          return;
+        }
+        // Ctrl+G: Go to line
+        if (k === "g" || k === "G") {
+          ev.preventDefault();
+          if (editor) {
+            editor.focus();
+            editor.getAction('editor.action.gotoLine')?.run();
+          }
+          return;
+        }
+        // Ctrl+/: Toggle Comment Line
+        if (k === "/") {
+          if (editor) {
+            ev.preventDefault();
+            editor.getAction('editor.action.commentLine')?.run();
+            return;
+          }
+        }
+        // Ctrl+F: Find
+        if (k === "f" || k === "F") {
+          if (editor && !ev.shiftKey) {
+            ev.preventDefault();
+            editor.focus();
+            editor.getAction('actions.find')?.run();
+            return;
+          }
+        }
+        // Ctrl+H: Replace
+        if (k === "h" || k === "H") {
+          if (editor && !ev.shiftKey) {
+            ev.preventDefault();
+            editor.focus();
+            editor.getAction('editor.action.startFindReplaceAction')?.run();
+            return;
+          }
+        }
+        // Ctrl+D: Add Selection To Next Find Match
+        if (k === "d" || k === "D") {
+          if (editor && editor.hasTextFocus()) {
+            ev.preventDefault();
+            editor.getAction('editor.action.addSelectionToNextFindMatch')?.run();
+            return;
+          }
+        }
+        // Ctrl+L: Focus Chat
+        if (k === "l" || k === "L") {
+          ev.preventDefault();
+          if (inputEl) inputEl.focus();
+          return;
+        }
+        // Ctrl+,: Settings
+        if (k === ",") {
+          ev.preventDefault();
+          showSettingsModal();
+          return;
+        }
+        // Ctrl+= / Ctrl++: Zoom In
+        if (k === "=" || k === "+") {
+          ev.preventDefault();
+          zoomIn();
+          return;
+        }
+        // Ctrl+-: Zoom Out
+        if (k === "-") {
+          ev.preventDefault();
+          zoomOut();
+          return;
+        }
+        // Ctrl+0: Reset Zoom
+        if (k === "0") {
+          ev.preventDefault();
+          resetZoom();
+          return;
+        }
+        // Ctrl+K: Chord start or Cursor Inline Edit fallback
+        if (k === "k" || k === "K") {
+          ev.preventDefault();
+          waitingForKChord = true;
+          if (kChordTimer) clearTimeout(kChordTimer);
+          kChordTimer = setTimeout(() => {
+            if (waitingForKChord) {
+              waitingForKChord = false;
+              if (typeof openInlineEdit === "function") openInlineEdit();
+            }
+          }, 380);
+          return;
+        }
+      }
     }
+
     // Escape: Close modals
     if (ev.key === "Escape") {
-      if (paletteModal.style.display !== "none") closePalette();
-      if (folderModal.style.display !== "none") folderModal.style.display = "none";
-      if (settingsModal.style.display !== "none") settingsModal.style.display = "none";
-      if (isDiffMode) closeDiffView();
+      if (waitingForKChord) {
+        if (kChordTimer) clearTimeout(kChordTimer);
+        waitingForKChord = false;
+      }
+      if (paletteModal && paletteModal.style.display !== "none") closePalette();
+      if (folderModal && folderModal.style.display !== "none") folderModal.style.display = "none";
+      if (settingsModal && settingsModal.style.display !== "none") settingsModal.style.display = "none";
+      if (shortcutsModal && shortcutsModal.style.display !== "none") closeShortcutsModal();
+      if (isDiffMode && typeof closeDiffView === "function") closeDiffView();
     }
   });
 
@@ -3502,6 +4220,12 @@
   const btnChatOpenSettings = document.getElementById("btn-chat-open-settings");
   if (btnChatOpenSettings) btnChatOpenSettings.addEventListener("click", showSettingsModal);
   btnRefreshTree.addEventListener("click", () => { loadTree(".", treeEl); scanAllFiles(); });
+  if (btnNewFile) btnNewFile.addEventListener("click", () => createNewFile());
+  if (btnNewFolder) btnNewFolder.addEventListener("click", () => createNewFolder());
+  if (btnCollapseAll) btnCollapseAll.addEventListener("click", () => collapseAllFolders());
+  if (btnShortcutsClose) btnShortcutsClose.addEventListener("click", closeShortcutsModal);
+  if (btnShortcutsOk) btnShortcutsOk.addEventListener("click", closeShortcutsModal);
+  if (shortcutsSearchInput) shortcutsSearchInput.addEventListener("input", (e) => renderShortcutsList(e.target.value));
 
   // Activity Bar
   actFiles.addEventListener("click", () => toggleSidebarTab("files"));
@@ -3778,10 +4502,103 @@
 
     initInlineEdit(editor);
     initCursorTab(editor);
+    registerMonacoCommands(editor);
 
     loadMeta();
     loadChatThreads();
   });
+
+  function registerMonacoCommands(editorInstance) {
+    if (!editorInstance) return;
+
+    // F1 & Ctrl+Shift+P: Command Palette
+    editorInstance.addCommand(monaco.KeyCode.F1, () => showCommandPalette());
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP, () => showCommandPalette());
+
+    // Ctrl+P: Quick Open
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyP, () => showQuickOpen());
+
+    // Ctrl+N: New File
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyN, () => createNewFile());
+
+    // Ctrl+O: Open Folder
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyO, () => showOpenFolderModal());
+
+    // Ctrl+S: Save
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => save());
+
+    // Ctrl+Shift+S: Save All
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyS, () => saveAll());
+
+    // Ctrl+W: Close Active Tab
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyW, () => closeActiveTab());
+
+    // Ctrl+B: Toggle Explorer Sidebar
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => toggleExplorerSidebar());
+
+    // Ctrl+Shift+B: Toggle Chat Sidebar
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyB, () => toggleChatSidebar());
+
+    // Ctrl+Shift+E: Focus Explorer
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyE, () => showSidebarTab("files"));
+
+    // Ctrl+Shift+F: Search in Workspace
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF, () => showSidebarTab("search"));
+
+    // Ctrl+Shift+G: Open Git
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyG, () => openBottomPanel("git"));
+
+    // Ctrl+J: Toggle Bottom Panel
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyJ, () => toggleBottomPanel());
+
+    // Ctrl+` (US_BACKTICK): Toggle Terminal
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.US_BACKTICK, () => toggleTerminalPanel());
+
+    // Ctrl+L: Focus Chat
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyL, () => { if (inputEl) inputEl.focus(); });
+
+    // Ctrl+,: Settings
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.US_COMMA, () => showSettingsModal());
+
+    // Ctrl+Tab / Ctrl+PageDown: Next Tab
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Tab, () => nextTab());
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.PageDown, () => nextTab());
+
+    // Ctrl+Shift+Tab / Ctrl+PageUp: Prev Tab
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Tab, () => prevTab());
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.PageUp, () => prevTab());
+
+    // Ctrl+= / Ctrl++: Zoom in
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.US_EQUAL, () => zoomIn());
+
+    // Ctrl+-: Zoom out
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.US_MINUS, () => zoomOut());
+
+    // Ctrl+0: Reset zoom
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Digit0, () => resetZoom());
+
+    // Chords with Ctrl+K
+    try {
+      editorInstance.addCommand(
+        monaco.KeyChord(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS),
+        () => showShortcutsModal()
+      );
+      editorInstance.addCommand(
+        monaco.KeyChord(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, monaco.KeyCode.KeyS),
+        () => showShortcutsModal()
+      );
+      editorInstance.addCommand(
+        monaco.KeyChord(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyW),
+        () => closeAllTabs()
+      );
+      editorInstance.addCommand(
+        monaco.KeyChord(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, monaco.KeyCode.KeyW),
+        () => closeAllTabs()
+      );
+    } catch (e) {
+      // fallback
+    }
+  }
 
   function initCursorTab(editorInstance) {
     let enabled = true;

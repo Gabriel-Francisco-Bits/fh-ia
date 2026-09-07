@@ -32,13 +32,54 @@ Autenticación: la misma que la extensión (`grok login`, `claude`, API keys en 
 
 Qué falta y issues: [ROADMAP.md](ROADMAP.md).
 
-## Atajos de Teclado y Características Cursor-Grade
+## Atajos de Teclado (VS Code Estándar & Cursor-Grade)
 
+### Navegación y Vistas
+- `F1` / `Ctrl+Shift+P`: **Paleta de comandos** (Command Palette).
+- `Ctrl+P`: **Quick Open** — Búsqueda rápida y navegación de archivos en el workspace.
+- `Ctrl+G`: **Ir a línea** (Go to line).
+- `Ctrl+B`: **Alternar Explorador** de archivos (barra lateral izquierda).
+- `Ctrl+Shift+E`: **Mostrar Explorador** de archivos.
+- `Ctrl+Shift+F`: **Buscar en workspace** (búsqueda global en archivos).
+- `Ctrl+Shift+G`: **Control de versiones Git** (panel inferior).
+- `Ctrl+Shift+B`: **Alternar panel de conversaciones** de IA (barra lateral derecha).
+- `Ctrl+J`: **Alternar panel inferior** (Terminal / Git).
+- `Ctrl+`` / `Ctrl+ñ`: **Alternar terminal integrada** (soporta teclado estándar y español).
+- `Ctrl+K Ctrl+S`: **Ver atajos de teclado** (Modal interactivo con buscador).
+- `Ctrl+,`: **Ajustes de fh-code**.
+
+### Archivos y Pestañas
+- `Ctrl+N`: **Nuevo archivo**.
+- `Ctrl+O`: **Abrir carpeta en el workspace**.
+- `Ctrl+S`: **Guardar archivo actual**.
+- `Ctrl+Shift+S`: **Guardar todo**.
+- `Ctrl+W`: **Cerrar pestaña activa**.
+- `Ctrl+K Ctrl+W` / `Ctrl+Shift+W`: **Cerrar todas las pestañas**.
+- `Ctrl+Tab` / `Ctrl+PageDown`: **Siguiente pestaña**.
+- `Ctrl+Shift+Tab` / `Ctrl+PageUp`: **Pestaña anterior**.
+- `Ctrl+1` a `Ctrl+9`: **Ir a la pestaña 1 a 9**.
+
+### Edición de Código (Monaco)
+- `Ctrl+F`: **Buscar en archivo**.
+- `Ctrl+H`: **Reemplazar en archivo**.
+- `Shift+Alt+F`: **Dar formato al documento**.
+- `Ctrl+/`: **Comentar / descomentar línea**.
+- `Shift+Alt+A`: **Comentar bloque**.
+- `Ctrl+Shift+K`: **Eliminar línea actual**.
+- `Alt+↑` / `Alt+↓`: **Mover línea arriba / abajo**.
+- `Shift+Alt+↑` / `Shift+Alt+↓`: **Duplicar línea arriba / abajo**.
+- `Ctrl+D`: **Multi-cursor en siguiente coincidencia**.
+- `Ctrl+U`: **Deshacer selección de cursor**.
+- `F2`: **Renombrar símbolo**.
+- `F12`: **Ir a definición** (`Alt+F12` Peek, `Shift+F12` Referencias).
+- `F8` / `Shift+F8`: **Siguiente / anterior error o advertencia**.
+- `Ctrl+=` / `Ctrl+-` / `Ctrl+0`: **Zoom de texto** (aumentar, reducir, restablecer).
+
+### Inteligencia Artificial & Cursor
 - `Ctrl+K` / `Cmd+K`: **Cursor Inline Edit** — Edición y generación de código contextual flotante sobre la selección actual.
 - `Ctrl+I` / `Cmd+I`: **Cursor Composer** — Edición y generación multi-archivo con checkpoints y rollback instantáneo.
+- `Ctrl+L`: **Enfocar chat de IA**.
 - `Tab`: **Cursor Tab** — Aceptación de autocompletado predictivo multi-línea con Ghost Text.
-- `Ctrl+P`: **Quick Open** — Búsqueda rápida y navegación de archivos en el workspace.
-- `Ctrl+S` / `Cmd+S`: Guardar archivo actual.
 - `Enter` / `Ctrl+Enter`: Enviar consulta al chat (`Shift+Enter` nueva línea).
 
 ## Menciones Contextuales (@)

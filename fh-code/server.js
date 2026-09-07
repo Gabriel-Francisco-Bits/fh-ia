@@ -521,6 +521,22 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Static Assets
+    if (req.method === "GET" && (url.pathname === "/logo.png" || url.pathname === "/favicon.ico")) {
+      const abs = path.join(PUBLIC, "logo.png");
+      try {
+        const data = await fs.readFile(abs);
+        res.writeHead(200, {
+          "content-type": "image/png",
+          "cache-control": "no-cache, no-store, must-revalidate",
+        });
+        res.end(data);
+        return;
+      } catch {
+        json(res, 404, { error: "not found" });
+        return;
+      }
+    }
+
     if (req.method === "GET" && url.pathname.startsWith("/static/")) {
       const rel = url.pathname.slice("/static/".length);
       const cleaned = path.normalize(rel).replace(/^(\.\.[\/\\])+/, "");
@@ -1063,6 +1079,9 @@ const server = http.createServer(async (req, res) => {
           if (ev.type === "text") send({ type: "delta", text: ev.text });
           if (ev.type === "status") send({ type: "status", text: ev.text });
           if (ev.type === "error") send({ type: "error", message: ev.error });
+          if (ev.type === "tool_call_start") send({ type: "tool_call_start", id: ev.id, name: ev.name, args: ev.args });
+          if (ev.type === "tool_call_output") send({ type: "tool_call_output", id: ev.id, name: ev.name, output: ev.output, isError: ev.isError });
+          if (ev.type === "thought") send({ type: "thought", text: ev.text });
           if (ev.type === "meta") {
             streamMeta = { ...streamMeta, ...ev };
             recordProviderLimit(body.provider, ev.rateLimit, ev.usage);
