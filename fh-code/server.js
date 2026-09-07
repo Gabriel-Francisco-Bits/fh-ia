@@ -944,6 +944,13 @@ const server = http.createServer(async (req, res) => {
         "cache-control": "no-cache",
         connection: "keep-alive",
       });
+      const startTime = Date.now();
+      let streamMeta = {};
+      const send = (obj) => {
+        try {
+          res.write(`data: ${JSON.stringify(obj)}\n\n`);
+        } catch {}
+      };
       const rawText = String(body.text || "");
       rec.gitContext = undefined;
       rec.terminalContext = undefined;

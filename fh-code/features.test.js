@@ -211,3 +211,34 @@ test("detect-session endpoint handles providers gracefully", async (t) => {
   assert.equal(openaiRes.body.provider, "openai");
 });
 
+test("/api/chat handles streaming requests gracefully without reference errors", async (t) => {
+  const { server, port } = await startServer(0);
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const sseChunks = await new Promise((resolve, reject) => {
+    const data = Buffer.from(JSON.stringify({ sessionId: "test-session", text: "hola", provider: "openai" }));
+    const req = http.request(
+      {
+        hostname: "127.0.0.1",
+        port,
+        path: "/api/chat",
+        method: "POST",
+        headers: { "content-type": "application/json", "content-length": data.length },
+      },
+      (res) => {
+        assert.equal(res.statusCode, 200);
+        assert.match(res.headers["content-type"], /text\/event-stream/);
+        let raw = "";
+        res.on("data", (c) => (raw += c));
+        res.on("end", () => resolve(raw));
+      },
+    );
+    req.on("error", reject);
+    req.write(data);
+    req.end();
+  });
+
+  assert.ok(sseChunks.length > 0);
+  assert.match(sseChunks, /data: /);
+});
+
