@@ -582,6 +582,7 @@
   async function openFile(p) {
     try {
       if (isDiffMode) closeDiffView();
+      if (typeof clearInlineDiffDecorations === "function") clearInlineDiffDecorations();
       if (isClaudeMode) toggleClaudeMode();
       activeTabType = "file";
       activePath = p;
@@ -1538,35 +1539,312 @@
     }
   }
 
-  function openDiffView(file, diffText) {
-    isDiffMode = true;
-    const editorDiv = document.getElementById("editor");
-    const diffDiv = document.getElementById("diff-editor");
-    editorDiv.style.display = "none";
-    diffDiv.style.display = "block";
+  // ==========================================================================
+  // Epic #23: Surgical Hunk Diffs & Monaco Split Diff Comparer / Inline Decorator
+  // ==========================================================================
+  let activeDiffDecorations = [];
+  let activeHunkWidgets = [];
+  let activeProposedHunks = [];
+  let diffOriginalModel = null;
+  let diffModifiedModel = null;
+  let currentDiffActions = null;
 
-    if (!diffEditor) {
-      diffEditor = monaco.editor.create(diffDiv, {
-        value: diffText,
-        language: "diff",
-        theme: "vs-dark",
-        readOnly: true,
-        automaticLayout: true,
-        fontSize: 14,
+  function clearInlineDiffDecorations() {
+    if (editor && activeDiffDecorations.length > 0) {
+      activeDiffDecorations = editor.deltaDecorations(activeDiffDecorations, []);
+    }
+    if (editor && activeHunkWidgets.length > 0) {
+      for (const w of activeHunkWidgets) {
+        try { editor.removeContentWidget(w); } catch {}
+      }
+      activeHunkWidgets = [];
+    }
+    activeProposedHunks = [];
+  }
+
+  async function acceptActiveHunk() {
+    if (!activeProposedHunks || !activeProposedHunks.length) return;
+    const hunkItem = activeProposedHunks[0];
+    if (typeof hunkItem.onAccept === "function") {
+      await hunkItem.onAccept(hunkItem, 0);
+    }
+    clearInlineDiffDecorations();
+  }
+
+  function rejectActiveHunk() {
+    if (!activeProposedHunks || !activeProposedHunks.length) return;
+    const hunkItem = activeProposedHunks[0];
+    if (typeof hunkItem.onReject === "function") {
+      hunkItem.onReject(hunkItem, 0);
+    }
+    clearInlineDiffDecorations();
+  }
+
+  function applyInlineHunkDecorations(file, hunksData, onAcceptHunk, onRejectHunk) {
+    if (!editor || activePath !== file) return;
+    clearInlineDiffDecorations();
+
+    const model = editor.getModel();
+    if (!model) return;
+
+    const newDecorations = [];
+    activeProposedHunks = hunksData || [];
+
+    hunksData.forEach((hunkItem, idx) => {
+      const startLine = Math.max(1, hunkItem.startLine || hunkItem.newStart || 1);
+      const addCount = Math.max(1, hunkItem.newCount || (hunkItem.replacementLines ? hunkItem.replacementLines.length : 1));
+      const endLine = Math.max(startLine, startLine + addCount - 1);
+
+      // Decoración de líneas agregadas (verde tenue)
+      newDecorations.push({
+        range: new monaco.Range(startLine, 1, endLine, 1),
+        options: {
+          isWholeLine: true,
+          className: "diff-add-line",
+          linesDecorationsClassName: "diff-add-gutter",
+          overviewRuler: {
+            color: "rgba(34, 197, 94, 0.7)",
+            position: monaco.editor.OverviewRulerLane.Left,
+          },
+        },
+      });
+
+      // Widget flotante contextual en la cabecera del cambio
+      const domNode = document.createElement("div");
+      domNode.className = "diff-hunk-widget";
+      domNode.innerHTML = `
+        <span class="diff-hunk-label">
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0Zm.75 4.75a.75.75 0 0 0-1.5 0v3.5a.75.75 0 0 0 1.5 0v-3.5ZM8 11.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"></path></svg>
+          Cambio propuesto (${idx + 1}/${hunksData.length})
+        </span>
+        <div class="diff-hunk-actions">
+          <button class="btn-hunk-accept" title="Aceptar cambio (Ctrl+Enter)">Aceptar <kbd style="background:rgba(0,0,0,0.25);padding:1px 4px;border-radius:3px;font-size:9px;">Ctrl+Enter</kbd></button>
+          <button class="btn-hunk-reject" title="Rechazar cambio (Ctrl+Backspace)">Rechazar <kbd style="background:rgba(0,0,0,0.25);padding:1px 4px;border-radius:3px;font-size:9px;">Esc</kbd></button>
+          <button class="btn-hunk-split" title="Ver comparación Split Diff">Split View</button>
+        </div>
+      `;
+
+      const acceptBtn = domNode.querySelector(".btn-hunk-accept");
+      acceptBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (typeof onAcceptHunk === "function") {
+          await onAcceptHunk(hunkItem, idx);
+        }
+        clearInlineDiffDecorations();
+      });
+
+      const rejectBtn = domNode.querySelector(".btn-hunk-reject");
+      rejectBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (typeof onRejectHunk === "function") {
+          onRejectHunk(hunkItem, idx);
+        }
+        clearInlineDiffDecorations();
+      });
+
+      const splitBtn = domNode.querySelector(".btn-hunk-split");
+      splitBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openDiffView(file, hunkItem.diff || "", hunkItem.original, hunkItem.modified, () => onAcceptHunk?.(hunkItem, idx), () => onRejectHunk?.(hunkItem, idx));
+      });
+
+      const widget = {
+        getId: () => "diff.hunk.widget." + idx + "." + Date.now(),
+        getDomNode: () => domNode,
+        getPosition: () => ({
+          position: { lineNumber: startLine, column: 1 },
+          preference: [
+            monaco.editor.ContentWidgetPositionPreference.ABOVE,
+            monaco.editor.ContentWidgetPositionPreference.BELOW,
+          ],
+        }),
+      };
+
+      try {
+        editor.addContentWidget(widget);
+        activeHunkWidgets.push(widget);
+      } catch (err) {
+        console.warn("No se pudo registrar content widget en Monaco:", err);
+      }
+    });
+
+    activeDiffDecorations = editor.deltaDecorations(activeDiffDecorations, newDecorations);
+  }
+
+  async function applyInlineDiffFromText(file, diffText, originalText, modifiedText, onAcceptAll, onRejectAll) {
+    let orig = originalText;
+    let mod = modifiedText;
+    let hunks = [];
+
+    try {
+      const res = await (await fetch("/api/diff/preview", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path: file, diff: diffText }),
+      })).json();
+
+      if (res.ok) {
+        orig = res.original;
+        mod = res.modified;
+        hunks = res.hunks || [];
+      }
+    } catch {}
+
+    if (!hunks.length) {
+      hunks = [{
+        startLine: 1,
+        newCount: 1,
+        oldCount: 1,
+        diff: diffText,
+        original: orig,
+        modified: mod,
+        onAccept: onAcceptAll,
+        onReject: onRejectAll,
+      }];
+    } else {
+      hunks = hunks.map((h) => ({
+        ...h,
+        startLine: h.newStart || h.oldStart,
+        diff: diffText,
+        original: orig,
+        modified: mod,
+        onAccept: onAcceptAll,
+        onReject: onRejectAll,
+      }));
+    }
+
+    applyInlineHunkDecorations(file, hunks, onAcceptAll, onRejectAll);
+  }
+
+  async function openDiffView(file, diffText, originalText, modifiedText, onAccept, onReject) {
+    isDiffMode = true;
+    currentDiffActions = { file, onAccept, onReject };
+
+    const editorDiv = document.getElementById("editor");
+    const diffContainer = document.getElementById("diff-editor-container") || document.getElementById("diff-editor");
+    const diffDiv = document.getElementById("diff-editor");
+
+    editorDiv.style.display = "none";
+    diffContainer.style.display = "flex";
+
+    const titleEl = document.getElementById("diff-toolbar-title");
+    if (titleEl) {
+      titleEl.textContent = `Comparación: ${file}`;
+    }
+
+    let orig = originalText;
+    let mod = modifiedText;
+
+    if ((orig === undefined || mod === undefined) && diffText) {
+      try {
+        const previewRes = await (await fetch("/api/diff/preview", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ path: file, diff: diffText }),
+        })).json();
+
+        if (previewRes.ok) {
+          orig = previewRes.original;
+          mod = previewRes.modified;
+        }
+      } catch {}
+    }
+
+    const lang = langOf(file);
+
+    if (orig !== undefined && mod !== undefined) {
+      // Modo Split Diff Comparer nativo utilizando monaco.editor.createDiffEditor
+      if (!diffEditor || typeof diffEditor.getOriginalEditor !== "function") {
+        if (diffEditor) {
+          try { diffEditor.dispose(); } catch {}
+          diffEditor = null;
+        }
+        diffDiv.innerHTML = "";
+        diffEditor = monaco.editor.createDiffEditor(diffDiv, {
+          enableSplitViewResizing: true,
+          renderSideBySide: true,
+          theme: "vs-dark",
+          readOnly: true,
+          automaticLayout: true,
+          fontSize: 14,
+          originalEditable: false,
+        });
+      }
+
+      if (diffOriginalModel) {
+        try { diffOriginalModel.dispose(); } catch {}
+      }
+      if (diffModifiedModel) {
+        try { diffModifiedModel.dispose(); } catch {}
+      }
+
+      diffOriginalModel = monaco.editor.createModel(orig, lang);
+      diffModifiedModel = monaco.editor.createModel(mod, lang);
+
+      diffEditor.setModel({
+        original: diffOriginalModel,
+        modified: diffModifiedModel,
       });
     } else {
-      diffEditor.setValue(diffText);
+      // Fallback si no hay pares original/modified
+      if (!diffEditor || typeof diffEditor.getOriginalEditor === "function") {
+        if (diffEditor) {
+          try { diffEditor.dispose(); } catch {}
+          diffEditor = null;
+        }
+        diffDiv.innerHTML = "";
+        diffEditor = monaco.editor.create(diffDiv, {
+          value: diffText || "",
+          language: "diff",
+          theme: "vs-dark",
+          readOnly: true,
+          automaticLayout: true,
+          fontSize: 14,
+        });
+      } else {
+        diffEditor.setValue(diffText || "");
+      }
     }
+
     diffEditor.layout();
   }
 
   function closeDiffView() {
     isDiffMode = false;
+    currentDiffActions = null;
     const editorDiv = document.getElementById("editor");
-    const diffDiv = document.getElementById("diff-editor");
-    diffDiv.style.display = "none";
+    const diffContainer = document.getElementById("diff-editor-container") || document.getElementById("diff-editor");
+    diffContainer.style.display = "none";
     editorDiv.style.display = "block";
     if (editor) editor.layout();
+  }
+
+  // Enlazar botones de la barra de herramientas Split Diff
+  const btnDiffAcceptAll = document.getElementById("btn-diff-accept-all");
+  if (btnDiffAcceptAll) {
+    btnDiffAcceptAll.addEventListener("click", async () => {
+      if (currentDiffActions && typeof currentDiffActions.onAccept === "function") {
+        await currentDiffActions.onAccept();
+      }
+      closeDiffView();
+    });
+  }
+
+  const btnDiffRejectAll = document.getElementById("btn-diff-reject-all");
+  if (btnDiffRejectAll) {
+    btnDiffRejectAll.addEventListener("click", () => {
+      if (currentDiffActions && typeof currentDiffActions.onReject === "function") {
+        currentDiffActions.onReject();
+      }
+      closeDiffView();
+    });
+  }
+
+  const btnDiffClose = document.getElementById("btn-diff-close");
+  if (btnDiffClose) {
+    btnDiffClose.addEventListener("click", () => {
+      closeDiffView();
+    });
   }
 
   async function commitGit() {
@@ -3159,46 +3437,69 @@
       }
     } else {
       edits.forEach((edit) => {
-        const wrap = append("system", "Edición propuesta: " + edit.path);
-        const diffBtn = document.createElement("button");
-        diffBtn.textContent = "Ver Diff";
-        diffBtn.style.marginLeft = "8px";
-        diffBtn.style.cursor = "pointer";
-        diffBtn.addEventListener("click", () => {
-          if (edit.diff && edit.diff.unified) {
-            openDiffView(edit.path, edit.diff.unified);
-          } else {
-            openFile(edit.path);
-          }
-        });
-        wrap.appendChild(diffBtn);
+        const wrap = append("system", "Edición quirúrgica propuesta: " + edit.path);
 
-        const ok = document.createElement("button");
-        ok.textContent = "Accept";
-        ok.style.marginLeft = "6px";
-        ok.style.cursor = "pointer";
-        ok.addEventListener("click", async () => {
+        const doAccept = async () => {
           await fetch("/api/edit/accept", {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ edit }),
           });
           wrap.textContent = "✓ Aplicado " + edit.path;
+          clearInlineDiffDecorations();
           if (activePath !== edit.path) {
             await openFile(edit.path);
           } else {
             await reloadBufferIfOpen(edit.path);
           }
+        };
+
+        const doReject = () => {
+          wrap.textContent = "✕ Rechazado " + edit.path;
+          clearInlineDiffDecorations();
+        };
+
+        // 1. Botón Split Diff
+        const diffBtn = document.createElement("button");
+        diffBtn.textContent = "Ver Split Diff";
+        diffBtn.style.marginLeft = "8px";
+        diffBtn.style.cursor = "pointer";
+        diffBtn.addEventListener("click", () => {
+          if (edit.diff && edit.diff.unified) {
+            openDiffView(edit.path, edit.diff.unified, edit.diff.original, edit.diff.proposed, doAccept, doReject);
+          } else {
+            openFile(edit.path);
+          }
         });
+        wrap.appendChild(diffBtn);
+
+        // 2. Botón Revisar Inline en Editor
+        const inlineBtn = document.createElement("button");
+        inlineBtn.textContent = "Revisar en editor";
+        inlineBtn.style.marginLeft = "6px";
+        inlineBtn.style.cursor = "pointer";
+        inlineBtn.addEventListener("click", async () => {
+          await openFile(edit.path);
+          if (edit.diff && edit.diff.unified) {
+            await applyInlineDiffFromText(edit.path, edit.diff.unified, edit.diff.original, edit.diff.proposed, doAccept, doReject);
+          }
+        });
+        wrap.appendChild(inlineBtn);
+
+        // 3. Botón Aceptar directo
+        const ok = document.createElement("button");
+        ok.textContent = "Accept";
+        ok.style.marginLeft = "6px";
+        ok.style.cursor = "pointer";
+        ok.addEventListener("click", doAccept);
         wrap.appendChild(ok);
 
+        // 4. Botón Rechazar directo
         const rejectBtn = document.createElement("button");
         rejectBtn.textContent = "Reject";
         rejectBtn.style.marginLeft = "6px";
         rejectBtn.style.cursor = "pointer";
-        rejectBtn.addEventListener("click", () => {
-          wrap.textContent = "✕ Rechazado " + edit.path;
-        });
+        rejectBtn.addEventListener("click", doReject);
         wrap.appendChild(rejectBtn);
       });
     }
@@ -3807,8 +4108,27 @@
             messagesEl.scrollTop = messagesEl.scrollHeight;
           }
           else if (msg.type === "status") {
-            if (agentStatusLabel) agentStatusLabel.textContent = msg.text || "Trabajando…";
-            append("system", msg.text || "");
+            const statusText = msg.text || "";
+            if (agentStatusLabel) agentStatusLabel.textContent = statusText || "Trabajando…";
+            let extraClass = "";
+            let icon = "";
+            if (statusText.includes("Validando tests")) {
+              extraClass = " status-validating";
+              icon = "🧪 ";
+            } else if (statusText.includes("Auto-corrigiendo") || statusText.includes("Error detectado")) {
+              extraClass = " status-healing";
+              icon = "🩹 ";
+            } else if (statusText.includes("Validación de tests exitosa") || statusText.includes("Green")) {
+              extraClass = " status-green";
+              icon = "✅ ";
+            } else if (statusText.includes("Límite de autocorrección alcanzado")) {
+              extraClass = " status-limit";
+              icon = "🛑 ";
+            }
+            const sysNode = append("system", icon + statusText);
+            if (extraClass && sysNode) {
+              sysNode.className += extraClass;
+            }
           }
           else if (msg.type === "error") {
             if (thinkingNode.parentNode) thinkingNode.remove();
@@ -4729,6 +5049,19 @@
     } catch (e) {
       // fallback
     }
+
+    // Epic #23: Atajos para aceptar o rechazar diffs quirúrgicos en Monaco
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, async () => {
+      if (activeProposedHunks && activeProposedHunks.length > 0) {
+        await acceptActiveHunk();
+      }
+    });
+
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Backspace, () => {
+      if (activeProposedHunks && activeProposedHunks.length > 0) {
+        rejectActiveHunk();
+      }
+    });
   }
 
   function initCursorTab(editorInstance) {

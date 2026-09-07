@@ -9,4 +9,5 @@ fh-ia-*/
 dist/
 fh-code/dist/
 .gemini/
+.worktrees/
 

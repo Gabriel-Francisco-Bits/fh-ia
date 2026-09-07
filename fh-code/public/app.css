@@ -5659,6 +5659,269 @@ body.mode-fullchat #chat-doc-view .doc-composer {
   color: var(--muted, #94a3b8);
 }
 
+/* ==========================================================================
+   Epic #23: Surgical Hunk Diffs & Monaco Diff Decorators / Split View
+   ========================================================================== */
+
+/* Inline Diff Highlight Lines */
+.diff-delete-line {
+  background: rgba(239, 68, 68, 0.18) !important;
+  text-decoration: line-through rgba(239, 68, 68, 0.4);
+}
+
+.diff-add-line {
+  background: rgba(34, 197, 94, 0.18) !important;
+}
+
+/* Gutter Icons */
+.diff-delete-gutter {
+  width: 14px !important;
+  margin-left: 2px;
+  position: relative;
+}
+
+.diff-delete-gutter::before {
+  content: "−";
+  display: block;
+  text-align: center;
+  color: #ef4444;
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.diff-add-gutter {
+  width: 14px !important;
+  margin-left: 2px;
+  position: relative;
+}
+
+.diff-add-gutter::before {
+  content: "+";
+  display: block;
+  text-align: center;
+  color: #22c55e;
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 19px;
+}
+
+/* Floating Hunk Widget in Monaco */
+.diff-hunk-widget {
+  background: #18181b;
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  border-radius: 6px;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 11px;
+  z-index: 50;
+  pointer-events: auto;
+  user-select: none;
+  animation: fadeInHunkWidget 0.15s ease-out;
+}
+
+@keyframes fadeInHunkWidget {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.diff-hunk-label {
+  color: #93c5fd;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.diff-hunk-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.btn-hunk-accept {
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  color: #4ade80;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-hunk-accept:hover {
+  background: rgba(34, 197, 94, 0.35);
+  color: #fff;
+  border-color: #22c55e;
+}
+
+.btn-hunk-reject {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #f87171;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-hunk-reject:hover {
+  background: rgba(239, 68, 68, 0.35);
+  color: #fff;
+  border-color: #ef4444;
+}
+
+.btn-hunk-split {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-hunk-split:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+/* Split Diff Toolbar */
+.diff-editor-toolbar {
+  height: 38px;
+  min-height: 38px;
+  background: #18181b;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  font-size: 12px;
+  color: #e2e8f0;
+}
+
+.diff-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.diff-toolbar-title {
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.diff-toolbar-badge {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.diff-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-diff-action {
+  border-radius: 5px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+
+.btn-diff-accept {
+  background: #16a34a;
+  border: 1px solid #22c55e;
+  color: #fff;
+}
+
+.btn-diff-accept:hover {
+  background: #15803d;
+}
+
+.btn-diff-reject {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+
+.btn-diff-reject:hover {
+  background: rgba(239, 68, 68, 0.35);
+  color: #fff;
+}
+
+.btn-diff-close {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+}
+
+.btn-diff-close:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+/* --- Self-Correction Loop & Test Validation Status Badges --- */
+.msg.system.status-validating {
+  background: rgba(0, 122, 204, 0.18) !important;
+  border-left: 3px solid #007acc !important;
+  color: #e0e0e0 !important;
+  font-weight: 500;
+}
+
+.msg.system.status-healing {
+  background: rgba(220, 130, 0, 0.18) !important;
+  border-left: 3px solid #d7ba7d !important;
+  color: #f1d299 !important;
+  font-weight: 600;
+  animation: pulse-healing 2s infinite ease-in-out;
+}
+
+.msg.system.status-green {
+  background: rgba(40, 167, 69, 0.18) !important;
+  border-left: 3px solid #28a745 !important;
+  color: #4ec9b0 !important;
+  font-weight: 600;
+}
+
+.msg.system.status-limit {
+  background: rgba(220, 53, 69, 0.22) !important;
+  border-left: 3px solid #dc3545 !important;
+  color: #f48771 !important;
+  font-weight: 600;
+}
+
+@keyframes pulse-healing {
+  0% { opacity: 0.85; }
+  50% { opacity: 1; }
+  100% { opacity: 0.85; }
+}
 
 /* Contextual Mentions Menu (Issue #24) */
 .mention-menu {
