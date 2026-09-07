@@ -163,25 +163,37 @@
     if (diffEditor) diffEditor.layout();
   }
 
-  function toggleClaudeMode() {
+  function toggleChatMode() {
     isClaudeMode = !isClaudeMode;
     const btnText = btnToggleView ? btnToggleView.querySelector(".btn-text") : null;
     if (isClaudeMode) {
-      document.body.classList.add("claude-desktop-mode");
+      document.body.classList.add("mode-fullchat", "claude-desktop-mode");
       if (btnText) btnText.textContent = "Modo IDE";
-      if (typeof openChatInDocument === "function") {
-        openChatInDocument(currentChatId || (chatThreads[0] && chatThreads[0].id));
+      if (btnToggleView) {
+        btnToggleView.title = "Volver al Modo IDE / Editor de código";
+        btnToggleView.classList.add("active");
       }
+      const thread = getActiveThread() || chatThreads[0];
+      if (thread && typeof openChatTab === "function") {
+        openChatTab(thread.id);
+      }
+      if (inputEl) inputEl.focus();
     } else {
-      document.body.classList.remove("claude-desktop-mode");
-      if (btnText) btnText.textContent = "Modo Claude";
+      document.body.classList.remove("mode-fullchat", "claude-desktop-mode");
+      if (btnText) btnText.textContent = "Modo Chat";
+      if (btnToggleView) {
+        btnToggleView.title = "Alternar a Modo Chat (pantalla completa)";
+        btnToggleView.classList.remove("active");
+      }
+      if (editorEl) editorEl.style.display = "block";
     }
     applyShellLayout();
     if (editor) editor.layout();
     if (diffEditor) diffEditor.layout();
   }
+  const toggleClaudeMode = toggleChatMode;
   if (btnToggleView) {
-    btnToggleView.addEventListener("click", toggleClaudeMode);
+    btnToggleView.addEventListener("click", toggleChatMode);
   }
   if (btnToggleSidebar) {
     btnToggleSidebar.addEventListener("click", toggleExplorerSidebar);

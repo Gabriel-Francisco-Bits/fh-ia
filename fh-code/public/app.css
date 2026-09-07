@@ -4663,16 +4663,51 @@ button.send { background: var(--accent); color: #111; border: none; cursor: poin
    Responsive Layout System & Breakpoints
    ========================================================================== */
 
-/* Claude Desktop Mode */
-body.claude-desktop-mode .main .editor {
+/* Modo Chat (Ultra-Clean, Full-Screen AI Chat Experience) */
+body.claude-desktop-mode .activity,
+body.mode-fullchat .activity {
   display: none !important;
 }
-body.claude-desktop-mode .main .tabs {
+
+body.claude-desktop-mode .main .editor,
+body.mode-fullchat .main .editor {
   display: none !important;
 }
-body.claude-desktop-mode .main #chat-doc-view {
+
+body.claude-desktop-mode .main .tabs,
+body.mode-fullchat .main .tabs {
+  display: none !important;
+}
+
+body.claude-desktop-mode .main #chat-doc-view,
+body.mode-fullchat .main #chat-doc-view {
   display: flex !important;
   flex: 1;
+  width: 100%;
+}
+
+body.claude-desktop-mode #chat-doc-view .chat-doc-header,
+body.mode-fullchat #chat-doc-view .chat-doc-header {
+  padding: 10px 24px;
+  background: rgba(18, 20, 26, 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+body.claude-desktop-mode #chat-doc-view .doc-messages,
+body.mode-fullchat #chat-doc-view .doc-messages {
+  max-width: 880px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 20px;
+}
+
+body.claude-desktop-mode #chat-doc-view .doc-composer,
+body.mode-fullchat #chat-doc-view .doc-composer {
+  max-width: 880px;
+  width: 100%;
+  margin: 0 auto 16px auto;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
 }
 
 /* Collapsible Explorer & Chat */
