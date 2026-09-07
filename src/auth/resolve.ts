@@ -23,6 +23,7 @@ export const ENV_KEYS: Record<ProviderId, string> = {
   grok: "XAI_API_KEY",
   openai: "OPENAI_API_KEY",
   fcc: "ANTHROPIC_AUTH_TOKEN",
+  minimax: "MINIMAX_API_KEY",
 };
 
 export const LOGIN_HINT: Record<ProviderId, string> = {
@@ -30,6 +31,7 @@ export const LOGIN_HINT: Record<ProviderId, string> = {
   grok: "Run `grok login` in a terminal, or set fhIa.grok.apiKey / XAI_API_KEY.",
   openai: "Log in with Codex (`codex`) or set fhIa.openai.apiKey / OPENAI_API_KEY.",
   fcc: "Start `fcc-server` (Free Claude Code) and set fhIa.fcc.apiKey (default freecc).",
+  minimax: "Set fhIa.minimax.apiKey / MINIMAX_API_KEY or provide a Web Cookie session.",
 };
 
 export function isAuthMode(value: string): value is AuthMode {
@@ -39,12 +41,12 @@ export function isAuthMode(value: string): value is AuthMode {
 export function passthroughCredentials(): CredentialResolver {
   return {
     async resolve(_id, settings) {
-      if (!settings.apiKey) {
+      if (!settings.apiKey && !settings.cookie) {
         throw new Error(missingMessage(settings.id));
       }
       return {
         ...settings,
-        authKind: settings.authKind ?? "apiKey",
+        authKind: settings.authKind ?? (settings.cookie ? "session" : "apiKey"),
         authSource: settings.authSource ?? "settings",
       };
     },
@@ -70,8 +72,8 @@ export function createTerminalCredentialResolver(opts: {
     async resolve(id, settings) {
       const authMode = authModeOf();
       const settingKey = settings.apiKey.trim();
-      if (authMode !== "terminal" && settingKey) {
-        return tagged(settings, settingKey, settings.authKind ?? "apiKey", "settings");
+      if (authMode !== "terminal" && (settingKey || settings.cookie)) {
+        return tagged(settings, settingKey, settings.authKind ?? (settings.cookie ? "session" : "apiKey"), "settings");
       }
       if (authMode !== "apiKey") {
         const session = await loadTerminalSession(id, { home, files, http, env, now: opts.now });
@@ -112,7 +114,7 @@ async function loadTerminalSession(
     }
     return undefined;
   }
-  if (id === "fcc") {
+  if (id === "fcc" || id === "minimax") {
     return undefined;
   }
   const openai = await loadOpenAiSession(ctx);

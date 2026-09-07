@@ -24,6 +24,7 @@ test("when preferred provider returns 503, dispatcher fails over to the next IA"
       claude: { id: "claude", apiKey: "sk-ant-test", baseUrl: claude.url, model: "claude-test" },
       openai: { id: "openai", apiKey: "sk-test", baseUrl: "http://127.0.0.1:9", model: "gpt-test" },
       fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "fcc-test" },
+      minimax: { id: "minimax", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "minimax-test" },
     };
     const dispatcher = new ProviderDispatcher({
       bundle,
@@ -58,6 +59,7 @@ test("failover disabled does not call the next provider", async () => {
         claude: { id: "claude", apiKey: "sk-ant-test", baseUrl: claude.url, model: "c" },
         openai: { id: "openai", apiKey: "sk", baseUrl: "http://127.0.0.1:9", model: "o" },
         fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "f" },
+        minimax: { id: "minimax", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "m" },
       },
       failover: { enabled: false, order: ["grok", "claude"] },
     });
@@ -80,6 +82,7 @@ test("missing credential on preferred IA fails over to a configured backend", as
         grok: { id: "grok", apiKey: "xai-test", baseUrl: grok.url, model: "g" },
         openai: { id: "openai", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "o" },
         fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "f" },
+        minimax: { id: "minimax", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "m" },
       },
       failover: { enabled: true, order: ["claude", "grok", "openai"] },
     });
@@ -103,6 +106,7 @@ test("intra-provider multi-account failover: Primary account 503 -> Secondary ac
       grok: { id: "grok", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "g" },
       openai: { id: "openai", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "o" },
       fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "f" },
+      minimax: { id: "minimax", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "m" },
       accounts: [
         {
           id: "claude-main",
@@ -158,6 +162,7 @@ test("web login account: account with authType 'web' uses Bearer session authori
       grok: { id: "grok", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "g" },
       openai: { id: "openai", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "o" },
       fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "f" },
+      minimax: { id: "minimax", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "m" },
       accounts: [
         {
           id: "claude-web-acc",
@@ -201,6 +206,7 @@ test("hierarchical failover: All accounts of primary provider fail -> falls over
       grok: { id: "grok", apiKey: "xai-key", baseUrl: grok.url, model: "grok-4" },
       openai: { id: "openai", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "o" },
       fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "f" },
+      minimax: { id: "minimax", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "m" },
       accounts: [
         {
           id: "c1",
@@ -249,7 +255,8 @@ test("disabled providers: resolveAvailableProviders and resolveProviderEnabled r
   assert.equal(resolveProviderEnabled("fcc", cfg1), false);
   assert.equal(resolveProviderEnabled("grok", cfg1), true);
   assert.equal(resolveProviderEnabled("openai", cfg1), true);
-  assert.deepEqual(resolveAvailableProviders(cfg1), ["grok", "openai"]);
+  assert.equal(resolveProviderEnabled("minimax", cfg1), true);
+  assert.deepEqual(resolveAvailableProviders(cfg1), ["grok", "openai", "minimax"]);
 
   const cfg2: RawConfig = {
     get: <T>(key: string): T | undefined => {
@@ -259,7 +266,7 @@ test("disabled providers: resolveAvailableProviders and resolveProviderEnabled r
   };
   assert.equal(resolveProviderEnabled("grok", cfg2), false);
   assert.equal(resolveProviderEnabled("claude", cfg2), true);
-  assert.deepEqual(resolveAvailableProviders(cfg2), ["claude", "openai", "fcc"]);
+  assert.deepEqual(resolveAvailableProviders(cfg2), ["claude", "openai", "fcc", "minimax"]);
 });
 
 test("disabled providers: resolveProviderBundle selects an enabled provider when preferred is disabled", () => {

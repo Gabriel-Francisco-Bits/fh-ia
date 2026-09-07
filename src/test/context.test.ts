@@ -44,6 +44,7 @@ test("outbound prompt payload includes active file path and selected span", asyn
       grok: { id: "grok", apiKey: "xai-test", baseUrl: grok.url, model: "grok-test" },
       openai: { id: "openai", apiKey: "unused", baseUrl: "http://127.0.0.1:9", model: "x" },
       fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "x" },
+      minimax: { id: "minimax", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "x" },
     },
   });
 
@@ -82,6 +83,7 @@ test("contextual mentions (@git, @terminal, @symbols) are attached into outbound
         grok: { id: "grok", apiKey: "xai-test", baseUrl: grok.url, model: "grok-test" },
         openai: { id: "openai", apiKey: "unused", baseUrl: "http://127.0.0.1:9", model: "x" },
         fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "x" },
+        minimax: { id: "minimax", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "x" },
       },
     });
     const session = new AgentSession(dispatcher, files, () => editor);
@@ -124,6 +126,7 @@ test("@file mention is attached into the outbound payload", async () => {
       grok: { id: "grok", apiKey: "xai-test", baseUrl: grok.url, model: "grok-test" },
       openai: { id: "openai", apiKey: "unused", baseUrl: "http://127.0.0.1:9", model: "x" },
       fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "x" },
+      minimax: { id: "minimax", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "x" },
     },
   });
 
@@ -160,6 +163,7 @@ test("open folder and repo tree are sent even without an active file", async () 
         grok: { id: "grok", apiKey: "xai-test", baseUrl: grok.url, model: "grok-test" },
         openai: { id: "openai", apiKey: "unused", baseUrl: "http://127.0.0.1:9", model: "x" },
         fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "x" },
+        minimax: { id: "minimax", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "x" },
       },
     });
     const session = new AgentSession(dispatcher, files, () => ({

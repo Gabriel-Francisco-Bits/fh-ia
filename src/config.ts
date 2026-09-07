@@ -35,6 +35,11 @@ export const FHIA_CONFIG_KEYS = [
   "fhIa.fcc.apiKey",
   "fhIa.fcc.baseUrl",
   "fhIa.fcc.model",
+  "fhIa.minimax.enabled",
+  "fhIa.minimax.apiKey",
+  "fhIa.minimax.baseUrl",
+  "fhIa.minimax.model",
+  "fhIa.minimax.cookie",
   "fhIa.ui.theme",
   "fhIa.ui.fontSize",
   "fhIa.ui.iconSize",
@@ -134,7 +139,7 @@ export function resolveProviderBundle(
     accounts = rawAccounts
       .filter(
         (a): a is ProviderAccount =>
-          Boolean(a && typeof a === "object" && isProviderId((a as any).provider) && (a as any).apiKey),
+          Boolean(a && typeof a === "object" && isProviderId((a as any).provider) && ((a as any).apiKey || (a as any).cookie)),
       )
       .map((a) => {
         const authType = (a as any).authType === "web" ? "web" : "apiKey";
@@ -143,7 +148,8 @@ export function resolveProviderBundle(
           id: String(a.id || Math.random().toString(36).slice(2, 9)),
           provider: a.provider,
           name: String(a.name || a.provider),
-          apiKey: String(a.apiKey),
+          apiKey: String(a.apiKey || ""),
+          cookie: a.cookie ? String(a.cookie) : undefined,
           authType,
           authKind,
           baseUrl: a.baseUrl ? String(a.baseUrl) : undefined,
@@ -161,6 +167,10 @@ export function resolveProviderBundle(
     fcc: {
       ...settings("fcc", FCC_DEFAULT_BASE, "claude-sonnet-4-20250514", config),
       apiKey: String(config.get("fhIa.fcc.apiKey") || FCC_DEFAULT_TOKEN),
+    },
+    minimax: {
+      ...settings("minimax", "https://api.minimaxi.chat/v1", "MiniMax-Text-01", config),
+      cookie: config.get("fhIa.minimax.cookie") ? String(config.get("fhIa.minimax.cookie")) : undefined,
     },
   };
 }

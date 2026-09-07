@@ -128,3 +128,36 @@ test("app.css, app.js and index.html include contextual mentions UI (Issue #24)"
   assert.match(js, /function applyMention/);
   assert.match(js, /function handleMentionInput/);
 });
+
+test("app.css, app.js and index.html include message queue, minimax provider and enhanced thinking animation (Issue #35)", () => {
+  const html = fs.readFileSync(path.join(__dirname, "public", "index.html"), "utf8");
+  assert.match(html, /id="chat-queue-bar"/);
+  assert.match(html, /id="btn-clear-queue"/);
+  assert.match(html, /id="card-provider-minimax"/);
+  assert.match(html, /id="drawer-minimax"/);
+  assert.match(html, /id="set-minimax-cookie"/);
+  assert.match(html, /id="status-pill-minimax"/);
+  assert.match(html, /<option value="minimax">/);
+
+  const css = fs.readFileSync(path.join(__dirname, "public", "app.css"), "utf8");
+  assert.match(css, /#chat-queue-bar/);
+  assert.match(css, /\.btn-clear-queue/);
+  assert.match(css, /\.msg\.user\.queued/);
+  assert.match(css, /\.btn-cancel-queue/);
+  assert.match(css, /\.thinking-card/);
+  assert.match(css, /\.thinking-glow-effect/);
+  assert.match(css, /\.thinking-sparkle-svg/);
+  assert.match(css, /\.thinking-progress-track/);
+  assert.match(css, /\.thinking-progress-thumb/);
+  assert.match(css, /\.typing-wave/);
+  assert.match(css, /\.dot-minimax/);
+
+  const js = fs.readFileSync(path.join(__dirname, "public", "app.js"), "utf8");
+  assert.match(js, /(?:let|const)\s+messageQueue\s*=/);
+  assert.match(js, /function enqueueMessage/);
+  assert.match(js, /function updateQueueUI/);
+  assert.match(js, /function cancelQueuedMessage/);
+  assert.match(js, /function clearAllQueuedMessages/);
+  assert.match(js, /minimax/);
+  assert.match(js, /updateWebCookieAssistant/);
+});

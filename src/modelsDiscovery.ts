@@ -239,6 +239,54 @@ export async function fetchModelsForProvider(
       };
     }
 
+    if (provider === "minimax") {
+      const base = String(settings.baseUrl || "https://api.minimaxi.chat/v1").replace(/\/+$/, "");
+      const headers: Record<string, string> = {
+        accept: "application/json",
+      };
+      if (settings.apiKey) {
+        headers["authorization"] = `Bearer ${settings.apiKey}`;
+      } else if (!settings.apiKey && !(settings as any).cookie) {
+        return {
+          ok: false,
+          provider: "minimax",
+          models: [...MODEL_CATALOG.minimax],
+          count: MODEL_CATALOG.minimax.length,
+          error: "Sin clave de API o cookie configurada",
+          source: "catalog",
+        };
+      }
+      if ((settings as any).cookie) {
+        headers["cookie"] = (settings as any).cookie;
+      }
+
+      const url = `${base}/models`;
+      const res = await fetch(url, {
+        headers,
+        signal: ctrl.signal,
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+
+      const body = (await res.json()) as {
+        data?: Array<{ id?: string }>;
+        models?: Array<{ id?: string }>;
+      };
+      const rows = body.data || body.models || [];
+      const ids = rows.map((m) => m.id).filter((id): id is string => Boolean(id));
+      const combined = uniqueModels([...ids, ...MODEL_CATALOG.minimax]);
+
+      return {
+        ok: true,
+        provider: "minimax",
+        models: combined,
+        count: combined.length,
+        source: "api",
+      };
+    }
+
     const genericCatalog: Record<string, string[]> = MODEL_CATALOG;
     const defaultCatalog = genericCatalog[provider as string] || [];
     return {

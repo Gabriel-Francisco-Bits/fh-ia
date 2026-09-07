@@ -33,6 +33,7 @@ test("package.json declares vscode engine, chat view container, and open-panel c
   assert.ok(providerEnum.includes("grok"));
   assert.ok(providerEnum.includes("openai"));
   assert.ok(providerEnum.includes("fcc"));
+  assert.ok(providerEnum.includes("minimax"));
   const authEnum = pkg.contributes?.configuration?.properties?.["fhIa.authMode"]?.enum ?? [];
   assert.ok(authEnum.includes("auto"));
   assert.ok(authEnum.includes("apiKey"));
@@ -50,6 +51,7 @@ test("package.json declares vscode engine, chat view container, and open-panel c
   assert.ok(props["fhIa.ui.fontSize"]);
   assert.ok(props["fhIa.ui.iconSize"]);
   assert.ok(props["fhIa.fcc.enabled"]);
+  assert.ok(props["fhIa.minimax.enabled"]);
   for (const key of Object.keys(props)) {
     assert.ok((FHIA_CONFIG_KEYS as readonly string[]).includes(key), "reset list missing " + key);
   }

@@ -153,13 +153,15 @@
             "claude",
             "grok",
             "openai",
-            "fcc"
+            "fcc",
+            "minimax"
           ],
           "enumDescriptions": [
             "Anthropic Claude (api.anthropic.com)",
             "xAI Grok (api.x.ai)",
             "OpenAI-compatible endpoint (ChatGPT, local, Azure-compatible, etc.)",
-            "FCC — Free Claude Code (fcc-server en localhost:8082)"
+            "FCC — Free Claude Code (fcc-server en localhost:8082)",
+            "MiniMax (api.minimaxi.chat o sesión Web Cookie)"
           ],
           "default": "grok",
           "description": "IA activa. Cambiar esto enruta el siguiente prompt al backend elegido, sin recargar la extensión."
@@ -276,6 +278,31 @@
           "type": "string",
           "default": "claude-sonnet-4-20250514",
           "description": "Modelo enviado a FCC. Puede ser un id Claude (mapea a MODEL_SONNET/OPUS/HAIKU) o un ref directo tipo nvidia_nim/..."
+        },
+        "fhIa.minimax.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Habilitar MiniMax como proveedor de IA en el panel."
+        },
+        "fhIa.minimax.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API Key de MiniMax (Bearer token). Opcional si se usa sesión Web con cookie."
+        },
+        "fhIa.minimax.baseUrl": {
+          "type": "string",
+          "default": "https://api.minimaxi.chat/v1",
+          "description": "Base URL de MiniMax OpenAI-compatible."
+        },
+        "fhIa.minimax.model": {
+          "type": "string",
+          "default": "MiniMax-Text-01",
+          "description": "Modelo de MiniMax (ej. MiniMax-Text-01, abab6.5s-chat)."
+        },
+        "fhIa.minimax.cookie": {
+          "type": "string",
+          "default": "",
+          "description": "Cookie de sesión para autenticación Web en MiniMax."
         },
         "fhIa.ui.theme": {
           "type": "string",

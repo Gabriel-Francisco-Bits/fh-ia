@@ -15,6 +15,12 @@ export const MODEL_CATALOG: Record<ProviderId, string[]> = {
     "claude-3-5-haiku-20241022",
     "nvidia_nim/nvidia/nemotron-3-super-120b-a12b",
   ],
+  minimax: [
+    "MiniMax-Text-01",
+    "abab6.5s-chat",
+    "abab6.5t-chat",
+    "abab6.5g-chat",
+  ],
 };
 
 export function uniqueModels(values: string[]): string[] {

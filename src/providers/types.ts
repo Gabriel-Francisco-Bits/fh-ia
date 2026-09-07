@@ -1,4 +1,4 @@
-export const PROVIDER_IDS = ["claude", "grok", "openai", "fcc"] as const;
+export const PROVIDER_IDS = ["claude", "grok", "openai", "fcc", "minimax"] as const;
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 
 export function isProviderId(value: string): value is ProviderId {
@@ -16,6 +16,7 @@ export interface ProviderAccount {
   apiKey: string;
   authType?: AccountAuthType;
   authKind?: AuthKind;
+  cookie?: string;
   baseUrl?: string;
   model?: string;
   enabled?: boolean;
@@ -28,6 +29,7 @@ export interface ProviderSettings {
   model: string;
   authKind?: AuthKind;
   authSource?: AuthSource;
+  cookie?: string;
   extraHeaders?: Record<string, string>;
   accounts?: ProviderAccount[];
   activeAccountId?: string;
@@ -39,6 +41,7 @@ export interface ProviderBundle {
   grok: ProviderSettings;
   openai: ProviderSettings;
   fcc: ProviderSettings;
+  minimax: ProviderSettings;
   accounts?: ProviderAccount[];
 }
 
