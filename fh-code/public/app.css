@@ -4680,18 +4680,48 @@ body.claude-desktop-mode .main #chat-doc-view {
   width: 0 !important;
   min-width: 0 !important;
   padding: 0 !important;
+  margin: 0 !important;
   overflow: hidden !important;
   visibility: hidden !important;
-  border-right: none !important;
+  border: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .shell.chat-collapsed .chat {
   width: 0 !important;
   min-width: 0 !important;
   padding: 0 !important;
+  margin: 0 !important;
   overflow: hidden !important;
   visibility: hidden !important;
-  border-left: none !important;
+  border: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.shell.explorer-collapsed.chat-collapsed {
+  grid-template-columns: 0px minmax(0, 1fr) 0px !important;
+}
+
+/* Sleek Minimal Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
 }
 
 /* Mobile Bottom Navigation Bar */

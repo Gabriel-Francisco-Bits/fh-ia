@@ -91,10 +91,14 @@
   const chatSidebarList = document.getElementById("chat-sidebar-list");
   const chatSearchInput = document.getElementById("chat-search-input");
 
-  // Responsive Layout & View Mode
-  let explorerVisible = true;
+  // Responsive Layout & View Mode (Sidebars collapsed by default for full-screen chat/editor)
+  let explorerVisible = false;
+  let chatVisible = false;
   let isClaudeMode = false;
   const btnToggleView = document.getElementById("btn-toggle-view");
+  const btnToggleSidebar = document.getElementById("btn-toggle-sidebar");
+  const btnToggleChatSidebar = document.getElementById("btn-toggle-chat-sidebar");
+  const btnDocToggleHistory = document.getElementById("btn-doc-toggle-history");
 
   function applyShellLayout() {
     const w = window.innerWidth;
@@ -105,16 +109,58 @@
     const chat = document.querySelector(".chat");
 
     if (shell) {
-      if (!explorerVisible) {
+      if (!explorerVisible && !chatVisible) {
+        shell.classList.add("explorer-collapsed", "chat-collapsed");
+        shell.style.gridTemplateColumns = "0px minmax(0, 1fr) 0px";
+      } else if (!explorerVisible && chatVisible) {
         shell.classList.add("explorer-collapsed");
+        shell.classList.remove("chat-collapsed");
         const rightCol = w < 980 ? "minmax(180px, 28vw)" : (w < 1200 ? "290px" : "340px");
         shell.style.gridTemplateColumns = `0px minmax(0, 1fr) ${rightCol}`;
-      } else {
+      } else if (explorerVisible && !chatVisible) {
         shell.classList.remove("explorer-collapsed");
+        shell.classList.add("chat-collapsed");
+        const leftCol = w < 980 ? "minmax(130px, 20vw)" : (w < 1200 ? "220px" : "240px");
+        shell.style.gridTemplateColumns = `${leftCol} minmax(0, 1fr) 0px`;
+      } else {
+        shell.classList.remove("explorer-collapsed", "chat-collapsed");
         shell.style.gridTemplateColumns = spec.columns;
       }
     }
     if (chat) chat.style.display = spec.chatDisplay;
+
+    // Update active indicators
+    if (actFiles) {
+      if (explorerVisible) actFiles.classList.add("active");
+      else actFiles.classList.remove("active");
+    }
+    if (actChat) {
+      if (chatVisible) actChat.classList.add("active");
+      else actChat.classList.remove("active");
+    }
+    if (btnToggleSidebar) {
+      btnToggleSidebar.classList.toggle("active", explorerVisible);
+    }
+    if (btnToggleChatSidebar) {
+      btnToggleChatSidebar.classList.toggle("active", chatVisible);
+    }
+  }
+
+  function toggleExplorerSidebar() {
+    explorerVisible = !explorerVisible;
+    applyShellLayout();
+    if (editor) editor.layout();
+    if (diffEditor) diffEditor.layout();
+  }
+
+  function toggleChatSidebar() {
+    chatVisible = !chatVisible;
+    applyShellLayout();
+    if (chatVisible && typeof renderChatSidebar === "function") {
+      renderChatSidebar();
+    }
+    if (editor) editor.layout();
+    if (diffEditor) diffEditor.layout();
   }
 
   function toggleClaudeMode() {
@@ -136,6 +182,15 @@
   }
   if (btnToggleView) {
     btnToggleView.addEventListener("click", toggleClaudeMode);
+  }
+  if (btnToggleSidebar) {
+    btnToggleSidebar.addEventListener("click", toggleExplorerSidebar);
+  }
+  if (btnToggleChatSidebar) {
+    btnToggleChatSidebar.addEventListener("click", toggleChatSidebar);
+  }
+  if (btnDocToggleHistory) {
+    btnDocToggleHistory.addEventListener("click", toggleChatSidebar);
   }
 
   window.addEventListener("resize", () => {
@@ -3342,6 +3397,18 @@
       showCommandPalette();
       return;
     }
+      // Ctrl+B / Cmd+B: Toggle Explorador
+    if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && (ev.key === "b" || ev.key === "B")) {
+      ev.preventDefault();
+      toggleExplorerSidebar();
+      return;
+    }
+    // Ctrl+Shift+B / Cmd+Shift+B: Toggle Conversaciones
+    if ((ev.ctrlKey || ev.metaKey) && ev.shiftKey && (ev.key === "b" || ev.key === "B")) {
+      ev.preventDefault();
+      toggleChatSidebar();
+      return;
+    }
     // Ctrl+Shift+F: Search in Workspace
     if ((ev.ctrlKey || ev.metaKey) && ev.shiftKey && (ev.key === "F" || ev.key === "f")) {
       ev.preventDefault();
@@ -3393,6 +3460,7 @@
   actSettings.addEventListener("click", showSettingsModal);
   if (actChat) {
     actChat.addEventListener("click", () => {
+      toggleChatSidebar();
       if (typeof openChatInDocument === "function") {
         openChatInDocument(currentChatId || (chatThreads[0] && chatThreads[0].id));
       }
