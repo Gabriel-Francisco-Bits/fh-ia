@@ -191,7 +191,9 @@ test("terminal manager spawns session and handles I/O", async (t) => {
   });
 
   session.write("echo test_output_123\n");
-  await new Promise((r) => setTimeout(r, 400));
+  for (let i = 0; i < 20 && !gotOutput; i++) {
+    await new Promise((r) => setTimeout(r, 100));
+  }
   unsub();
   assert.equal(gotOutput, true);
 });
@@ -296,5 +298,98 @@ test("/api/providers/limits returns provider limits summary structure", async (t
   assert.ok(res.body.limits.grok);
   assert.ok(res.body.limits.fcc);
   assert.equal(res.body.limits.fcc.unlimited, true);
+});
+
+test("/api/diff/preview generates preview without altering file on disk", async (t) => {
+  const { server, port } = await startServer(0);
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  await request(port, "POST", "/api/workspace/open", { path: dir });
+
+  const testFile = "diff-preview-test.txt";
+  fs.writeFileSync(path.join(dir, testFile), "hello world\nline 2\n");
+
+  const diffText = `--- a/${testFile}
++++ b/${testFile}
+@@ -1,2 +1,2 @@
+-hello world
++hello surgical monaco
+ line 2`;
+
+  const res = await request(port, "POST", "/api/diff/preview", {
+    filePath: testFile,
+    diffText,
+  });
+
+  assert.equal(res.status, 200);
+  assert.equal(res.body.ok, true);
+  assert.equal(res.body.success, true);
+  assert.ok(res.body.preview.includes("hello surgical monaco"));
+  // Archivo en disco NO debe haber sido alterado
+  const diskContent = fs.readFileSync(path.join(dir, testFile), "utf8");
+  assert.equal(diskContent, "hello world\nline 2\n");
+});
+
+test("/api/diff/apply-hunks applies diff atomically and creates checkpoint", async (t) => {
+  const { server, port } = await startServer(0);
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  await request(port, "POST", "/api/workspace/open", { path: dir });
+
+  const testFile = "diff-apply-test.txt";
+  fs.writeFileSync(path.join(dir, testFile), "alpha\nbeta\ngamma\n");
+
+  const diffText = `--- a/${testFile}
++++ b/${testFile}
+@@ -1,3 +1,3 @@
+ alpha
+-beta
++beta-updated
+ gamma`;
+
+  const res = await request(port, "POST", "/api/diff/apply-hunks", {
+    filePath: testFile,
+    diffText,
+  });
+
+  assert.equal(res.status, 200);
+  assert.equal(res.body.ok, true);
+  assert.equal(res.body.success, true);
+  assert.ok(res.body.checkpointId);
+  assert.equal(res.body.hunksApplied, 1);
+
+  // Archivo en disco SÍ debe estar actualizado
+  const diskContent = fs.readFileSync(path.join(dir, testFile), "utf8");
+  assert.equal(diskContent, "alpha\nbeta-updated\ngamma\n");
+});
+
+test("/api/diff/apply-hunks fails atomically and leaves disk intact when hunk is invalid", async (t) => {
+  const { server, port } = await startServer(0);
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  await request(port, "POST", "/api/workspace/open", { path: dir });
+
+  const testFile = "diff-fail-test.txt";
+  fs.writeFileSync(path.join(dir, testFile), "original line 1\noriginal line 2\n");
+
+  const invalidDiff = `--- a/${testFile}
++++ b/${testFile}
+@@ -1,2 +1,2 @@
+-mismatched content that does not exist
++replaced content
+ original line 2`;
+
+  const res = await request(port, "POST", "/api/diff/apply-hunks", {
+    filePath: testFile,
+    diffText: invalidDiff,
+  });
+
+  assert.equal(res.status, 422);
+  assert.equal(res.body.ok, false);
+  assert.equal(res.body.hunksApplied, 0);
+
+  // Archivo en disco NO debe cambiar
+  const diskContent = fs.readFileSync(path.join(dir, testFile), "utf8");
+  assert.equal(diskContent, "original line 1\noriginal line 2\n");
 });
 

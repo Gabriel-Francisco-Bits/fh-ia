@@ -71,6 +71,18 @@
       <section class="main">
         <div id="tabs" class="tabs"></div>
         <div class="editor-container">
+          <div id="diff-editor-toolbar" class="diff-editor-toolbar" style="display: none;">
+            <div class="diff-toolbar-left">
+              <span class="diff-toolbar-title"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="7"/><path d="M8 4v8M4 8h8"/></svg> <span id="diff-toolbar-filename">archivo.js</span></span>
+              <span id="diff-toolbar-stats" class="diff-toolbar-stats"></span>
+            </div>
+            <div class="diff-toolbar-actions">
+              <button id="btn-diff-toggle-split" class="diff-btn" title="Alternar Split / Inline (Side-by-Side)">Split / Inline</button>
+              <button id="btn-diff-accept-all" class="diff-btn diff-btn-success" title="Aceptar todos los cambios en este archivo (Ctrl+Shift+Enter)">✓ Aceptar Todo</button>
+              <button id="btn-diff-reject-all" class="diff-btn diff-btn-danger" title="Rechazar todos los cambios">✕ Rechazar Todo</button>
+              <button id="btn-diff-close" class="diff-btn" title="Cerrar vista de diferencias (Esc)">Cerrar</button>
+            </div>
+          </div>
           <div id="editor" class="editor"></div>
           <div id="diff-editor" class="editor" style="display: none;"></div>
 

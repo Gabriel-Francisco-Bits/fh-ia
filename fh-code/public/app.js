@@ -73,6 +73,12 @@
   const shortcutsSearchInput = document.getElementById("shortcuts-search-input");
   const shortcutsBody = document.getElementById("shortcuts-body");
 
+  // Diff Toolbar Elements (Issue #23)
+  const btnDiffToggleSplit = document.getElementById("btn-diff-toggle-split");
+  const btnDiffAcceptAll = document.getElementById("btn-diff-accept-all");
+  const btnDiffRejectAll = document.getElementById("btn-diff-reject-all");
+  const btnDiffClose = document.getElementById("btn-diff-close");
+
   // State
   const openTabs = [];
   let activeTabType = "file"; // "file" | "chat"
@@ -81,6 +87,12 @@
   let editor = null;
   let diffEditor = null;
   let isDiffMode = false;
+  let activeDiffFile = "";
+  let activeDiffText = "";
+  let activeDiffHunks = [];
+  let activeDiffSideBySide = true;
+  let currentHunkDecorations = [];
+  let currentHunkWidgets = [];
   let catalog = {};
   let streaming = false;
   let currentEditorFontSize = 15;
@@ -1553,259 +1565,300 @@
     if (editor && activeDiffDecorations.length > 0) {
       activeDiffDecorations = editor.deltaDecorations(activeDiffDecorations, []);
     }
-    if (editor && activeHunkWidgets.length > 0) {
-      for (const w of activeHunkWidgets) {
+    if (editor && currentHunkDecorations && currentHunkDecorations.length > 0) {
+      currentHunkDecorations = editor.deltaDecorations(currentHunkDecorations, []);
+    }
+    if (editor && (activeHunkWidgets.length > 0 || currentHunkWidgets.length > 0)) {
+      const allWidgets = [...activeHunkWidgets, ...currentHunkWidgets];
+      for (const w of allWidgets) {
         try { editor.removeContentWidget(w); } catch {}
       }
       activeHunkWidgets = [];
+      currentHunkWidgets = [];
     }
     activeProposedHunks = [];
+    activeDiffHunks = [];
+  }
+
+  function clearHunkDecorations() {
+    clearInlineDiffDecorations();
   }
 
   async function acceptActiveHunk() {
-    if (!activeProposedHunks || !activeProposedHunks.length) return;
-    const hunkItem = activeProposedHunks[0];
-    if (typeof hunkItem.onAccept === "function") {
-      await hunkItem.onAccept(hunkItem, 0);
+    if (activeProposedHunks && activeProposedHunks.length > 0) {
+      const hunkItem = activeProposedHunks[0];
+      if (typeof hunkItem.onAccept === "function") {
+        await hunkItem.onAccept(hunkItem, 0);
+      }
+      clearInlineDiffDecorations();
+    } else if (activeDiffHunks && activeDiffHunks.length > 0) {
+      await acceptSingleHunk(0);
     }
-    clearInlineDiffDecorations();
   }
 
   function rejectActiveHunk() {
-    if (!activeProposedHunks || !activeProposedHunks.length) return;
-    const hunkItem = activeProposedHunks[0];
-    if (typeof hunkItem.onReject === "function") {
-      hunkItem.onReject(hunkItem, 0);
+    if (activeProposedHunks && activeProposedHunks.length > 0) {
+      const hunkItem = activeProposedHunks[0];
+      if (typeof hunkItem.onReject === "function") {
+        hunkItem.onReject(hunkItem, 0);
+      }
+      clearInlineDiffDecorations();
+    } else if (activeDiffHunks && activeDiffHunks.length > 0) {
+      rejectSingleHunk(0);
     }
-    clearInlineDiffDecorations();
   }
 
-  function applyInlineHunkDecorations(file, hunksData, onAcceptHunk, onRejectHunk) {
-    if (!editor || activePath !== file) return;
+  async function acceptSingleHunk(hunkIndex) {
+    if (!activeDiffHunks || !activeDiffHunks[hunkIndex] || !activeDiffFile) return;
+    const targetHunk = activeDiffHunks[hunkIndex];
+    try {
+      const res = await fetch("/api/diff/apply-hunks", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          filePath: activeDiffFile,
+          hunks: [targetHunk],
+          options: { strict: false },
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        activeDiffHunks.splice(hunkIndex, 1);
+        await openFile(activeDiffFile);
+        if (activeDiffHunks.length > 0) {
+          applyInlineHunkDecorations(activeDiffFile, activeDiffText);
+        } else {
+          clearInlineDiffDecorations();
+        }
+      } else {
+        alert("Error al aplicar hunk: " + (data.error || ""));
+      }
+    } catch (err) {
+      alert("Error: " + err.message);
+    }
+  }
+
+  function rejectSingleHunk(hunkIndex) {
+    if (!activeDiffHunks || !activeDiffHunks[hunkIndex]) return;
+    activeDiffHunks.splice(hunkIndex, 1);
+    if (activeDiffHunks.length > 0) {
+      applyInlineHunkDecorations(activeDiffFile, activeDiffText);
+    } else {
+      clearInlineDiffDecorations();
+    }
+  }
+
+  /**
+   * Aplica decoraciones inline de hunks (rojo/verde y gutter icons) y widgets flotantes sobre el Monaco Editor principal.
+   */
+  async function applyInlineHunkDecorations(file, hunksOrDiffText, onAcceptHunk, onRejectHunk) {
+    if (!editor) return;
     clearInlineDiffDecorations();
 
-    const model = editor.getModel();
-    if (!model) return;
+    let hunks = [];
+    if (typeof hunksOrDiffText === "string") {
+      activeDiffFile = file;
+      activeDiffText = hunksOrDiffText;
+      try {
+        const res = await fetch("/api/diff/preview", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ filePath: file, diffText: hunksOrDiffText }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          hunks = data.hunks || [];
+        }
+      } catch (e) {
+        console.warn("Fallo cargando hunks para inline decoration:", e);
+      }
+    } else if (Array.isArray(hunksOrDiffText)) {
+      hunks = hunksOrDiffText;
+    }
+
+    if (!hunks || !hunks.length) return;
+    activeDiffHunks = hunks;
+    activeProposedHunks = hunks;
+    activeDiffFile = file;
 
     const newDecorations = [];
-    activeProposedHunks = hunksData || [];
 
-    hunksData.forEach((hunkItem, idx) => {
-      const startLine = Math.max(1, hunkItem.startLine || hunkItem.newStart || 1);
-      const addCount = Math.max(1, hunkItem.newCount || (hunkItem.replacementLines ? hunkItem.replacementLines.length : 1));
+    hunks.forEach((hunk, hIdx) => {
+      const startLine = Math.max(1, hunk.startLine || hunk.newStart || hunk.oldStart || 1);
+      const addCount = Math.max(1, hunk.newCount || (hunk.replacementLines ? hunk.replacementLines.length : (hunk.oldCount || 1)));
       const endLine = Math.max(startLine, startLine + addCount - 1);
 
-      // Decoración de líneas agregadas (verde tenue)
-      newDecorations.push({
-        range: new monaco.Range(startLine, 1, endLine, 1),
-        options: {
-          isWholeLine: true,
-          className: "diff-add-line",
-          linesDecorationsClassName: "diff-add-gutter",
-          overviewRuler: {
-            color: "rgba(34, 197, 94, 0.7)",
-            position: monaco.editor.OverviewRulerLane.Left,
+      let currentLine = startLine;
+      if (hunk.lines && Array.isArray(hunk.lines)) {
+        for (const line of hunk.lines) {
+          if (line.startsWith("-")) {
+            newDecorations.push({
+              range: new monaco.Range(currentLine, 1, currentLine, 1),
+              options: {
+                isWholeLine: true,
+                className: "diff-delete-line",
+                glyphMarginClassName: "diff-delete-gutter",
+                linesDecorationsClassName: "diff-delete-gutter",
+              },
+            });
+          } else if (line.startsWith("+")) {
+            newDecorations.push({
+              range: new monaco.Range(currentLine, 1, currentLine, 1),
+              options: {
+                isWholeLine: true,
+                className: "diff-add-line",
+                glyphMarginClassName: "diff-add-gutter",
+                linesDecorationsClassName: "diff-add-gutter",
+              },
+            });
+            currentLine++;
+          } else {
+            currentLine++;
+          }
+        }
+      } else {
+        newDecorations.push({
+          range: new monaco.Range(startLine, 1, endLine, 1),
+          options: {
+            isWholeLine: true,
+            className: "diff-add-line",
+            glyphMarginClassName: "diff-add-gutter",
+            linesDecorationsClassName: "diff-add-gutter",
           },
-        },
-      });
+        });
+      }
 
-      // Widget flotante contextual en la cabecera del cambio
+      // Crear Floating Hunk Widget
+      const widgetId = `diff-hunk-widget-${hIdx}`;
       const domNode = document.createElement("div");
       domNode.className = "diff-hunk-widget";
       domNode.innerHTML = `
-        <span class="diff-hunk-label">
-          <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0Zm.75 4.75a.75.75 0 0 0-1.5 0v3.5a.75.75 0 0 0 1.5 0v-3.5ZM8 11.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"></path></svg>
-          Cambio propuesto (${idx + 1}/${hunksData.length})
-        </span>
-        <div class="diff-hunk-actions">
-          <button class="btn-hunk-accept" title="Aceptar cambio (Ctrl+Enter)">Aceptar <kbd style="background:rgba(0,0,0,0.25);padding:1px 4px;border-radius:3px;font-size:9px;">Ctrl+Enter</kbd></button>
-          <button class="btn-hunk-reject" title="Rechazar cambio (Ctrl+Backspace)">Rechazar <kbd style="background:rgba(0,0,0,0.25);padding:1px 4px;border-radius:3px;font-size:9px;">Esc</kbd></button>
-          <button class="btn-hunk-split" title="Ver comparación Split Diff">Split View</button>
-        </div>
+        <span class="diff-hunk-label">Hunk ${hIdx + 1}/${hunks.length}</span>
+        <button class="diff-hunk-btn diff-hunk-btn-accept" title="Aceptar este hunk (Ctrl+Enter)">
+          ✓ Aceptar <span class="diff-hunk-shortcut">^↵</span>
+        </button>
+        <button class="diff-hunk-btn diff-hunk-btn-reject" title="Rechazar este hunk (Ctrl+Backspace)">
+          ✕ Rechazar <span class="diff-hunk-shortcut">^⌫</span>
+        </button>
       `;
 
-      const acceptBtn = domNode.querySelector(".btn-hunk-accept");
-      acceptBtn.addEventListener("click", async (e) => {
+      domNode.querySelector(".diff-hunk-btn-accept").addEventListener("click", async (e) => {
         e.stopPropagation();
         if (typeof onAcceptHunk === "function") {
-          await onAcceptHunk(hunkItem, idx);
+          await onAcceptHunk(hunk, hIdx);
+          clearInlineDiffDecorations();
+        } else {
+          await acceptSingleHunk(hIdx);
         }
-        clearInlineDiffDecorations();
       });
 
-      const rejectBtn = domNode.querySelector(".btn-hunk-reject");
-      rejectBtn.addEventListener("click", (e) => {
+      domNode.querySelector(".diff-hunk-btn-reject").addEventListener("click", (e) => {
         e.stopPropagation();
         if (typeof onRejectHunk === "function") {
-          onRejectHunk(hunkItem, idx);
+          onRejectHunk(hunk, hIdx);
+          clearInlineDiffDecorations();
+        } else {
+          rejectSingleHunk(hIdx);
         }
-        clearInlineDiffDecorations();
       });
 
-      const splitBtn = domNode.querySelector(".btn-hunk-split");
-      splitBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        openDiffView(file, hunkItem.diff || "", hunkItem.original, hunkItem.modified, () => onAcceptHunk?.(hunkItem, idx), () => onRejectHunk?.(hunkItem, idx));
-      });
-
-      const widget = {
-        getId: () => "diff.hunk.widget." + idx + "." + Date.now(),
+      const contentWidget = {
+        getId: () => widgetId,
         getDomNode: () => domNode,
         getPosition: () => ({
           position: { lineNumber: startLine, column: 1 },
-          preference: [
-            monaco.editor.ContentWidgetPositionPreference.ABOVE,
-            monaco.editor.ContentWidgetPositionPreference.BELOW,
-          ],
+          preference: [monaco.editor.ContentWidgetPositionPreference.ABOVE, monaco.editor.ContentWidgetPositionPreference.EXACT],
         }),
       };
 
       try {
-        editor.addContentWidget(widget);
-        activeHunkWidgets.push(widget);
+        editor.addContentWidget(contentWidget);
+        activeHunkWidgets.push(contentWidget);
       } catch (err) {
-        console.warn("No se pudo registrar content widget en Monaco:", err);
+        console.warn("No se pudo agregar widget a Monaco:", err);
       }
     });
 
     activeDiffDecorations = editor.deltaDecorations(activeDiffDecorations, newDecorations);
-  }
-
-  async function applyInlineDiffFromText(file, diffText, originalText, modifiedText, onAcceptAll, onRejectAll) {
-    let orig = originalText;
-    let mod = modifiedText;
-    let hunks = [];
-
-    try {
-      const res = await (await fetch("/api/diff/preview", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ path: file, diff: diffText }),
-      })).json();
-
-      if (res.ok) {
-        orig = res.original;
-        mod = res.modified;
-        hunks = res.hunks || [];
-      }
-    } catch {}
-
-    if (!hunks.length) {
-      hunks = [{
-        startLine: 1,
-        newCount: 1,
-        oldCount: 1,
-        diff: diffText,
-        original: orig,
-        modified: mod,
-        onAccept: onAcceptAll,
-        onReject: onRejectAll,
-      }];
-    } else {
-      hunks = hunks.map((h) => ({
-        ...h,
-        startLine: h.newStart || h.oldStart,
-        diff: diffText,
-        original: orig,
-        modified: mod,
-        onAccept: onAcceptAll,
-        onReject: onRejectAll,
-      }));
-    }
-
-    applyInlineHunkDecorations(file, hunks, onAcceptAll, onRejectAll);
+    currentHunkDecorations = activeDiffDecorations;
   }
 
   async function openDiffView(file, diffText, originalText, modifiedText, onAccept, onReject) {
     isDiffMode = true;
+    activeDiffFile = file;
+    activeDiffText = diffText || "";
     currentDiffActions = { file, onAccept, onReject };
 
     const editorDiv = document.getElementById("editor");
     const diffContainer = document.getElementById("diff-editor-container") || document.getElementById("diff-editor");
     const diffDiv = document.getElementById("diff-editor");
+    const toolbar = document.getElementById("diff-editor-toolbar");
 
     editorDiv.style.display = "none";
     diffContainer.style.display = "flex";
+    diffDiv.style.display = "block";
+    if (toolbar) toolbar.style.display = "flex";
 
-    const titleEl = document.getElementById("diff-toolbar-title");
-    if (titleEl) {
-      titleEl.textContent = `Comparación: ${file}`;
-    }
+    const fileNameEl = document.getElementById("diff-toolbar-filename") || document.getElementById("diff-toolbar-title");
+    if (fileNameEl) fileNameEl.textContent = file;
 
     let orig = originalText;
     let mod = modifiedText;
+    let hunks = [];
 
     if ((orig === undefined || mod === undefined) && diffText) {
       try {
-        const previewRes = await (await fetch("/api/diff/preview", {
+        const res = await fetch("/api/diff/preview", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ path: file, diff: diffText }),
-        })).json();
-
-        if (previewRes.ok) {
-          orig = previewRes.original;
-          mod = previewRes.modified;
+          body: JSON.stringify({ filePath: file, diffText }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          orig = data.original || "";
+          mod = data.preview || data.modified || "";
+          hunks = data.hunks || [];
+          activeDiffHunks = hunks;
         }
-      } catch {}
+      } catch (e) {
+        console.warn("Fallo al obtener preview de diff:", e);
+      }
+    }
+
+    const statsEl = document.getElementById("diff-toolbar-stats");
+    if (statsEl) {
+      statsEl.textContent = `${hunks.length || 1} ${hunks.length === 1 ? "cambio" : "cambios"}`;
     }
 
     const lang = langOf(file);
 
-    if (orig !== undefined && mod !== undefined) {
-      // Modo Split Diff Comparer nativo utilizando monaco.editor.createDiffEditor
-      if (!diffEditor || typeof diffEditor.getOriginalEditor !== "function") {
-        if (diffEditor) {
-          try { diffEditor.dispose(); } catch {}
-          diffEditor = null;
-        }
-        diffDiv.innerHTML = "";
-        diffEditor = monaco.editor.createDiffEditor(diffDiv, {
-          enableSplitViewResizing: true,
-          renderSideBySide: true,
-          theme: "vs-dark",
-          readOnly: true,
-          automaticLayout: true,
-          fontSize: 14,
-          originalEditable: false,
-        });
-      }
-
-      if (diffOriginalModel) {
-        try { diffOriginalModel.dispose(); } catch {}
-      }
-      if (diffModifiedModel) {
-        try { diffModifiedModel.dispose(); } catch {}
-      }
-
-      diffOriginalModel = monaco.editor.createModel(orig, lang);
-      diffModifiedModel = monaco.editor.createModel(mod, lang);
-
-      diffEditor.setModel({
-        original: diffOriginalModel,
-        modified: diffModifiedModel,
+    // Crear o reutilizar DiffEditor auténtico de Monaco (Side-by-Side)
+    if (!diffEditor || typeof diffEditor.getOriginalEditor !== "function") {
+      diffDiv.innerHTML = "";
+      diffEditor = monaco.editor.createDiffEditor(diffDiv, {
+        theme: "vs-dark",
+        readOnly: true,
+        automaticLayout: true,
+        renderSideBySide: activeDiffSideBySide,
+        fontSize: currentEditorFontSize || 14,
+        ignoreTrimWhitespace: false,
+        originalEditable: false,
       });
-    } else {
-      // Fallback si no hay pares original/modified
-      if (!diffEditor || typeof diffEditor.getOriginalEditor === "function") {
-        if (diffEditor) {
-          try { diffEditor.dispose(); } catch {}
-          diffEditor = null;
-        }
-        diffDiv.innerHTML = "";
-        diffEditor = monaco.editor.create(diffDiv, {
-          value: diffText || "",
-          language: "diff",
-          theme: "vs-dark",
-          readOnly: true,
-          automaticLayout: true,
-          fontSize: 14,
-        });
-      } else {
-        diffEditor.setValue(diffText || "");
-      }
     }
 
+    if (diffOriginalModel) {
+      try { diffOriginalModel.dispose(); } catch {}
+    }
+    if (diffModifiedModel) {
+      try { diffModifiedModel.dispose(); } catch {}
+    }
+
+    diffOriginalModel = monaco.editor.createModel(orig || "", lang);
+    diffModifiedModel = monaco.editor.createModel(mod || orig || "", lang);
+    diffEditor.setModel({
+      original: diffOriginalModel,
+      modified: diffModifiedModel,
+    });
     diffEditor.layout();
   }
 
@@ -1814,19 +1867,56 @@
     currentDiffActions = null;
     const editorDiv = document.getElementById("editor");
     const diffContainer = document.getElementById("diff-editor-container") || document.getElementById("diff-editor");
-    diffContainer.style.display = "none";
+    const diffDiv = document.getElementById("diff-editor");
+    const toolbar = document.getElementById("diff-editor-toolbar");
+
+    diffDiv.style.display = "none";
+    if (diffContainer) diffContainer.style.display = "none";
+    if (toolbar) toolbar.style.display = "none";
     editorDiv.style.display = "block";
     if (editor) editor.layout();
   }
 
   // Enlazar botones de la barra de herramientas Split Diff
+  const btnDiffToggleSplit = document.getElementById("btn-diff-toggle-split");
+  if (btnDiffToggleSplit) {
+    btnDiffToggleSplit.addEventListener("click", () => {
+      activeDiffSideBySide = !activeDiffSideBySide;
+      if (diffEditor && typeof diffEditor.updateOptions === "function") {
+        diffEditor.updateOptions({ renderSideBySide: activeDiffSideBySide });
+      }
+    });
+  }
+
   const btnDiffAcceptAll = document.getElementById("btn-diff-accept-all");
   if (btnDiffAcceptAll) {
     btnDiffAcceptAll.addEventListener("click", async () => {
       if (currentDiffActions && typeof currentDiffActions.onAccept === "function") {
         await currentDiffActions.onAccept();
+        closeDiffView();
+        return;
       }
-      closeDiffView();
+      if (!activeDiffFile) {
+        closeDiffView();
+        return;
+      }
+      try {
+        const res = await fetch("/api/diff/apply-hunks", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ filePath: activeDiffFile, diffText: activeDiffText }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          closeDiffView();
+          await openFile(activeDiffFile);
+          append("system", `✓ Diff aplicado con éxito a ${activeDiffFile} (${data.hunksApplied} hunks)`);
+        } else {
+          alert("Error al aplicar diff: " + (data.error || "Falló la validación"));
+        }
+      } catch (err) {
+        alert("Error de conexión: " + err.message);
+      }
     });
   }
 
@@ -4371,6 +4461,34 @@
 
     const isCtrlCmd = ev.ctrlKey || ev.metaKey;
 
+    // Diff view / hunk shortcuts (Issue #23)
+    if (isCtrlCmd && ev.key === "Enter") {
+      if (isDiffMode) {
+        ev.preventDefault();
+        const acceptAllBtn = document.getElementById("btn-diff-accept-all");
+        if (acceptAllBtn) acceptAllBtn.click();
+        return;
+      } else if (activeDiffHunks && activeDiffHunks.length > 0) {
+        ev.preventDefault();
+        acceptSingleHunk(0);
+        return;
+      }
+    }
+
+    if (isCtrlCmd && ev.key === "Backspace") {
+      if (activeDiffHunks && activeDiffHunks.length > 0) {
+        ev.preventDefault();
+        rejectSingleHunk(0);
+        return;
+      }
+    }
+
+    if (ev.key === "Escape" && isDiffMode) {
+      ev.preventDefault();
+      closeDiffView();
+      return;
+    }
+
     // F1: Command Palette
     if (ev.key === "F1") {
       ev.preventDefault();
@@ -5052,13 +5170,17 @@
 
     // Epic #23: Atajos para aceptar o rechazar diffs quirúrgicos en Monaco
     editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, async () => {
-      if (activeProposedHunks && activeProposedHunks.length > 0) {
+      if (activeDiffHunks && activeDiffHunks.length > 0) {
+        await acceptSingleHunk(0);
+      } else if (activeProposedHunks && activeProposedHunks.length > 0) {
         await acceptActiveHunk();
       }
     });
 
     editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Backspace, () => {
-      if (activeProposedHunks && activeProposedHunks.length > 0) {
+      if (activeDiffHunks && activeDiffHunks.length > 0) {
+        rejectSingleHunk(0);
+      } else if (activeProposedHunks && activeProposedHunks.length > 0) {
         rejectActiveHunk();
       }
     });

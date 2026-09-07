@@ -27,6 +27,7 @@ const {
   updateSettings,
   resetSettings,
 } = require("./settings");
+const diffEngine = require("./diffEngine");
 
 const repoRoot = path.join(__dirname, "..");
 const out = path.join(repoRoot, "out");
@@ -1327,6 +1328,107 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const results = semanticIndex ? semanticIndex.search(String(body.query || ""), Number(body.topK || 8)) : [];
       json(res, 200, { results });
+      return;
+    }
+
+    // Surgical Diff & Monaco Preview API (Issue #23)
+    if (req.method === "POST" && url.pathname === "/api/diff/preview") {
+      const body = await readBody(req);
+      const relPath = String(body.filePath || "");
+      const diffText = String(body.diffText || "");
+      const hunks = Array.isArray(body.hunks) ? body.hunks : null;
+      const options = body.options || {};
+
+      if (!relPath) {
+        json(res, 400, { ok: false, error: "filePath es requerido" });
+        return;
+      }
+
+      let original = "";
+      try {
+        const abs = safeResolve(WORKSPACE, relPath);
+        if (fssync.existsSync(abs)) {
+          original = await fs.readFile(abs, "utf8");
+        }
+      } catch (err) {
+        json(res, 400, { ok: false, error: "Error leyendo archivo original: " + (err.message || String(err)) });
+        return;
+      }
+
+      const parsedFiles = diffText ? diffEngine.parseUnifiedDiff(diffText) : [];
+      const parsedHunks = hunks || (parsedFiles.length > 0 ? parsedFiles[0].hunks : []);
+
+      const previewRes = diffEngine.applyHunks(original, hunks || diffText, options);
+
+      json(res, 200, {
+        ok: true,
+        success: previewRes.success,
+        filePath: relPath,
+        original,
+        preview: previewRes.resultText,
+        hunks: parsedHunks,
+        hunksApplied: previewRes.appliedHunks,
+        totalHunks: previewRes.totalHunks,
+        errors: previewRes.errors,
+        details: previewRes.details,
+      });
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/diff/apply-hunks") {
+      const body = await readBody(req);
+      const relPath = String(body.filePath || "");
+      const diffText = String(body.diffText || "");
+      const hunks = Array.isArray(body.hunks) ? body.hunks : null;
+      const options = { strict: true, ...(body.options || {}) };
+
+      if (!relPath) {
+        json(res, 400, { ok: false, error: "filePath es requerido" });
+        return;
+      }
+
+      const abs = safeResolve(WORKSPACE, relPath);
+      let original = "";
+      try {
+        if (fssync.existsSync(abs)) {
+          original = await fs.readFile(abs, "utf8");
+        } else {
+          json(res, 404, { ok: false, error: "Archivo no encontrado: " + relPath });
+          return;
+        }
+      } catch (err) {
+        json(res, 400, { ok: false, error: "Error leyendo archivo: " + (err.message || String(err)) });
+        return;
+      }
+
+      // Checkpoint automático antes de escribir en disco
+      const cp = await createCheckpoint([relPath]);
+
+      const applyRes = diffEngine.applyHunks(original, hunks || diffText, options);
+      if (!applyRes.success) {
+        json(res, 422, {
+          ok: false,
+          error: applyRes.errors && applyRes.errors.length ? applyRes.errors[0] : "Falló la validación atómica del diff",
+          checkpointId: cp.id,
+          hunksApplied: 0,
+          totalHunks: applyRes.totalHunks,
+          details: applyRes.details,
+        });
+        return;
+      }
+
+      await fs.mkdir(path.dirname(abs), { recursive: true });
+      await fs.writeFile(abs, applyRes.resultText, "utf8");
+
+      json(res, 200, {
+        ok: true,
+        success: true,
+        checkpointId: cp.id,
+        hunksApplied: applyRes.appliedHunks,
+        totalHunks: applyRes.totalHunks,
+        result: applyRes.resultText,
+        details: applyRes.details,
+      });
       return;
     }
 
