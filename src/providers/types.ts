@@ -52,6 +52,9 @@ export type StreamEvent =
   | { type: "done"; text: string; usage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number }; rateLimit?: { usedPercent?: number; remaining?: number; limit?: number; kind?: string } }
   | { type: "error"; error: string }
   | { type: "status"; text: string }
+  | { type: "tool_call_start"; id: string; name: string; args: Record<string, unknown> }
+  | { type: "tool_call_output"; id: string; name: string; output: string; isError?: boolean }
+  | { type: "thought"; text: string }
   | { type: "meta"; durationMs?: number; usage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number }; rateLimit?: { usedPercent?: number; remaining?: number; limit?: number; kind?: string } };
 
 export type StreamSink = (event: StreamEvent) => void;

@@ -49,8 +49,10 @@ class SemanticIndex {
         }
         const full = path.join(dir, name);
         if (ent.isDirectory()) {
-          await walk(full);
-        } else if (ent.isFile()) {
+          if (filesToScan.length < 1000) {
+            await walk(full);
+          }
+        } else if (ent.isFile() && filesToScan.length < 1000) {
           const ext = (name.split(".").pop() || "").toLowerCase();
           if (!BINARY_EXTENSIONS.has(ext)) {
             filesToScan.push(full);

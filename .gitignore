@@ -8,3 +8,5 @@ fh-ia-*/
 .DS_Store
 dist/
 fh-code/dist/
+.gemini/
+
