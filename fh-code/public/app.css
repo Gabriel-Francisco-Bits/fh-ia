@@ -2262,32 +2262,381 @@ button.send { background: var(--accent); color: #111; border: none; cursor: poin
   background-color: #ffffff;
 }
 
-/* Info Box */
-#settings-modal .settings-info-box {
+/* Failover Visual Pipeline & Interactive Priority List */
+#settings-modal .failover-hero-card {
+  border-color: rgba(59, 130, 246, 0.35) !important;
+  background: #141724 !important;
+}
+
+#settings-modal .failover-diagram-card {
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 14px !important;
+  background: #11131c !important;
+}
+
+#settings-modal .failover-flow-diagram {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 12px 14px;
+  background: #090a0f;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  min-height: 52px;
+}
+#settings-modal .failover-flow-step {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 14px;
+  background: #171924;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  min-width: 140px;
+}
+#settings-modal .failover-flow-step.primary {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.16);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+}
+#settings-modal .failover-flow-step.disabled {
+  opacity: 0.45;
+  border-style: dashed;
+}
+#settings-modal .flow-step-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+#settings-modal .flow-step-rank {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+}
+#settings-modal .failover-flow-step.primary .flow-step-rank {
+  background: #3b82f6;
+  color: #ffffff;
+}
+#settings-modal .flow-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+#settings-modal .flow-step-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f8fafc;
+}
+#settings-modal .flow-step-model {
+  font-size: 11px;
+  color: #94a3b8;
+  font-family: var(--font-code, monospace);
+  white-space: nowrap;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#settings-modal .flow-step-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  margin-left: auto;
+}
+#settings-modal .flow-step-badge.offline {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+#settings-modal .failover-flow-arrow {
+  color: #60a5fa;
+  font-size: 16px;
+  flex-shrink: 0;
+  opacity: 0.8;
+  display: flex;
+  align-items: center;
+}
+#settings-modal .failover-flow-disabled-notice {
+  color: #fca5a5;
+  font-size: 12.5px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: rgba(239, 68, 68, 0.08);
+  border-radius: 6px;
+  border: 1px dashed rgba(239, 68, 68, 0.3);
+}
+
+/* Presets */
+#settings-modal .failover-presets-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+#settings-modal .failover-presets-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+#settings-modal .failover-presets-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+#settings-modal .btn-failover-preset {
+  background: #141722;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #cbd5e1;
+  padding: 7px 13px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+#settings-modal .btn-failover-preset:hover {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+#settings-modal .btn-failover-preset.active {
+  background: #2563eb;
+  border-color: #3b82f6;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.4);
+}
+
+/* Interactive Priority List */
+#settings-modal .failover-list-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+#settings-modal .failover-priority-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#settings-modal .failover-priority-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: #151722;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  transition: all 0.15s ease;
+  gap: 14px;
+}
+#settings-modal .failover-priority-item:hover {
+  background: #1a1d2c;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+#settings-modal .failover-priority-item.is-top {
+  border-left: 4px solid #3b82f6;
+}
+#settings-modal .failover-priority-item.is-disabled {
+  opacity: 0.55;
+}
+#settings-modal .failover-priority-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+#settings-modal .priority-rank-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #cbd5e1;
+  flex-shrink: 0;
+}
+#settings-modal .failover-priority-item.is-top .priority-rank-circle {
+  background: #2563eb;
+  border-color: #3b82f6;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.4);
+}
+#settings-modal .priority-info-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}
+#settings-modal .priority-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+#settings-modal .priority-item-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #ffffff;
+}
+#settings-modal .priority-warn-chip {
+  font-size: 11px;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+#settings-modal .priority-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+#settings-modal .priority-model-chip,
+#settings-modal .priority-account-chip {
+  font-size: 11.5px;
+  color: #94a3b8;
+  font-family: var(--font-code, monospace);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+#settings-modal .priority-account-chip.warn {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+#settings-modal .failover-priority-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+#settings-modal .btn-priority-move {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s ease;
+}
+#settings-modal .btn-priority-move:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+#settings-modal .btn-priority-move:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+/* Collapsible Details */
+#settings-modal .failover-advanced-details {
+  background: #0f1017;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-top: 4px;
+}
+#settings-modal .failover-advanced-summary {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  user-select: none;
+}
+#settings-modal .failover-advanced-summary:hover {
+  color: #f8fafc;
+}
+#settings-modal .failover-advanced-body {
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+#settings-modal .failover-advanced-hint {
+  font-size: 11px;
+  color: #64748b;
+}
+
+/* Guide Grid */
+#settings-modal .failover-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 8px;
+}
+@media (max-width: 850px) {
+  #settings-modal .failover-guide-grid {
+    grid-template-columns: 1fr;
+  }
+}
+#settings-modal .failover-guide-card {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 14px 18px;
-  background: rgba(37, 99, 235, 0.12);
-  border: 1px solid rgba(59, 130, 246, 0.35);
+  padding: 14px 16px;
+  background: #11131c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  margin-top: 6px;
-  box-sizing: border-box;
-  width: 100%;
 }
-#settings-modal .settings-info-box strong {
-  font-size: 13px;
+#settings-modal .guide-card-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+#settings-modal .guide-card-body strong {
+  font-size: 12.5px;
   font-weight: 600;
   color: #ffffff;
   display: block;
 }
-#settings-modal .settings-info-box .settings-info-text,
-#settings-modal .settings-info-box p {
-  color: #cbd5e1 !important;
-  font-size: 12px !important;
-  line-height: 1.5 !important;
+#settings-modal .guide-card-body p {
+  font-size: 11.5px;
+  color: #94a3b8;
   margin: 4px 0 0 0;
+  line-height: 1.45;
 }
+#settings-modal .guide-card-body code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 10.5px;
+  color: #cbd5e1;
+}
+
 
 /* Multi-Account & Accounts List */
 #settings-modal .settings-section-divider {
@@ -2378,6 +2727,25 @@ button.send { background: var(--accent); color: #111; border: none; cursor: poin
   background: rgba(168, 85, 247, 0.2);
   color: #c084fc;
   border: 1px solid rgba(168, 85, 247, 0.4);
+}
+#settings-modal .account-type-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+#settings-modal .account-type-badge.web {
+  background: rgba(168, 85, 247, 0.18);
+  color: #d8b4fe;
+  border: 1px solid rgba(168, 85, 247, 0.45);
+}
+#settings-modal .account-type-badge.apikey {
+  background: rgba(59, 130, 246, 0.16);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.35);
 }
 #settings-modal .account-meta {
   display: flex;
@@ -2478,39 +2846,58 @@ button.send { background: var(--accent); color: #111; border: none; cursor: poin
   background: #1d4ed8;
   border-color: #2563eb;
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.45);
+}
+
 /* ==========================================================================
-   Añadir / Editar Cuenta de IA Modal (#account-modal)
+   Añadir / Editar Cuenta de IA Modal (#account-modal) - Ultra-Modern & Responsive
    ========================================================================== */
 #account-modal.modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(6, 8, 14, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   z-index: 10005;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: 16px;
+  animation: fadeInModalOverlay 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeInModalOverlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInModalCard {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 #account-modal .account-dialog-modal {
-  width: 530px;
+  width: 560px;
   max-width: 95vw;
-  background: #14151c;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 12px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  background: #13141d;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.05);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: fadeInModal 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: fadeInModalCard 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 #account-modal .settings-modal-header {
-  padding: 18px 24px 16px;
-  background: #191a24;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 20px 24px 18px;
+  background: #181926;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2520,76 +2907,186 @@ button.send { background: var(--accent); color: #111; border: none; cursor: poin
 #account-modal .settings-modal-title-group {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 #account-modal .settings-modal-icon {
-  font-size: 20px;
-  color: #3b82f6;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(37, 99, 235, 0.16);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #60a5fa;
   display: flex;
   align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 #account-modal .settings-modal-title-group h3 {
-  font-size: 16.5px;
+  font-size: 17px;
   font-weight: 700;
   color: #ffffff;
   margin: 0;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.01em;
 }
 
 #account-modal .settings-modal-subtitle {
-  font-size: 12px;
+  font-size: 12.5px;
   color: #94a3b8;
   margin: 3px 0 0 0;
+  line-height: 1.35;
 }
 
 #account-modal .settings-close-icon {
   width: 32px;
   height: 32px;
-  font-size: 14px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #cbd5e1;
-  border-radius: 6px;
+  color: #94a3b8;
+  border-radius: 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 #account-modal .settings-close-icon:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.14);
   border-color: rgba(255, 255, 255, 0.25);
   color: #ffffff;
+  transform: rotate(90deg);
 }
 
 #account-modal .settings-modal-body {
   padding: 20px 24px;
-  background: #0f1015;
+  background: #0f1017;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-height: calc(85vh - 130px);
+  gap: 14px;
+  max-height: calc(85vh - 140px);
   overflow-y: auto;
+  scrollbar-width: thin;
 }
 
+/* Auth Type Section & Tabs */
+#account-modal .acc-auth-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#account-modal .acc-section-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+#account-modal .acc-section-tag {
+  font-size: 11px;
+  font-weight: 400;
+  color: #64748b;
+}
+
+#account-modal .acc-auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+#account-modal .acc-auth-tab {
+  background: #161722;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  color: #cbd5e1;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+#account-modal .acc-auth-tab:hover {
+  background: #1c1e2d;
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+#account-modal .acc-auth-tab.active {
+  background: rgba(37, 99, 235, 0.12);
+  border-color: #3b82f6;
+  color: #ffffff;
+  box-shadow: 0 0 0 1px #3b82f6, 0 4px 14px rgba(37, 99, 235, 0.2);
+}
+
+#account-modal .acc-tab-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.18s ease;
+}
+
+#account-modal .acc-auth-tab.active .acc-tab-icon {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+}
+
+#account-modal .acc-tab-text {
+  flex: 1;
+  min-width: 0;
+}
+
+#account-modal .acc-tab-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+#account-modal .acc-auth-tab.active .acc-tab-title {
+  color: #ffffff;
+}
+
+#account-modal .acc-tab-desc {
+  font-size: 10.5px;
+  color: #94a3b8;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Settings Cards in Modal */
 #account-modal .settings-card {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 8px;
   padding: 12px 16px;
-  background: #171821;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  background: #161722;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
   transition: all 0.15s ease;
 }
+
 #account-modal .settings-card:hover {
-  background: #1c1d27;
-  border-color: rgba(255, 255, 255, 0.22);
+  background: #1a1c2a;
+  border-color: rgba(255, 255, 255, 0.2);
 }
+
 #account-modal .settings-card.toggle-card {
   flex-direction: row;
   align-items: center;
@@ -2602,51 +3099,74 @@ button.send { background: var(--accent); color: #111; border: none; cursor: poin
   flex-direction: column;
   gap: 2px;
 }
+
 #account-modal .settings-card-label strong {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   color: #f8fafc;
 }
+
 #account-modal .settings-card-label span {
-  font-size: 11.5px;
+  font-size: 11px;
   color: #94a3b8;
   line-height: 1.35;
 }
 
 #account-modal .settings-card-field {
   width: 100%;
-  max-width: 100%;
-  display: flex;
-  align-items: center;
 }
+
 #account-modal .settings-card.toggle-card .settings-card-field {
   width: auto;
-  max-width: auto;
 }
 
 #account-modal .settings-input,
 #account-modal .settings-select {
   width: 100%;
-  padding: 8px 12px;
+  padding: 9px 13px;
   font-size: 12.5px;
-  background: #0c0d12;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
+  background: #0d0e14;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 7px;
   color: #ffffff;
   outline: none;
   transition: all 0.15s ease;
+  box-sizing: border-box;
 }
+
 #account-modal .settings-input:focus,
 #account-modal .settings-select:focus {
   border-color: #3b82f6;
   background: #11131c;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
-}
-#account-modal select.settings-select option {
-  background: #171821;
-  color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.28);
 }
 
+#account-modal select.settings-select option {
+  background: #161722;
+  color: #ffffff;
+  padding: 6px;
+}
+
+/* Grid 2-Column for Base URL and Model */
+#account-modal .acc-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 520px) {
+  #account-modal .acc-auth-tabs {
+    grid-template-columns: 1fr;
+  }
+  #account-modal .acc-grid-2col {
+    grid-template-columns: 1fr;
+  }
+  #account-modal .acc-cookie-actions-bar {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Key field with toggle peek */
 #account-modal .key-field-wrap {
   position: relative;
   width: 100%;
@@ -2654,31 +3174,390 @@ button.send { background: var(--accent); color: #111; border: none; cursor: poin
   align-items: center;
 }
 #account-modal .key-field-wrap input {
-  padding-right: 36px;
+  padding-right: 38px;
 }
 #account-modal .btn-toggle-peek {
   position: absolute;
   right: 8px;
   background: transparent;
   border: none;
-  color: #cbd5e1;
+  color: #94a3b8;
   cursor: pointer;
-  padding: 4px;
+  padding: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.15s ease;
+  border-radius: 4px;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 #account-modal .btn-toggle-peek:hover {
   color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
 }
 
+/* Simplified Step Cards */
+#account-modal .acc-step-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#account-modal .acc-step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#account-modal .acc-step-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+}
+
+#account-modal .acc-step-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+/* 1. Visual Provider Chips */
+#account-modal .acc-provider-chips {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+#account-modal .acc-prov-chip {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 9px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #cbd5e1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  outline: none;
+}
+
+#account-modal .acc-prov-chip:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+#account-modal .acc-prov-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+#account-modal .prov-claude { background: #c084fc; box-shadow: 0 0 8px rgba(192, 132, 252, 0.6); }
+#account-modal .prov-openai { background: #34d399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.6); }
+#account-modal .prov-grok { background: #38bdf8; box-shadow: 0 0 8px rgba(56, 189, 248, 0.6); }
+#account-modal .prov-fcc { background: #818cf8; box-shadow: 0 0 8px rgba(129, 140, 248, 0.6); }
+
+#account-modal .acc-prov-chip.active[data-provider="claude"] {
+  background: rgba(168, 85, 247, 0.16);
+  border-color: #a855f7;
+  color: #f3e8ff;
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.22);
+}
+#account-modal .acc-prov-chip.active[data-provider="openai"] {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: #10b981;
+  color: #ecfdf5;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.22);
+}
+#account-modal .acc-prov-chip.active[data-provider="grok"] {
+  background: rgba(56, 189, 248, 0.16);
+  border-color: #38bdf8;
+  color: #f0f9ff;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.22);
+}
+#account-modal .acc-prov-chip.active[data-provider="fcc"] {
+  background: rgba(99, 102, 241, 0.16);
+  border-color: #6366f1;
+  color: #eef2ff;
+  box-shadow: 0 0 14px rgba(99, 102, 241, 0.22);
+}
+
+/* 2. Connection Method Pills */
+#account-modal .acc-method-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+#account-modal .acc-method-tab {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  outline: none;
+}
+
+#account-modal .acc-method-tab:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+#account-modal .acc-method-tab.active {
+  background: rgba(59, 130, 246, 0.14);
+  border-color: #3b82f6;
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.2);
+}
+
+#account-modal .acc-method-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+#account-modal .acc-method-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#account-modal .acc-method-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+#account-modal .acc-method-tab.active .acc-method-name {
+  color: #93c5fd;
+}
+
+#account-modal .acc-method-sub {
+  font-size: 10.5px;
+  color: #94a3b8;
+}
+
+/* 3. Simple Cookie Area */
+#account-modal .acc-simple-cookie-area {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.65) 0%, rgba(15, 23, 42, 0.8) 100%);
+  border: 1px solid rgba(129, 140, 248, 0.28);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+#account-modal .acc-cookie-quick-bar {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 8px;
+}
+
+#account-modal .btn-quick-cookie {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+#account-modal .btn-quick-copy {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(139, 92, 246, 0.3) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.5);
+  color: #ddd6fe;
+}
+#account-modal .btn-quick-copy:hover {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.4) 0%, rgba(139, 92, 246, 0.5) 100%);
+  border-color: #c4b5fd;
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(139, 92, 246, 0.3);
+}
+#account-modal .btn-quick-copy.copied {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: #10b981;
+  color: #6ee7b7;
+}
+
+#account-modal .btn-quick-paste {
+  background: rgba(16, 185, 129, 0.16);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #6ee7b7;
+}
+#account-modal .btn-quick-paste:hover {
+  background: rgba(16, 185, 129, 0.28);
+  border-color: #34d399;
+  color: #ffffff;
+}
+
+#account-modal .acc-cookie-quick-help {
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+#account-modal .acc-cookie-quick-help strong {
+  color: #f1f5f9;
+}
+#account-modal .acc-cookie-quick-help a {
+  color: #60a5fa;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+#account-modal .acc-cookie-status {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  animation: fadeIn 0.2s ease;
+}
+#account-modal .acc-cookie-status.success {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #34d399;
+}
+#account-modal .acc-cookie-status.info {
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #93c5fd;
+}
+#account-modal .acc-cookie-status.error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #f87171;
+}
+
+#account-modal .acc-terminal-detect-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+#account-modal .btn-subtle-link {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-decoration: underline;
+  transition: color 0.15s ease;
+}
+#account-modal .btn-subtle-link:hover {
+  color: #60a5fa;
+}
+
+#account-modal .acc-detect-status {
+  font-size: 11px;
+  font-weight: 500;
+}
+#account-modal .acc-detect-status.success { color: #4ade80; }
+#account-modal .acc-detect-status.warn { color: #fbbf24; }
+#account-modal .acc-detect-status.loading { color: #94a3b8; }
+#account-modal .acc-detect-status.error { color: #f87171; }
+
+#account-modal .acc-cred-field-wrap {
+  margin-top: 2px;
+}
+
+#account-modal .acc-field-hint {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* Collapsible Advanced Details */
+#account-modal .acc-advanced-details {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 6px 12px;
+  transition: all 0.2s ease;
+}
+
+#account-modal .acc-advanced-details[open] {
+  background: rgba(255, 255, 255, 0.03);
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.15);
+  padding-bottom: 12px;
+}
+
+#account-modal .acc-advanced-summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #94a3b8;
+  cursor: pointer;
+  list-style: none;
+  padding: 4px 0;
+  user-select: none;
+}
+#account-modal .acc-advanced-summary::-webkit-details-marker {
+  display: none;
+}
+#account-modal .acc-advanced-summary:hover {
+  color: #e2e8f0;
+}
+
+#account-modal .acc-summary-chevron {
+  transition: transform 0.2s ease;
+  color: #64748b;
+}
+#account-modal .acc-advanced-details[open] .acc-summary-chevron {
+  transform: rotate(90deg);
+  color: #93c5fd;
+}
+
+#account-modal .acc-advanced-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* Modern Toggle Switch */
 #account-modal .toggle-switch {
   position: relative;
   display: inline-block;
   width: 44px;
   height: 24px;
   cursor: pointer;
+  flex-shrink: 0;
 }
 #account-modal .toggle-switch input {
   opacity: 0;
@@ -2688,10 +3567,10 @@ button.send { background: var(--accent); color: #111; border: none; cursor: poin
 #account-modal .toggle-slider {
   position: absolute;
   inset: 0;
-  background-color: rgba(255, 255, 255, 0.18);
+  background-color: rgba(255, 255, 255, 0.16);
   border-radius: 24px;
-  transition: 0.2s;
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  transition: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 #account-modal .toggle-slider:before {
   position: absolute;
@@ -2702,7 +3581,7 @@ button.send { background: var(--accent); color: #111; border: none; cursor: poin
   bottom: 2px;
   background-color: #ffffff;
   border-radius: 50%;
-  transition: 0.2s;
+  transition: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 #account-modal .toggle-switch input:checked + .toggle-slider {
@@ -2714,22 +3593,26 @@ button.send { background: var(--accent); color: #111; border: none; cursor: poin
   background-color: #ffffff;
 }
 
+/* Modal Footer */
 #account-modal .settings-modal-footer {
   padding: 14px 24px;
-  background: #191a24;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  background: #181926;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
   flex-shrink: 0;
 }
+#account-modal .footer-spacer {
+  flex: 1;
+}
 #account-modal .btn-subtle-ghost {
   background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   color: #f1f5f9;
   padding: 8px 18px;
-  border-radius: 6px;
+  border-radius: 7px;
   font-size: 12.5px;
   font-weight: 500;
   cursor: pointer;
@@ -2737,7 +3620,7 @@ button.send { background: var(--accent); color: #111; border: none; cursor: poin
 }
 #account-modal .btn-subtle-ghost:hover {
   background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.28);
   color: #ffffff;
 }
 #account-modal .btn-subtle-primary {
@@ -2745,7 +3628,7 @@ button.send { background: var(--accent); color: #111; border: none; cursor: poin
   border: 1px solid #3b82f6;
   color: #ffffff;
   padding: 8px 22px;
-  border-radius: 6px;
+  border-radius: 7px;
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
@@ -2755,7 +3638,7 @@ button.send { background: var(--accent); color: #111; border: none; cursor: poin
 #account-modal .btn-subtle-primary:hover {
   background: #1d4ed8;
   border-color: #2563eb;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.45);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.45);
   transform: translateY(-1px);
 }
 
@@ -3033,6 +3916,128 @@ button.send { background: var(--accent); color: #111; border: none; cursor: poin
   color: #475569;
 }
 
+/* Light Theme Overrides for Failover */
+[data-theme="light"] #settings-modal .failover-hero-card {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+[data-theme="light"] #settings-modal .failover-hero-card .settings-card-label strong {
+  color: #0f172a;
+}
+[data-theme="light"] #settings-modal .failover-diagram-card {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+[data-theme="light"] #settings-modal .failover-flow-diagram {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+[data-theme="light"] #settings-modal .failover-flow-step {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+[data-theme="light"] #settings-modal .failover-flow-step.disabled {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+[data-theme="light"] #settings-modal .flow-step-name {
+  color: #0f172a;
+}
+[data-theme="light"] #settings-modal .flow-step-model {
+  color: #475569;
+}
+[data-theme="light"] #settings-modal .failover-flow-arrow {
+  color: #94a3b8;
+}
+[data-theme="light"] #settings-modal .failover-presets-title {
+  color: #475569;
+}
+[data-theme="light"] #settings-modal .btn-failover-preset {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+[data-theme="light"] #settings-modal .btn-failover-preset:hover {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+}
+[data-theme="light"] #settings-modal .btn-failover-preset.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+[data-theme="light"] #settings-modal .failover-priority-item {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+[data-theme="light"] #settings-modal .failover-priority-item:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+[data-theme="light"] #settings-modal .priority-rank-circle {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+[data-theme="light"] #settings-modal .failover-priority-item.is-top .priority-rank-circle {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+[data-theme="light"] #settings-modal .priority-item-name {
+  color: #0f172a;
+}
+[data-theme="light"] #settings-modal .priority-item-meta {
+  color: #475569;
+}
+[data-theme="light"] #settings-modal .priority-model-chip,
+[data-theme="light"] #settings-modal .priority-account-chip {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+[data-theme="light"] #settings-modal .priority-account-chip.warn {
+  color: #b91c1c;
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+[data-theme="light"] #settings-modal .btn-priority-move {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+[data-theme="light"] #settings-modal .btn-priority-move:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+[data-theme="light"] #settings-modal .failover-advanced-details {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+[data-theme="light"] #settings-modal .failover-advanced-summary {
+  color: #475569;
+}
+[data-theme="light"] #settings-modal .failover-advanced-summary:hover {
+  color: #0f172a;
+}
+[data-theme="light"] #settings-modal .failover-guide-card {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+[data-theme="light"] #settings-modal .failover-guide-card .guide-card-body strong {
+  color: #0f172a;
+}
+[data-theme="light"] #settings-modal .failover-guide-card .guide-card-body p {
+  color: #475569;
+}
+[data-theme="light"] #settings-modal .failover-guide-card .guide-card-body code {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
 
 /* Light Theme Overrides for Account Modal & Project Modal */
 [data-theme="light"] #account-modal .account-dialog-modal,
@@ -3124,6 +4129,121 @@ button.send { background: var(--accent); color: #111; border: none; cursor: poin
 [data-theme="light"] #account-modal .btn-subtle-ghost:hover,
 [data-theme="light"] #project-modal .btn-subtle-ghost:hover {
   background: #e2e8f0;
+}
+
+[data-theme="light"] #account-modal .acc-step-card {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+[data-theme="light"] #account-modal .acc-step-title {
+  color: #0f172a;
+}
+[data-theme="light"] #account-modal .acc-prov-chip {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+[data-theme="light"] #account-modal .acc-prov-chip:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+[data-theme="light"] #account-modal .acc-prov-chip.active[data-provider="claude"] {
+  background: #f3e8ff;
+  border-color: #a855f7;
+  color: #6b21a8;
+}
+[data-theme="light"] #account-modal .acc-prov-chip.active[data-provider="openai"] {
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #065f46;
+}
+[data-theme="light"] #account-modal .acc-prov-chip.active[data-provider="grok"] {
+  background: #f0f9ff;
+  border-color: #38bdf8;
+  color: #0369a1;
+}
+[data-theme="light"] #account-modal .acc-prov-chip.active[data-provider="fcc"] {
+  background: #eef2ff;
+  border-color: #6366f1;
+  color: #3730a3;
+}
+[data-theme="light"] #account-modal .acc-method-tab {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+[data-theme="light"] #account-modal .acc-method-tab:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+[data-theme="light"] #account-modal .acc-method-tab.active {
+  background: #eff6ff;
+  border-color: #2563eb;
+}
+[data-theme="light"] #account-modal .acc-method-name {
+  color: #0f172a;
+}
+[data-theme="light"] #account-modal .acc-method-tab.active .acc-method-name {
+  color: #1d4ed8;
+}
+[data-theme="light"] #account-modal .acc-method-sub {
+  color: #64748b;
+}
+[data-theme="light"] #account-modal .acc-simple-cookie-area {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+[data-theme="light"] #account-modal .btn-quick-copy {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+[data-theme="light"] #account-modal .btn-quick-copy:hover {
+  background: #dbeafe;
+  border-color: #3b82f6;
+}
+[data-theme="light"] #account-modal .btn-quick-copy.copied {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+  color: #059669;
+}
+[data-theme="light"] #account-modal .btn-quick-paste {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
+}
+[data-theme="light"] #account-modal .btn-quick-paste:hover {
+  background: #d1fae5;
+  border-color: #10b981;
+}
+[data-theme="light"] #account-modal .acc-cookie-quick-help strong {
+  color: #0f172a;
+}
+[data-theme="light"] #account-modal .acc-advanced-details {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+[data-theme="light"] #account-modal .acc-advanced-summary {
+  color: #475569;
+}
+[data-theme="light"] #account-modal .acc-advanced-summary:hover {
+  color: #0f172a;
+}
+[data-theme="light"] #account-modal .btn-subtle-link {
+  color: #475569;
+}
+[data-theme="light"] #account-modal .btn-subtle-link:hover {
+  color: #1d4ed8;
+}
+[data-theme="light"] #settings-modal .account-type-badge.web {
+  background: #f3e8ff;
+  color: #7e22ce;
+  border-color: #d8b4fe;
+}
+[data-theme="light"] #settings-modal .account-type-badge.apikey {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
 }
 
 

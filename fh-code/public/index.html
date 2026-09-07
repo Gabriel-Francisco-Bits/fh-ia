@@ -562,37 +562,96 @@
 
         <!-- Pane: Failover -->
         <div id="set-pane-failover" class="settings-pane" style="display: none;">
-          <div class="settings-card">
+          <!-- Master Switch Card -->
+          <div class="settings-card failover-hero-card">
             <div class="settings-card-label">
-              <strong>Failover automático entre IAs</strong>
-              <span>Si la IA elegida se satura o devuelve error 5xx, conmuta automáticamente a la siguiente</span>
+              <div class="label-with-badge">
+                <strong>Failover automático inteligente</strong>
+                <span id="badge-failover-status" class="provider-status-badge enabled">Activo</span>
+              </div>
+              <span>Si la IA activa se satura (503), agota su cuota (429) o pierde conexión, conmuta fluidamente a tus otras cuentas o proveedores sin interrumpir tu trabajo.</span>
             </div>
             <div class="settings-card-field switch-wrap">
-              <label class="toggle-switch">
+              <label class="toggle-switch" title="Activar o desactivar el failover automático">
                 <input id="set-failover-enabled" type="checkbox" />
                 <span class="toggle-slider"></span>
               </label>
             </div>
           </div>
 
-          <div class="settings-card">
+          <!-- Flow Diagram Preview -->
+          <div class="settings-card failover-diagram-card">
             <div class="settings-card-label">
-              <strong>Orden de prioridad de failover</strong>
-              <span>Lista de proveedores en orden separados por coma</span>
+              <strong>Ruta visual de conmutación en tiempo real</strong>
+              <span>Secuencia exacta que seguirá el despachador de IA cuando ocurra un fallo</span>
             </div>
-            <div class="settings-card-field">
-              <input id="set-failover-order" class="settings-input" type="text" placeholder="grok,claude,openai" />
+            <div id="failover-flow-diagram" class="failover-flow-diagram"></div>
+          </div>
+
+          <!-- Presets Section -->
+          <div class="failover-presets-section">
+            <span class="failover-presets-title">Estrategias recomendadas:</span>
+            <div class="failover-presets-chips">
+              <button type="button" class="btn-failover-preset" data-preset="reasoning" title="Usa Claude primero para razonamiento profundo, seguido de Grok y OpenAI">
+                🧠 Máximo Razonamiento (Claude ➔ Grok ➔ OpenAI)
+              </button>
+              <button type="button" class="btn-failover-preset" data-preset="speed" title="Usa Grok primero para respuestas rápidas, seguido de Claude y OpenAI">
+                ⚡ Velocidad y Fluidez (Grok ➔ Claude ➔ OpenAI)
+              </button>
+              <button type="button" class="btn-failover-preset" data-preset="openai" title="Prioriza OpenAI o endpoint compatible">
+                🌐 OpenAI Primero (OpenAI ➔ Grok ➔ Claude)
+              </button>
+              <button type="button" class="btn-failover-preset" data-preset="local" title="Prioriza servidor local FCC antes de APIs en la nube">
+                💻 Local FCC Primero (FCC ➔ Grok ➔ Claude)
+              </button>
             </div>
           </div>
 
-          <div class="settings-info-box">
-            <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; color: var(--accent);"><circle cx="8" cy="8" r="7"></circle><line x1="8" y1="7" x2="8" y2="11"></line><line x1="8" y1="4.5" x2="8" y2="5"></line></svg>
-            <div>
-              <strong>Failover jerárquico inteligente</strong>
-              <p class="settings-info-text" style="margin: 3px 0 0 0; font-size: 11.5px; line-height: 1.45;">
-                1º Si un proveedor tiene múltiples cuentas configuradas, probará cada una en orden antes de cambiar a otro servicio.<br>
-                2º Si todas las cuentas del proveedor fallan (por cuota o error 429/5xx), conmuta al siguiente proveedor según la lista de prioridad.
-              </p>
+          <!-- Interactive Priority List -->
+          <div class="failover-list-section">
+            <div class="failover-list-header">
+              <div class="settings-card-label">
+                <strong>Lista de Prioridad de Proveedores</strong>
+                <span>Usa los botones ▲ y ▼ para organizar el orden en que se llamarán tus servicios de IA</span>
+              </div>
+            </div>
+            <div id="failover-priority-list" class="failover-priority-list"></div>
+          </div>
+
+          <!-- Advanced Collapsible Details for Raw Comma-separated Text -->
+          <details class="failover-advanced-details">
+            <summary class="failover-advanced-summary">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><circle cx="8" cy="8" r="2.2"></circle><path d="M8 1.5v1.2M8 13.3v1.2M1.5 8h1.2M13.3 8h1.2M3.4 3.4l.85.85M11.75 11.75l.85.85M3.4 12.6l.85-.85M11.75 4.25l.85-.85"></path></svg>
+              <span>Configuración avanzada (texto manual separado por comas)</span>
+            </summary>
+            <div class="failover-advanced-body">
+              <input id="set-failover-order" class="settings-input" type="text" placeholder="grok,claude,openai" />
+              <span class="failover-advanced-hint">Se sincroniza automáticamente con la lista interactiva de arriba.</span>
+            </div>
+          </details>
+
+          <!-- Guide Cards Grid -->
+          <div class="failover-guide-grid">
+            <div class="failover-guide-card">
+              <div class="guide-card-icon">🔀</div>
+              <div class="guide-card-body">
+                <strong>Nivel 1: Failover intra-proveedor</strong>
+                <p>Si tienes múltiples cuentas/claves configuradas para el mismo proveedor (en la pestaña <em>Claves & Conexión</em>), rotará primero entre tus cuentas antes de cambiar a otra IA.</p>
+              </div>
+            </div>
+            <div class="failover-guide-card">
+              <div class="guide-card-icon">⏭️</div>
+              <div class="guide-card-body">
+                <strong>Nivel 2: Failover inter-proveedor</strong>
+                <p>Si todas las cuentas de un proveedor fallan o agotan su cuota, conmuta automáticamente al siguiente servicio de tu lista de prioridad sin interrumpir tu trabajo.</p>
+              </div>
+            </div>
+            <div class="failover-guide-card">
+              <div class="guide-card-icon">🛡️</div>
+              <div class="guide-card-body">
+                <strong>Rescate automático de errores</strong>
+                <p>Detecta y rescata automáticamente errores <code>429 (Límite de tasa / cuota)</code>, <code>503 / 500 (Servidor saturado)</code>, caídas de red y credenciales expiradas.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -603,7 +662,10 @@
         <button id="btn-settings-reset" class="btn-subtle-danger" type="button" title="Restablecer valores de fábrica">Restablecer ajustes</button>
         <div class="footer-spacer"></div>
         <button id="btn-settings-cancel" class="btn-subtle-ghost" type="button">Cancelar</button>
-        <button id="btn-settings-save" class="btn-subtle-primary" type="button"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; vertical-align: -1px;"><polyline points="3 8.5 6.5 12 13 4"></polyline></svg>Guardar cambios</button>
+        <button id="btn-settings-save" class="btn-subtle-primary" type="button">
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; vertical-align: -1px;"><polyline points="3 8.5 6.5 12 13 4"></polyline></svg>
+          Guardar cambios
+        </button>
       </div>
     </div>
   </div>
@@ -613,89 +675,197 @@
     <div class="settings-modal account-dialog-modal">
       <div class="settings-modal-header">
         <div class="settings-modal-title-group">
-          <span class="settings-modal-icon"><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="5" r="3"></circle><path d="M2.5 14a5.5 5.5 0 0 1 11 0"></path></svg></span>
+          <span class="settings-modal-icon">
+            <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 17v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 15.5V17"></path>
+              <circle cx="10" cy="6.5" r="3.5"></circle>
+            </svg>
+          </span>
           <div>
-            <h3 id="account-modal-title">Añadir Cuenta de IA</h3>
-            <p class="settings-modal-subtitle">Configura una cuenta o API key para failover intra-proveedor</p>
+            <h3 id="account-modal-title">Añadir Proveedor de IA</h3>
+            <p class="settings-modal-subtitle">Conéctate en segundos con tu cuenta web o API Key</p>
           </div>
         </div>
-        <button id="btn-account-modal-close" class="settings-close-icon" title="Cerrar"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg></button>
+        <button id="btn-account-modal-close" class="settings-close-icon" type="button" title="Cerrar">
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg>
+        </button>
       </div>
+
       <div class="settings-modal-body">
         <input type="hidden" id="acc-id" />
-        <div class="settings-card">
-          <div class="settings-card-label">
-            <strong>Proveedor</strong>
-            <span>Servicio de inteligencia artificial</span>
+        <input type="hidden" id="acc-auth-type" value="web" />
+
+        <!-- Paso 1: Selector visual de Proveedor de IA (1 Clic) -->
+        <div class="acc-step-card">
+          <div class="acc-step-header">
+            <span class="acc-step-badge">1</span>
+            <span class="acc-step-title">Elige tu IA</span>
           </div>
-          <div class="settings-card-field">
-            <select id="acc-provider" class="settings-select">
-              <option value="claude">Claude (Anthropic)</option>
-              <option value="grok">Grok (xAI)</option>
-              <option value="openai">OpenAI / Compatible</option>
-              <option value="fcc">FCC (Free Claude Code)</option>
-            </select>
+          <div class="acc-provider-chips" id="acc-provider-chips">
+            <button type="button" class="acc-prov-chip active" data-provider="claude">
+              <span class="acc-prov-dot prov-claude"></span>
+              <span class="acc-prov-label">Claude</span>
+            </button>
+            <button type="button" class="acc-prov-chip" data-provider="openai">
+              <span class="acc-prov-dot prov-openai"></span>
+              <span class="acc-prov-label">ChatGPT</span>
+            </button>
+            <button type="button" class="acc-prov-chip" data-provider="grok">
+              <span class="acc-prov-dot prov-grok"></span>
+              <span class="acc-prov-label">Grok</span>
+            </button>
+            <button type="button" class="acc-prov-chip" data-provider="fcc">
+              <span class="acc-prov-dot prov-fcc"></span>
+              <span class="acc-prov-label">FCC Local</span>
+            </button>
+          </div>
+          <!-- Hidden select to keep full backward compatibility with any direct code -->
+          <select id="acc-provider" style="display: none;">
+            <option value="claude">Claude (Anthropic)</option>
+            <option value="openai">ChatGPT / OpenAI</option>
+            <option value="grok">Grok (xAI)</option>
+            <option value="fcc">FCC (Free Claude Code)</option>
+          </select>
+        </div>
+
+        <!-- Paso 2: Método de conexión (Simple y Directo) -->
+        <div class="acc-step-card" id="acc-method-step-card">
+          <div class="acc-step-header">
+            <span class="acc-step-badge">2</span>
+            <span class="acc-step-title">Método de conexión</span>
+          </div>
+          <div class="acc-method-tabs">
+            <button type="button" class="acc-method-tab active" id="acc-tab-web" data-type="web">
+              <span class="acc-method-icon">🍪</span>
+              <div class="acc-method-info">
+                <span class="acc-method-name">Cuenta Web / Cookies</span>
+                <span class="acc-method-sub">Sin API · 1 Clic desde navegador</span>
+              </div>
+            </button>
+            <button type="button" class="acc-method-tab" id="acc-tab-apikey" data-type="apiKey">
+              <span class="acc-method-icon">🔑</span>
+              <div class="acc-method-info">
+                <span class="acc-method-name">Clave de API</span>
+                <span class="acc-method-sub">Clave oficial (sk-..., xai-...)</span>
+              </div>
+            </button>
           </div>
         </div>
 
-        <div class="settings-card">
-          <div class="settings-card-label">
-            <strong>Nombre / Alias</strong>
-            <span>Identificador visible para esta cuenta</span>
+        <!-- Paso 3: Conexión Instantánea -->
+        <div class="acc-step-card acc-cred-step-card">
+          <div class="acc-step-header">
+            <span class="acc-step-badge">3</span>
+            <span class="acc-step-title" id="acc-cred-title">Conecta tu cuenta</span>
           </div>
-          <div class="settings-card-field">
-            <input id="acc-name" class="settings-input" type="text" placeholder="Ej: Cuenta Personal, Tier 4, Respaldo" />
+
+          <!-- Asistente rápido de Cookies (visible en modo Web) -->
+          <div id="acc-web-actions" class="acc-simple-cookie-area">
+            <div class="acc-cookie-quick-bar">
+              <button type="button" id="btn-copy-cookie-script" class="btn-quick-cookie btn-quick-copy" title="Copia el script para extraer la cookie en 1 solo clic">
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5" y="5" width="8" height="8" rx="1.5"/>
+                  <path d="M3 11V3a1 1 0 0 1 1-1h8"/>
+                </svg>
+                <span id="btn-copy-cookie-text">Copiar de mi navegador (1 clic)</span>
+              </button>
+
+              <button type="button" id="btn-paste-cookie" class="btn-quick-cookie btn-quick-paste" title="Pega automáticamente la cookie limpia">
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.5 2.5H12a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5V4A1.5 1.5 0 0 1 4 2.5h1.5"/>
+                  <rect x="5.5" y="1" width="5" height="3" rx="1"/>
+                </svg>
+                <span>Pegar cookie</span>
+              </button>
+            </div>
+
+            <div class="acc-cookie-quick-help">
+              <span>Instrucciones: Clic en <strong>Copiar</strong> &rarr; En <a id="acc-link-open-web" href="https://claude.ai" target="_blank" rel="noopener noreferrer"><span id="acc-link-open-text">claude.ai ↗</span></a> pulsa <strong>F12 (Consola)</strong> y dale <strong>Enter</strong> &rarr; Clic en <strong>Pegar cookie</strong>.</span>
+            </div>
+
+            <div id="acc-cookie-status" class="acc-cookie-status" style="display: none;"></div>
+
+            <div class="acc-terminal-detect-link">
+              <button type="button" id="btn-detect-session" class="btn-subtle-link">
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 4l4 4-4 4M7 12h7"/>
+                </svg>
+                ¿Tienes sesión en terminal? Detectar automáticamente
+              </button>
+              <span id="acc-detect-status" class="acc-detect-status"></span>
+            </div>
           </div>
+
+          <!-- Campo de entrada de la credencial -->
+          <div class="key-field-wrap acc-cred-field-wrap">
+            <input id="acc-key" class="settings-input" type="password" placeholder="sk-..." autocomplete="off" />
+            <button type="button" class="btn-toggle-peek" id="btn-acc-key-peek" title="Mostrar/Ocultar clave">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"></path><circle cx="8" cy="8" r="2.5"></circle></svg>
+            </button>
+          </div>
+          <span class="acc-field-hint" id="acc-cred-desc">Pega tu token o cookie de sesión aquí</span>
+          <span class="acc-hint-text" id="acc-hint-text" style="display: none;"></span>
         </div>
 
-        <div class="settings-card">
-          <div class="settings-card-label">
-            <strong>API Key</strong>
-            <span>Clave secreta de autenticación</span>
-          </div>
-          <div class="settings-card-field key-field-wrap">
-            <input id="acc-key" class="settings-input" type="password" placeholder="sk-..." />
-            <button type="button" class="btn-toggle-peek" title="Mostrar/Ocultar"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"></path><circle cx="8" cy="8" r="2.5"></circle></svg></button>
-          </div>
-        </div>
+        <!-- Opciones avanzadas (Colapsadas por defecto) -->
+        <details class="acc-advanced-details">
+          <summary class="acc-advanced-summary">
+            <svg class="acc-summary-chevron" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>
+            <span>Opciones avanzadas (Alias, Modelo, URL personalizada)</span>
+          </summary>
+          <div class="acc-advanced-content">
+            <div class="settings-card">
+              <div class="settings-card-label">
+                <strong>Nombre / Alias</strong>
+                <span>Identificador visible para rotación y failover</span>
+              </div>
+              <div class="settings-card-field">
+                <input id="acc-name" class="settings-input" type="text" placeholder="Auto: ChatGPT Personal, Claude Pro, etc." />
+              </div>
+            </div>
 
-        <div class="settings-card">
-          <div class="settings-card-label">
-            <strong>Base URL (Opcional)</strong>
-            <span>Sobrescribir URL base predeterminada</span>
-          </div>
-          <div class="settings-card-field">
-            <input id="acc-base" class="settings-input" type="text" placeholder="Predeterminada del proveedor" />
-          </div>
-        </div>
+            <div class="acc-grid-2col">
+              <div class="settings-card">
+                <div class="settings-card-label">
+                  <strong>Base URL (Opcional)</strong>
+                  <span>Sobrescribir endpoint</span>
+                </div>
+                <div class="settings-card-field">
+                  <input id="acc-base" class="settings-input" type="text" placeholder="Predeterminada" />
+                </div>
+              </div>
 
-        <div class="settings-card">
-          <div class="settings-card-label">
-            <strong>Modelo (Opcional)</strong>
-            <span>Sobrescribir modelo para esta cuenta específica</span>
-          </div>
-          <div class="settings-card-field">
-            <input id="acc-model" class="settings-input" type="text" placeholder="Predeterminado del proveedor" />
-          </div>
-        </div>
+              <div class="settings-card">
+                <div class="settings-card-label">
+                  <strong>Modelo (Opcional)</strong>
+                  <span>Sobrescribir modelo</span>
+                </div>
+                <div class="settings-card-field">
+                  <input id="acc-model" class="settings-input" type="text" placeholder="Predeterminado" />
+                </div>
+              </div>
+            </div>
 
-        <div class="settings-card toggle-card">
-          <div class="settings-card-label">
-            <strong>Habilitada</strong>
-            <span>Incluir esta cuenta en la rotación y failover</span>
+            <div class="settings-card toggle-card">
+              <div class="settings-card-label">
+                <strong>Cuenta Habilitada</strong>
+                <span>Incluir en failover y rotación automática</span>
+              </div>
+              <div class="settings-card-field switch-wrap">
+                <label class="toggle-switch">
+                  <input id="acc-enabled" type="checkbox" checked />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
           </div>
-          <div class="settings-card-field switch-wrap">
-            <label class="toggle-switch">
-              <input id="acc-enabled" type="checkbox" checked />
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-        </div>
+        </details>
       </div>
+
       <div class="settings-modal-footer">
         <div class="footer-spacer"></div>
         <button id="btn-account-cancel" class="btn-subtle-ghost" type="button">Cancelar</button>
-        <button id="btn-account-save" class="btn-subtle-primary" type="button">Guardar Cuenta</button>
+        <button id="btn-account-save" class="btn-primary" type="button">Guardar Proveedor</button>
       </div>
     </div>
   </div>

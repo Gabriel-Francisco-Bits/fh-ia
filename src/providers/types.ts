@@ -7,12 +7,15 @@ export function isProviderId(value: string): value is ProviderId {
 
 export type AuthKind = "apiKey" | "session";
 export type AuthSource = "settings" | "env" | "terminal";
+export type AccountAuthType = "apiKey" | "web";
 
 export interface ProviderAccount {
   id: string;
   provider: ProviderId;
   name: string;
   apiKey: string;
+  authType?: AccountAuthType;
+  authKind?: AuthKind;
   baseUrl?: string;
   model?: string;
   enabled?: boolean;

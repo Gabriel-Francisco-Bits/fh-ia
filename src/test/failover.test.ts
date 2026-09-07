@@ -149,6 +149,47 @@ test("intra-provider multi-account failover: Primary account 503 -> Secondary ac
   }
 });
 
+test("web login account: account with authType 'web' uses Bearer session authorization", async () => {
+  const claudeWeb = await startSseServer({ kind: "claude", pathSuffix: "/v1/messages", reply: "CLAUDE-WEB-OK" });
+  try {
+    const bundle: ProviderBundle = {
+      selected: "claude",
+      claude: { id: "claude", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "c" },
+      grok: { id: "grok", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "g" },
+      openai: { id: "openai", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "o" },
+      fcc: { id: "fcc", apiKey: "", baseUrl: "http://127.0.0.1:9", model: "f" },
+      accounts: [
+        {
+          id: "claude-web-acc",
+          provider: "claude",
+          name: "Claude Web Login",
+          apiKey: "session-token-xyz-123",
+          authType: "web",
+          authKind: "session",
+          baseUrl: claudeWeb.url,
+          model: "claude-3-5-sonnet",
+          enabled: true,
+        },
+      ],
+    };
+    const dispatcher = new ProviderDispatcher({
+      bundle,
+      failover: { enabled: true, order: ["claude"] },
+    });
+    dispatcher.setSelected("claude");
+    const text = await dispatcher.chat([{ role: "user", content: "test web" }], () => undefined);
+
+    assert.equal(text, "CLAUDE-WEB-OK");
+    assert.equal(dispatcher.getLastUsedAccount()?.id, "claude-web-acc");
+    assert.equal(claudeWeb.requests.length, 1);
+    // Claude with authKind="session" sends Bearer token in Authorization header, NOT x-api-key
+    assert.equal(claudeWeb.requests[0].headers["authorization"], "Bearer session-token-xyz-123");
+    assert.equal(claudeWeb.requests[0].headers["x-api-key"], undefined);
+  } finally {
+    await claudeWeb.close();
+  }
+});
+
 test("hierarchical failover: All accounts of primary provider fail -> falls over to next provider", async () => {
   const claude1 = await startFailingServer({ status: 429, body: '{"error":"rate_limited"}' });
   const claude2 = await startFailingServer({ status: 500, body: '{"error":"server_error"}' });

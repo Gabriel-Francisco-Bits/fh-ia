@@ -71,7 +71,7 @@ export function createTerminalCredentialResolver(opts: {
       const authMode = authModeOf();
       const settingKey = settings.apiKey.trim();
       if (authMode !== "terminal" && settingKey) {
-        return tagged(settings, settingKey, "apiKey", "settings");
+        return tagged(settings, settingKey, settings.authKind ?? "apiKey", "settings");
       }
       if (authMode !== "apiKey") {
         const session = await loadTerminalSession(id, { home, files, http, env, now: opts.now });
@@ -142,4 +142,4 @@ export function missingMessage(id: ProviderId): string {
   return `No credential for ${id}. ${LOGIN_HINT[id]}`;
 }
 
-export { memoryTextFiles, nodeTextFiles };
+export { memoryTextFiles, nodeTextFiles, loadClaudeSession, loadOpenAiSession, loadGrokSession };

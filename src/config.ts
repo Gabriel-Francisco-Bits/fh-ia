@@ -136,15 +136,21 @@ export function resolveProviderBundle(
         (a): a is ProviderAccount =>
           Boolean(a && typeof a === "object" && isProviderId((a as any).provider) && (a as any).apiKey),
       )
-      .map((a) => ({
-        id: String(a.id || Math.random().toString(36).slice(2, 9)),
-        provider: a.provider,
-        name: String(a.name || a.provider),
-        apiKey: String(a.apiKey),
-        baseUrl: a.baseUrl ? String(a.baseUrl) : undefined,
-        model: a.model ? String(a.model) : undefined,
-        enabled: a.enabled !== false,
-      }));
+      .map((a) => {
+        const authType = (a as any).authType === "web" ? "web" : "apiKey";
+        const authKind = authType === "web" || (a as any).authKind === "session" ? "session" : "apiKey";
+        return {
+          id: String(a.id || Math.random().toString(36).slice(2, 9)),
+          provider: a.provider,
+          name: String(a.name || a.provider),
+          apiKey: String(a.apiKey),
+          authType,
+          authKind,
+          baseUrl: a.baseUrl ? String(a.baseUrl) : undefined,
+          model: a.model ? String(a.model) : undefined,
+          enabled: a.enabled !== false,
+        };
+      });
   }
   return {
     selected,

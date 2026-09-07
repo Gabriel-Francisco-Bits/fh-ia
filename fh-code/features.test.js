@@ -195,3 +195,19 @@ test("terminal manager spawns session and handles I/O", async (t) => {
   unsub();
   assert.equal(gotOutput, true);
 });
+
+test("detect-session endpoint handles providers gracefully", async (t) => {
+  const { server, port } = await startServer(0);
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const claudeRes = await request(port, "GET", "/api/auth/detect-session?provider=claude");
+  assert.equal(claudeRes.status, 200);
+  assert.equal(claudeRes.body.ok, true);
+  assert.equal(claudeRes.body.provider, "claude");
+
+  const openaiRes = await request(port, "GET", "/api/auth/detect-session?provider=openai");
+  assert.equal(openaiRes.status, 200);
+  assert.equal(openaiRes.body.ok, true);
+  assert.equal(openaiRes.body.provider, "openai");
+});
+

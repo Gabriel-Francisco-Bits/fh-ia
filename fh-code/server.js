@@ -36,7 +36,13 @@ if (!fssync.existsSync(path.join(out, "agent", "session.js"))) {
 }
 
 const { AgentSession } = require(path.join(out, "agent", "session.js"));
-const { createTerminalCredentialResolver } = require(path.join(out, "auth", "resolve.js"));
+const {
+  createTerminalCredentialResolver,
+  loadClaudeSession,
+  loadOpenAiSession,
+  loadGrokSession,
+  nodeTextFiles,
+} = require(path.join(out, "auth", "resolve.js"));
 const { resolveAuthMode, resolveFailover, resolveProviderBundle } = require(path.join(out, "config.js"));
 const { MODEL_CATALOG, modelsFor, uniqueModels } = require(path.join(out, "models.js"));
 const { fetchModelsForProvider } = require(path.join(out, "modelsDiscovery.js"));
@@ -822,6 +828,39 @@ const server = http.createServer(async (req, res) => {
         rec.dispatcher.updateFailover(resolveFailover(cfg));
       }
       json(res, 200, { ok: true, settings: reset });
+      return;
+    }
+
+    // Auto-detect local web/CLI session token for account modal
+    if (req.method === "GET" && url.pathname === "/api/auth/detect-session") {
+      const provider = url.searchParams.get("provider") || "claude";
+      const home = os.homedir();
+      const files = nodeTextFiles ? nodeTextFiles() : createNodeFilePort(WORKSPACE);
+      try {
+        if (provider === "claude") {
+          const token = await loadClaudeSession({ home, files, env: process.env });
+          if (token) {
+            json(res, 200, { ok: true, found: true, token, provider: "claude", kind: "session", source: "Claude Code / ~/.claude" });
+            return;
+          }
+        } else if (provider === "openai") {
+          const session = await loadOpenAiSession({ home, files });
+          if (session && session.token) {
+            json(res, 200, { ok: true, found: true, token: session.token, provider: "openai", kind: session.kind, source: "Codex CLI / ~/.codex" });
+            return;
+          }
+        } else if (provider === "grok") {
+          const { defaultHttp } = require(path.join(out, "providers", "types.js"));
+          const session = await loadGrokSession({ home, files, http: defaultHttp });
+          if (session && session.token) {
+            json(res, 200, { ok: true, found: true, token: session.token, provider: "grok", kind: "session", source: "Grok CLI / ~/.grok" });
+            return;
+          }
+        }
+        json(res, 200, { ok: true, found: false, provider, message: "No se detectó sesión local activa para este proveedor." });
+      } catch (err) {
+        json(res, 200, { ok: false, found: false, error: String(err && err.message ? err.message : err) });
+      }
       return;
     }
 

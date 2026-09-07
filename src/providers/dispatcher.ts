@@ -130,6 +130,10 @@ export class ProviderDispatcher {
               apiKey: target.account.apiKey,
               baseUrl: target.account.baseUrl || this.bundle[id].baseUrl,
               model: target.account.model || this.bundle[id].model,
+              authKind:
+                target.account.authType === "web" || target.account.authKind === "session"
+                  ? "session"
+                  : (target.account.authKind || "apiKey"),
             }
           : this.bundle[id];
         const settings = await this.credentials.resolve(id, rawSettings);

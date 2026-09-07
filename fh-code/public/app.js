@@ -1275,6 +1275,11 @@
       badge.className = `account-badge ${acc.provider || "claude"}`;
       badge.textContent = (acc.provider || "IA").toUpperCase();
 
+      const isWeb = acc.authType === "web" || acc.authKind === "session";
+      const typeBadge = document.createElement("span");
+      typeBadge.className = `account-type-badge ${isWeb ? "web" : "apikey"}`;
+      typeBadge.textContent = isWeb ? "Web / Login" : "API Key";
+
       const meta = document.createElement("div");
       meta.className = "account-meta";
 
@@ -1291,6 +1296,7 @@
       meta.appendChild(title);
       meta.appendChild(sub);
       left.appendChild(badge);
+      left.appendChild(typeBadge);
       left.appendChild(meta);
 
       const right = document.createElement("div");
@@ -1340,28 +1346,230 @@
     });
   }
 
+  async function copyTextToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (e) {
+        // fallback below
+      }
+    }
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.top = "-9999px";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+
+  function getCookieExtractionScript(provider) {
+    if (provider === "openai") {
+      return `(()=>{fetch('/api/auth/session').then(r=>r.json()).then(d=>{const t=d.accessToken||(document.cookie.match(/__Secure-next-auth\\.session-token=([^;]+)/)||[])[1];if(typeof copy==='function'){copy(t);}else{navigator.clipboard.writeText(t);}alert('✓ Token de sesión de ChatGPT copiado! Vuelve a fh-code y pégalo.');}).catch(()=>{const c=(document.cookie.match(/__Secure-next-auth\\.session-token=([^;]+)/)||[])[1]||document.cookie;if(typeof copy==='function'){copy(c);}else{navigator.clipboard.writeText(c);}alert('✓ Cookie copiada al portapapeles!');});})()`;
+    }
+    if (provider === "grok") {
+      return `(()=>{const c=(document.cookie.match(/(?:sso|xai-session|sso-rw)=([^;]+)/)||[])[1]||document.cookie;if(typeof copy==='function'){copy(c);}else{navigator.clipboard.writeText(c);}alert('✓ Cookie de Grok copiada al portapapeles! Vuelve a fh-code y pégala.');})()`;
+    }
+    // Default: Claude
+    return `(()=>{const c=(document.cookie.match(/sessionKey=([^;]+)/)||[])[1]||document.cookie;if(typeof copy==='function'){copy(c);}else{navigator.clipboard.writeText(c);}alert('✓ Cookie sessionKey de Claude copiada al portapapeles! Vuelve a fh-code y pégala.');})()`;
+  }
+
+  function extractTokenFromRawInput(raw, provider) {
+    if (!raw || typeof raw !== "string") return "";
+    let clean = raw.trim();
+
+    if (clean.toLowerCase().startsWith("bearer ")) {
+      clean = clean.slice(7).trim();
+    }
+
+    if (clean.startsWith("{") && clean.endsWith("}")) {
+      try {
+        const parsed = JSON.parse(clean);
+        if (parsed.accessToken) return parsed.accessToken;
+        if (parsed.token) return parsed.token;
+        if (parsed.sessionKey) return parsed.sessionKey;
+        if (parsed.apiKey) return parsed.apiKey;
+      } catch {}
+    }
+
+    if (provider === "claude") {
+      const claudeKeyMatch = clean.match(/sk-ant-sid01-[A-Za-z0-9_-]+/);
+      if (claudeKeyMatch) return claudeKeyMatch[0];
+      const sessionKeyMatch = clean.match(/sessionKey=([^; \r\n]+)/i);
+      if (sessionKeyMatch) return sessionKeyMatch[1];
+    }
+
+    if (provider === "openai") {
+      const nextAuthMatch = clean.match(/__Secure-next-auth\.session-token=([^; \r\n]+)/i);
+      if (nextAuthMatch) return nextAuthMatch[1];
+      const jwtMatch = clean.match(/eyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]+/);
+      if (jwtMatch) return jwtMatch[0];
+    }
+
+    if (provider === "grok") {
+      const grokMatch = clean.match(/(?:sso|xai-session|sso-rw)=([^; \r\n]+)/i);
+      if (grokMatch) return grokMatch[1];
+    }
+
+    if (clean.includes("=")) {
+      if (/^cookie:\s*/i.test(clean)) {
+        clean = clean.replace(/^cookie:\s*/i, "");
+      }
+      const genericMatch = clean.match(/(?:sessionKey|session-token|session_token|accessToken|token)=([^; \r\n]+)/i);
+      if (genericMatch) return genericMatch[1];
+    }
+
+    clean = clean.replace(/^["']|["']$/g, "").trim();
+    return clean;
+  }
+
+  function updateWebCookieAssistant(provider) {
+    const linkOpen = document.getElementById("acc-link-open-web");
+    const linkOpenText = document.getElementById("acc-link-open-text");
+    const stepText = document.getElementById("acc-cookie-step-text");
+
+    let url = "https://claude.ai";
+    let label = "1. Abrir claude.ai ↗";
+    let guide = "1. Clic en <strong>Copiar extractor</strong> &rarr; 2. En claude.ai presiona <strong>F12</strong> (Consola), pega y dale <strong>Enter</strong> &rarr; 3. Clic en <strong>Pegar cookie</strong>.";
+
+    if (provider === "openai") {
+      url = "https://chatgpt.com";
+      label = "1. Abrir chatgpt.com ↗";
+      guide = "1. Clic en <strong>Copiar extractor</strong> &rarr; 2. En chatgpt.com presiona <strong>F12</strong> (Consola), pega y dale <strong>Enter</strong> &rarr; 3. Clic en <strong>Pegar cookie</strong>.";
+    } else if (provider === "grok") {
+      url = "https://grok.com";
+      label = "1. Abrir grok.com ↗";
+      guide = "1. Clic en <strong>Copiar extractor</strong> &rarr; 2. En grok.com presiona <strong>F12</strong> (Consola), pega y dale <strong>Enter</strong> &rarr; 3. Clic en <strong>Pegar cookie</strong>.";
+    }
+
+    if (linkOpen) linkOpen.href = url;
+    if (linkOpenText) linkOpenText.textContent = label;
+  }
+
+  function syncProviderChips(provider) {
+    const chips = document.querySelectorAll(".acc-prov-chip");
+    chips.forEach((c) => {
+      if (c.dataset.provider === provider) c.classList.add("active");
+      else c.classList.remove("active");
+    });
+    const providerSelect = document.getElementById("acc-provider");
+    if (providerSelect) providerSelect.value = provider;
+  }
+
+  function setAccountAuthType(type) {
+    const hiddenType = document.getElementById("acc-auth-type");
+    if (hiddenType) hiddenType.value = type;
+
+    const tabApiKey = document.getElementById("acc-tab-apikey");
+    const tabWeb = document.getElementById("acc-tab-web");
+    const webActions = document.getElementById("acc-web-actions");
+    const credTitle = document.getElementById("acc-cred-title");
+    const credDesc = document.getElementById("acc-cred-desc");
+    const keyInput = document.getElementById("acc-key");
+    const providerSelect = document.getElementById("acc-provider");
+    let providerVal = providerSelect ? providerSelect.value : "claude";
+
+    const methodCard = document.getElementById("acc-method-step-card");
+    if (providerVal === "fcc") {
+      type = "apiKey";
+      if (hiddenType) hiddenType.value = "apiKey";
+      if (methodCard) methodCard.style.display = "none";
+    } else {
+      if (methodCard) methodCard.style.display = "flex";
+    }
+
+    if (type === "web") {
+      if (tabApiKey) tabApiKey.classList.remove("active");
+      if (tabWeb) tabWeb.classList.add("active");
+      if (webActions) webActions.style.display = "flex";
+      if (credTitle) credTitle.textContent = "Conexión con Cuenta Web";
+      if (credDesc) credDesc.textContent = "Pega tu token de sesión o cookie aquí";
+      if (keyInput) {
+        if (providerVal === "claude") {
+          keyInput.placeholder = "Pega tu sessionKey (sk-ant-sid01-...)";
+        } else if (providerVal === "openai") {
+          keyInput.placeholder = "Pega tu token o cookie de sesión de ChatGPT";
+        } else if (providerVal === "grok") {
+          keyInput.placeholder = "Pega tu cookie de sesión de Grok";
+        } else {
+          keyInput.placeholder = "Pega tu token o cookie de sesión";
+        }
+      }
+      updateWebCookieAssistant(providerVal);
+    } else {
+      if (tabApiKey) tabApiKey.classList.add("active");
+      if (tabWeb) tabWeb.classList.remove("active");
+      if (webActions) webActions.style.display = "none";
+      if (credTitle) credTitle.textContent = "Introduce tu API Key";
+      if (credDesc) credDesc.textContent = "Clave secreta oficial de API";
+      if (keyInput) {
+        if (providerVal === "claude") keyInput.placeholder = "sk-ant-...";
+        else if (providerVal === "openai") keyInput.placeholder = "sk-...";
+        else if (providerVal === "grok") keyInput.placeholder = "xai-...";
+        else if (providerVal === "fcc") keyInput.placeholder = "Bearer token o proxy key (opcional)";
+        else keyInput.placeholder = "sk-...";
+      }
+    }
+  }
+
   function openAccountModal(acc) {
     if (!accountModal) return;
+    const detectStatus = document.getElementById("acc-detect-status");
+    if (detectStatus) {
+      detectStatus.textContent = "";
+      detectStatus.className = "acc-detect-status";
+    }
+    const cookieStatus = document.getElementById("acc-cookie-status");
+    if (cookieStatus) {
+      cookieStatus.style.display = "none";
+      cookieStatus.textContent = "";
+      cookieStatus.className = "acc-cookie-status";
+    }
+    const btnCopyText = document.getElementById("btn-copy-cookie-text");
+    if (btnCopyText) btnCopyText.textContent = "Copiar de mi navegador (1 clic)";
+    const btnCopy = document.getElementById("btn-copy-cookie-script");
+    if (btnCopy) btnCopy.classList.remove("copied");
+
+    const keyInput = document.getElementById("acc-key");
+    if (keyInput) keyInput.type = "password";
+
+    const details = document.querySelector("#account-modal .acc-advanced-details");
+
     if (acc) {
       editingAccountId = acc.id;
-      document.getElementById("account-modal-title").textContent = "Editar Cuenta de IA";
+      document.getElementById("account-modal-title").textContent = "Editar Proveedor de IA";
       document.getElementById("acc-id").value = acc.id;
-      document.getElementById("acc-provider").value = acc.provider || "claude";
       document.getElementById("acc-name").value = acc.name || "";
       document.getElementById("acc-key").value = acc.apiKey || "";
       document.getElementById("acc-base").value = acc.baseUrl || "";
       document.getElementById("acc-model").value = acc.model || "";
       document.getElementById("acc-enabled").checked = acc.enabled !== false;
+      const prov = acc.provider || "claude";
+      syncProviderChips(prov);
+      const initialType = acc.authType === "web" || acc.authKind === "session" ? "web" : "apiKey";
+      setAccountAuthType(initialType);
+      if (details) details.open = !!(acc.baseUrl || acc.model || acc.name);
     } else {
       editingAccountId = null;
-      document.getElementById("account-modal-title").textContent = "Añadir Cuenta de IA";
+      document.getElementById("account-modal-title").textContent = "Añadir Proveedor de IA";
       document.getElementById("acc-id").value = "";
-      document.getElementById("acc-provider").value = "claude";
       document.getElementById("acc-name").value = "";
       document.getElementById("acc-key").value = "";
       document.getElementById("acc-base").value = "";
       document.getElementById("acc-model").value = "";
       document.getElementById("acc-enabled").checked = true;
+      syncProviderChips("claude");
+      setAccountAuthType("web");
+      if (details) details.open = false;
     }
     accountModal.style.display = "flex";
   }
@@ -1369,6 +1577,195 @@
   function closeAccountModal() {
     if (accountModal) accountModal.style.display = "none";
     editingAccountId = null;
+  }
+
+  const accTabApiKey = document.getElementById("acc-tab-apikey");
+  const accTabWeb = document.getElementById("acc-tab-web");
+  if (accTabApiKey) {
+    accTabApiKey.addEventListener("click", () => setAccountAuthType("apiKey"));
+  }
+  if (accTabWeb) {
+    accTabWeb.addEventListener("click", () => setAccountAuthType("web"));
+  }
+
+  document.querySelectorAll(".acc-prov-chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const prov = chip.dataset.provider;
+      syncProviderChips(prov);
+      const currentType = document.getElementById("acc-auth-type")?.value || "web";
+      setAccountAuthType(currentType);
+    });
+  });
+
+  const accProviderSelect = document.getElementById("acc-provider");
+  if (accProviderSelect) {
+    accProviderSelect.addEventListener("change", () => {
+      syncProviderChips(accProviderSelect.value);
+      const currentType = document.getElementById("acc-auth-type")?.value || "web";
+      setAccountAuthType(currentType);
+    });
+  }
+
+  // 1-Click Cookie Extractor Script Button
+  const btnCopyCookieScript = document.getElementById("btn-copy-cookie-script");
+  if (btnCopyCookieScript) {
+    btnCopyCookieScript.addEventListener("click", async () => {
+      const provider = document.getElementById("acc-provider")?.value || "claude";
+      const script = getCookieExtractionScript(provider);
+      const ok = await copyTextToClipboard(script);
+      const textSpan = document.getElementById("btn-copy-cookie-text");
+      const statusEl = document.getElementById("acc-cookie-status");
+
+      if (ok) {
+        if (textSpan) textSpan.textContent = "✓ ¡Comando copiado!";
+        btnCopyCookieScript.classList.add("copied");
+        if (statusEl) {
+          statusEl.style.display = "block";
+          statusEl.className = "acc-cookie-status info";
+          const provDomain = provider === "openai" ? "chatgpt.com" : (provider === "grok" ? "grok.com" : "claude.ai");
+          statusEl.innerHTML = `✓ <strong>Comando copiado</strong>. En <em>${provDomain}</em> pulsa <strong>F12</strong> (Consola), pega (Ctrl+V) y dale <strong>Enter</strong>. ¡Luego haz clic en 'Pegar cookie'!`;
+        }
+        setTimeout(() => {
+          if (textSpan) textSpan.textContent = "Copiar de mi navegador (1 clic)";
+          btnCopyCookieScript.classList.remove("copied");
+        }, 4000);
+      } else {
+        if (statusEl) {
+          statusEl.style.display = "block";
+          statusEl.className = "acc-cookie-status error";
+          statusEl.textContent = "No se pudo copiar automáticamente. Por favor copia el comando manualmente.";
+        }
+      }
+    });
+  }
+
+  // Paste and Auto-Extract Cookie Button
+  const btnPasteCookie = document.getElementById("btn-paste-cookie");
+  if (btnPasteCookie) {
+    btnPasteCookie.addEventListener("click", async () => {
+      const provider = document.getElementById("acc-provider")?.value || "claude";
+      const statusEl = document.getElementById("acc-cookie-status");
+      const keyInput = document.getElementById("acc-key");
+
+      let text = "";
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        try {
+          text = await navigator.clipboard.readText();
+        } catch (e) {
+          // Clipboard read blocked by browser permissions
+        }
+      }
+
+      if (!text && keyInput && keyInput.value) {
+        text = keyInput.value;
+      }
+
+      if (!text) {
+        if (keyInput) {
+          keyInput.focus();
+          keyInput.placeholder = "Pega aquí tu cookie o token con Ctrl+V...";
+        }
+        if (statusEl) {
+          statusEl.style.display = "block";
+          statusEl.className = "acc-cookie-status info";
+          statusEl.textContent = "Presiona Ctrl+V en el campo de credencial para pegar tu cookie.";
+        }
+        return;
+      }
+
+      const extracted = extractTokenFromRawInput(text, provider);
+      if (extracted) {
+        if (keyInput) {
+          keyInput.value = extracted;
+          keyInput.type = "text";
+          setTimeout(() => {
+            if (keyInput) keyInput.type = "password";
+          }, 3500);
+        }
+        const nameInput = document.getElementById("acc-name");
+        if (nameInput && !nameInput.value.trim()) {
+          nameInput.value = provider === "openai" ? "ChatGPT (Cookie Web)" : (provider === "grok" ? "Grok (Cookie Web)" : "Claude (Cookie Web)");
+        }
+        if (statusEl) {
+          statusEl.style.display = "block";
+          statusEl.className = "acc-cookie-status success";
+          statusEl.textContent = "✓ ¡Cookie extraída y aplicada con éxito!";
+        }
+      } else {
+        if (statusEl) {
+          statusEl.style.display = "block";
+          statusEl.className = "acc-cookie-status error";
+          statusEl.textContent = "No se reconoció una cookie o token válido en el portapapeles.";
+        }
+      }
+    });
+  }
+
+  // Auto-clean on paste into the key field
+  const accKeyField = document.getElementById("acc-key");
+  if (accKeyField) {
+    accKeyField.addEventListener("paste", () => {
+      const authType = document.getElementById("acc-auth-type")?.value || "apiKey";
+      if (authType !== "web") return;
+      setTimeout(() => {
+        const provider = document.getElementById("acc-provider")?.value || "claude";
+        const raw = accKeyField.value;
+        const extracted = extractTokenFromRawInput(raw, provider);
+        if (extracted && extracted !== raw) {
+          accKeyField.value = extracted;
+          const statusEl = document.getElementById("acc-cookie-status");
+          if (statusEl) {
+            statusEl.style.display = "block";
+            statusEl.className = "acc-cookie-status success";
+            statusEl.textContent = "✓ Cookie extraída y limpiada automáticamente.";
+          }
+        }
+      }, 50);
+    });
+  }
+
+  const btnDetectSession = document.getElementById("btn-detect-session");
+  if (btnDetectSession) {
+    btnDetectSession.addEventListener("click", async () => {
+      const provider = document.getElementById("acc-provider")?.value || "claude";
+      const statusEl = document.getElementById("acc-detect-status");
+      if (statusEl) {
+        statusEl.className = "acc-detect-status loading";
+        statusEl.textContent = "Buscando sesión local en el sistema...";
+      }
+      try {
+        const res = await fetch(`/api/auth/detect-session?provider=${encodeURIComponent(provider)}`);
+        const data = await res.json();
+        if (data.ok && data.found && data.token) {
+          const keyInput = document.getElementById("acc-key");
+          if (keyInput) {
+            keyInput.value = data.token;
+            keyInput.type = "text";
+            setTimeout(() => {
+              if (keyInput) keyInput.type = "password";
+            }, 3500);
+          }
+          const nameInput = document.getElementById("acc-name");
+          if (nameInput && !nameInput.value.trim()) {
+            nameInput.value = `${data.provider.toUpperCase()} (${data.source || "Sesión Web"})`;
+          }
+          if (statusEl) {
+            statusEl.className = "acc-detect-status success";
+            statusEl.textContent = `✓ Detectada: ${data.source || "sesión local"}`;
+          }
+        } else {
+          if (statusEl) {
+            statusEl.className = "acc-detect-status warn";
+            statusEl.textContent = data.message || "No se detectó sesión local activa.";
+          }
+        }
+      } catch (err) {
+        if (statusEl) {
+          statusEl.className = "acc-detect-status error";
+          statusEl.textContent = "Error al verificar sesión local.";
+        }
+      }
+    });
   }
 
   if (btnAddAccount) {
@@ -1382,15 +1779,21 @@
   }
   if (btnAccountSave) {
     btnAccountSave.addEventListener("click", () => {
+      const authType = document.getElementById("acc-auth-type")?.value || "apiKey";
+      const authKind = authType === "web" ? "session" : "apiKey";
       const provider = document.getElementById("acc-provider").value;
-      const name = document.getElementById("acc-name").value.trim() || `Cuenta ${provider}`;
+      const provTitle = provider === "openai" ? "ChatGPT" : (provider === "claude" ? "Claude" : (provider === "grok" ? "Grok" : "FCC"));
+      const defaultName = authType === "web" ? `${provTitle} (Web)` : `${provTitle} (API)`;
+      const name = document.getElementById("acc-name").value.trim() || defaultName;
       const apiKey = document.getElementById("acc-key").value.trim();
       const baseUrl = document.getElementById("acc-base").value.trim();
       const model = document.getElementById("acc-model").value.trim();
       const enabled = document.getElementById("acc-enabled").checked;
 
       if (!apiKey) {
-        alert("Por favor introduce una API Key válida para esta cuenta.");
+        alert(authType === "web"
+          ? "Por favor introduce un token de sesión web o pulsa 'Detectar sesión local'."
+          : "Por favor introduce una API Key válida para esta cuenta.");
         return;
       }
 
@@ -1402,6 +1805,8 @@
             provider,
             name,
             apiKey,
+            authType,
+            authKind,
             baseUrl: baseUrl || undefined,
             model: model || undefined,
             enabled,
@@ -1413,6 +1818,8 @@
           provider,
           name,
           apiKey,
+          authType,
+          authKind,
           baseUrl: baseUrl || undefined,
           model: model || undefined,
           enabled,
