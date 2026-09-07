@@ -24,6 +24,14 @@ test("app.css includes keyboard shortcuts styling and kbd badges", () => {
   assert.match(css, /\.shortcut-keys kbd/);
 });
 
+test("app.js has valid JavaScript syntax without parse or declaration errors", () => {
+  const jsPath = path.join(__dirname, "public", "app.js");
+  const js = fs.readFileSync(jsPath, "utf8");
+  assert.doesNotThrow(() => {
+    new Function(js);
+  });
+});
+
 test("app.js defines VS Code shortcuts, Monaco commands, and tab navigation", () => {
   const js = fs.readFileSync(path.join(__dirname, "public", "app.js"), "utf8");
 

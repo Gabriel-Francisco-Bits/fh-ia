@@ -1878,7 +1878,6 @@
   }
 
   // Enlazar botones de la barra de herramientas Split Diff
-  const btnDiffToggleSplit = document.getElementById("btn-diff-toggle-split");
   if (btnDiffToggleSplit) {
     btnDiffToggleSplit.addEventListener("click", () => {
       activeDiffSideBySide = !activeDiffSideBySide;
@@ -1888,7 +1887,6 @@
     });
   }
 
-  const btnDiffAcceptAll = document.getElementById("btn-diff-accept-all");
   if (btnDiffAcceptAll) {
     btnDiffAcceptAll.addEventListener("click", async () => {
       if (currentDiffActions && typeof currentDiffActions.onAccept === "function") {
@@ -1920,7 +1918,6 @@
     });
   }
 
-  const btnDiffRejectAll = document.getElementById("btn-diff-reject-all");
   if (btnDiffRejectAll) {
     btnDiffRejectAll.addEventListener("click", () => {
       if (currentDiffActions && typeof currentDiffActions.onReject === "function") {
@@ -1930,7 +1927,6 @@
     });
   }
 
-  const btnDiffClose = document.getElementById("btn-diff-close");
   if (btnDiffClose) {
     btnDiffClose.addEventListener("click", () => {
       closeDiffView();
