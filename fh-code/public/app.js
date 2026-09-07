@@ -1794,6 +1794,8 @@
     const diffDiv = document.getElementById("diff-editor");
     const toolbar = document.getElementById("diff-editor-toolbar");
 
+    if (chatDocView) chatDocView.style.display = "none";
+    if (editorEl) editorEl.style.display = "block";
     editorDiv.style.display = "none";
     diffContainer.style.display = "flex";
     diffDiv.style.display = "block";
@@ -1873,8 +1875,13 @@
     diffDiv.style.display = "none";
     if (diffContainer) diffContainer.style.display = "none";
     if (toolbar) toolbar.style.display = "none";
-    editorDiv.style.display = "block";
-    if (editor) editor.layout();
+    if (activeTabType === "chat") {
+      if (chatDocView) chatDocView.style.display = "flex";
+      if (editorDiv) editorDiv.style.display = "none";
+    } else {
+      editorDiv.style.display = "block";
+      if (editor) editor.layout();
+    }
   }
 
   // Enlazar botones de la barra de herramientas Split Diff
@@ -3181,9 +3188,16 @@
   function renderMarkdown(md) {
     if (!md) return "";
 
+    // Limpiar etiquetas internas de herramientas (<tool>, <tool_call>, <thought>) para que no se muestre XML crudo
+    const cleaned = md
+      .replace(/<tool\s+name=["'][^"']+["'][^>]*>[\s\S]*?<\/tool>/gi, "")
+      .replace(/<tool_call\s+name=["'][^"']+["'][^>]*>[\s\S]*?<\/tool_call>/gi, "")
+      .replace(/<thought>[\s\S]*?<\/thought>/gi, "")
+      .trim();
+
     // 1. Extract and protect code blocks
     const codeBlocks = [];
-    let processed = md.replace(/```([a-zA-Z0-9_-]*)\r?\n([\s\S]*?)```/g, (match, lang, code) => {
+    let processed = cleaned.replace(/```([a-zA-Z0-9_-]*)\r?\n([\s\S]*?)```/g, (match, lang, code) => {
       const idx = codeBlocks.length;
       codeBlocks.push({ lang: (lang || "code").trim(), code: code.replace(/\r?\n$/, "") });
       return `___CODE_BLOCK_${idx}___`;

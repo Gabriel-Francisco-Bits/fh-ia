@@ -122,12 +122,22 @@ export function extractProposedEdits(
   const seen = new Set<string>();
 
   const push = (filePath: string, body: string) => {
-    const proposed = stripCdata(body).replace(/^\n/, "");
-    if (seen.has(filePath)) {
+    const cleanPath = filePath.trim();
+    // Validate path: must look like a file path (has extension or slash) and not be an action identifier
+    if (!cleanPath.includes("/") && !/\.[a-zA-Z0-9_-]+$/.test(cleanPath)) {
       return;
     }
-    seen.add(filePath);
-    found.push(createProposedEdit(filePath, originals[filePath] ?? "", proposed));
+    const proposed = stripCdata(body).replace(/^\n/, "");
+    // Ignore JSON-like tool action payloads (e.g. {"action": "read_file", ...})
+    const trimmed = proposed.trim();
+    if (trimmed.startsWith("{") && (trimmed.includes('"action"') || trimmed.includes('"file_path"') || trimmed.includes('"command"'))) {
+      return;
+    }
+    if (seen.has(cleanPath)) {
+      return;
+    }
+    seen.add(cleanPath);
+    found.push(createProposedEdit(cleanPath, originals[cleanPath] ?? "", proposed));
   };
 
   for (const match of assistantText.matchAll(EDIT_TOOL_RE)) {

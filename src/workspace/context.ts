@@ -444,4 +444,5 @@ When you need to change a file, emit a full-file replacement using:
 new file contents
 </tool>
 When you need another file's contents, ask the user to send @path, or work from the tree and active file.
+Never emit fake tool calls, pseudo-actions, or JSON commands inside propose_edit tags. Only use propose_edit with real file paths.
 Keep answers concise and cite file paths.`;
