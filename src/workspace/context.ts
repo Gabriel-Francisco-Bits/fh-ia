@@ -1,4 +1,6 @@
+import path from "node:path";
 import type { FilePort } from "./files";
+import { estimateTokens, TokenBudgetManager } from "../agent/tokenBudget";
 
 export interface ActiveFile {
   path: string;
@@ -10,6 +12,200 @@ export interface SelectionSpan {
   text: string;
   startLine: number;
   endLine: number;
+}
+
+export interface ExtractedSymbol {
+  name: string;
+  kind: "function" | "class" | "interface" | "type" | "enum" | "method";
+  line: number;
+  signature?: string;
+}
+
+export interface ImportDependency {
+  moduleSpecifier: string;
+  isLocal: boolean;
+  importedSymbols: string[];
+  raw: string;
+}
+
+export interface ResolvedModuleDependency {
+  moduleSpecifier: string;
+  resolvedPath?: string;
+  exportedSymbols: ExtractedSymbol[];
+}
+
+export function extractSymbolsFromCode(content: string): ExtractedSymbol[] {
+  const symbols: ExtractedSymbol[] = [];
+  const lines = content.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // 1. Function match
+    const fnMatch = line.match(/(?:export\s+)?(?:async\s+)?function\s+([a-zA-Z0-9_$]+)\s*(<[^>]+>)?\s*\(([^)]*)\)(?:\s*:\s*([^{]+))?/);
+    if (fnMatch) {
+      const name = fnMatch[1];
+      const params = (fnMatch[3] || "").trim();
+      const ret = (fnMatch[4] || "").trim();
+      const signature = `function ${name}(${params})${ret ? ": " + ret : ""}`;
+      symbols.push({ name, kind: "function", line: i + 1, signature });
+      continue;
+    }
+
+    // 2. Arrow / const function match
+    const arrowMatch = line.match(/(?:export\s+)?(?:const|let|var)\s+([a-zA-Z0-9_$]+)\s*(?::\s*[^=]+)?\s*=\s*(?:async\s*)?(?:\(([^)]*)\)|([a-zA-Z0-9_$]+))\s*(?::\s*([^{=>]+))?\s*=>/);
+    if (arrowMatch) {
+      const name = arrowMatch[1];
+      const params = (arrowMatch[2] || arrowMatch[3] || "").trim();
+      const ret = (arrowMatch[4] || "").trim();
+      const signature = `const ${name} = (${params})${ret ? ": " + ret : ""} => ...`;
+      symbols.push({ name, kind: "function", line: i + 1, signature });
+      continue;
+    }
+
+    // 3. Class match
+    const classMatch = line.match(/(?:export\s+)?(?:abstract\s+)?class\s+([a-zA-Z0-9_$]+)(?:\s+extends\s+([a-zA-Z0-9_$.]+))?(?:\s+implements\s+([a-zA-Z0-9_$,\s]+))?/);
+    if (classMatch) {
+      const name = classMatch[1];
+      const ext = classMatch[2] ? ` extends ${classMatch[2]}` : "";
+      const impl = classMatch[3] ? ` implements ${classMatch[3]}` : "";
+      symbols.push({ name, kind: "class", line: i + 1, signature: `class ${name}${ext}${impl}` });
+      continue;
+    }
+
+    // 4. Interface match
+    const ifaceMatch = line.match(/(?:export\s+)?interface\s+([a-zA-Z0-9_$]+)(?:<[^>]+>)?(?:\s+extends\s+([a-zA-Z0-9_$,\s]+))?/);
+    if (ifaceMatch) {
+      const name = ifaceMatch[1];
+      const ext = ifaceMatch[2] ? ` extends ${ifaceMatch[2]}` : "";
+      symbols.push({ name, kind: "interface", line: i + 1, signature: `interface ${name}${ext}` });
+      continue;
+    }
+
+    // 5. Type alias match
+    const typeMatch = line.match(/(?:export\s+)?type\s+([a-zA-Z0-9_$]+)(?:<[^>]+>)?\s*=\s*(.+)/);
+    if (typeMatch) {
+      const name = typeMatch[1];
+      const def = typeMatch[2].trim().slice(0, 60);
+      symbols.push({ name, kind: "type", line: i + 1, signature: `type ${name} = ${def}` });
+      continue;
+    }
+
+    // 6. Enum match
+    const enumMatch = line.match(/(?:export\s+)?enum\s+([a-zA-Z0-9_$]+)/);
+    if (enumMatch) {
+      symbols.push({ name: enumMatch[1], kind: "enum", line: i + 1, signature: `enum ${enumMatch[1]}` });
+      continue;
+    }
+  }
+  return symbols;
+}
+
+export function extractImportDependencies(content: string): ImportDependency[] {
+  const deps: ImportDependency[] = [];
+  const lines = content.split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    // ES import
+    const esImportMatch = trimmed.match(/^import\s+(?:([\w*\s{},$]+)\s+from\s+)?['"]([^'"]+)['"]/);
+    if (esImportMatch) {
+      const symbolsRaw = esImportMatch[1] || "";
+      const specifier = esImportMatch[2];
+      const isLocal = specifier.startsWith("./") || specifier.startsWith("../") || specifier.startsWith("/");
+      const importedSymbols = symbolsRaw
+        .replace(/[{}]/g, " ")
+        .split(",")
+        .map((s) => s.trim().split(/\s+as\s+/)[0].trim())
+        .filter(Boolean);
+      deps.push({ moduleSpecifier: specifier, isLocal, importedSymbols, raw: trimmed });
+      continue;
+    }
+    // CJS require
+    const cjsMatch = trimmed.match(/(?:const|let|var)\s+(?:{([^}]+)}|([a-zA-Z0-9_$]+))\s*=\s*require\(['"]([^'"]+)['"]\)/);
+    if (cjsMatch) {
+      const specifier = cjsMatch[3];
+      const isLocal = specifier.startsWith("./") || specifier.startsWith("../") || specifier.startsWith("/");
+      const importedSymbols = cjsMatch[1]
+        ? cjsMatch[1].split(",").map((s) => s.trim().split(":")[0].trim()).filter(Boolean)
+        : [cjsMatch[2]];
+      deps.push({ moduleSpecifier: specifier, isLocal, importedSymbols, raw: trimmed });
+    }
+  }
+  return deps;
+}
+
+export async function resolveImportedSymbols(
+  activePath: string,
+  content: string,
+  files?: FilePort,
+): Promise<ResolvedModuleDependency[]> {
+  if (!files || !activePath) return [];
+  const deps = extractImportDependencies(content);
+  const resolved: ResolvedModuleDependency[] = [];
+  const currentDir = path.dirname(activePath);
+
+  for (const dep of deps) {
+    if (!dep.isLocal) continue;
+    const baseCandidate = path.posix.normalize(path.posix.join(currentDir, dep.moduleSpecifier));
+    const candidates = [
+      baseCandidate,
+      `${baseCandidate}.ts`,
+      `${baseCandidate}.js`,
+      `${baseCandidate}.tsx`,
+      `${baseCandidate}.jsx`,
+      `${baseCandidate}/index.ts`,
+      `${baseCandidate}/index.js`,
+    ];
+
+    let fileContent = "";
+    let foundPath = "";
+    for (const cand of candidates) {
+      try {
+        if (await files.exists(cand)) {
+          fileContent = await files.read(cand);
+          foundPath = cand;
+          break;
+        }
+      } catch {}
+    }
+
+    if (fileContent) {
+      const syms = extractSymbolsFromCode(fileContent);
+      resolved.push({
+        moduleSpecifier: dep.moduleSpecifier,
+        resolvedPath: foundPath,
+        exportedSymbols: syms,
+      });
+    }
+  }
+
+  return resolved;
+}
+
+export async function buildCodeIntelligenceContext(
+  activeFile: ActiveFile,
+  files?: FilePort,
+): Promise<string> {
+  const parts: string[] = [];
+  const symbols = extractSymbolsFromCode(activeFile.content);
+  if (symbols.length > 0) {
+    parts.push(`Symbols in ${activeFile.path}:`);
+    for (const s of symbols) {
+      parts.push(`- [L${s.line}] ${s.signature || `${s.kind} ${s.name}`}`);
+    }
+  }
+
+  const resolved = await resolveImportedSymbols(activeFile.path, activeFile.content, files);
+  if (resolved.length > 0) {
+    parts.push(`\nImported Module Signatures & Types:`);
+    for (const dep of resolved) {
+      parts.push(`From '${dep.moduleSpecifier}' (${dep.resolvedPath || dep.moduleSpecifier}):`);
+      for (const s of dep.exportedSymbols.slice(0, 8)) {
+        parts.push(`  • ${s.signature || `${s.kind} ${s.name}`}`);
+      }
+    }
+  }
+
+  return parts.join("\n");
 }
 
 export interface EditorPort {
@@ -88,6 +284,34 @@ export async function gatherContext(
       tree = [];
     }
   }
+
+  let symbolsContext = editor.symbolsContext;
+  if (!symbolsContext && editor.activeFile) {
+    try {
+      const intel = await buildCodeIntelligenceContext(editor.activeFile, files);
+      if (intel.trim()) {
+        symbolsContext = intel;
+      }
+    } catch {}
+  } else if (symbolsContext && editor.activeFile && /@symbols\b/i.test(userText)) {
+    try {
+      const intel = await buildCodeIntelligenceContext(editor.activeFile, files);
+      if (intel.trim() && !symbolsContext.includes("Imported Module Signatures")) {
+        symbolsContext = `${symbolsContext}\n\n${intel}`;
+      }
+    } catch {}
+  }
+
+  let docsContext = editor.docsContext;
+  if (!docsContext && /@docs\b/i.test(userText)) {
+    docsContext = "Framework Documentation: Node.js standard APIs, TypeScript types, Monaco Editor API, ECMAScript 2024.";
+  }
+
+  let webContext = editor.webContext;
+  if (!webContext && /@web\b/i.test(userText)) {
+    webContext = "Web search & documentation lookup enabled.";
+  }
+
   const workspaceRoot = editor.workspaceRoot;
   const workspaceName = workspaceRoot ? workspaceRoot.replace(/[\\/]+$/, "").split(/[\\/]/).pop() : undefined;
   return {
@@ -100,9 +324,9 @@ export async function gatherContext(
     openFiles: editor.openFiles ?? [],
     gitContext: editor.gitContext,
     terminalContext: editor.terminalContext,
-    symbolsContext: editor.symbolsContext,
-    docsContext: editor.docsContext,
-    webContext: editor.webContext,
+    symbolsContext,
+    docsContext,
+    webContext,
     codebaseContext: editor.codebaseContext,
   };
 }
@@ -195,8 +419,13 @@ export function buildOutboundMessages(
   userText: string,
   ctx: PromptContext,
   systemPrompt = DEFAULT_SYSTEM_PROMPT,
+  budgetManager?: TokenBudgetManager,
+  codeBudget?: number,
 ): Array<{ role: "system" | "user" | "assistant"; content: string }> {
-  const contextBlock = renderContextBlock(ctx);
+  let contextBlock = renderContextBlock(ctx);
+  if (budgetManager && typeof codeBudget === "number") {
+    contextBlock = budgetManager.pruneContext(contextBlock, codeBudget);
+  }
   const userContent = hasWorkspaceContext(ctx)
     ? `${contextBlock}\n\nUser:\n${userText}`
     : userText;

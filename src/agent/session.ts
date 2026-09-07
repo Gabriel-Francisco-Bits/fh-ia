@@ -21,6 +21,7 @@ export interface SessionResult {
   history: ChatMessage[];
 }
 
+import { TokenBudgetManager } from "./tokenBudget";
 import { runAgentLoop } from "./agentLoop";
 
 export class AgentSession {
@@ -95,10 +96,20 @@ export class AgentSession {
       };
     }
 
-    const outbound = buildOutboundMessages(userText, ctx, system);
+    const budgetManager = new TokenBudgetManager();
+    const alloc = budgetManager.getAllocation();
+
+    // 20% budget for rules & skills
+    system = budgetManager.pruneRules(system, alloc.rulesBudget);
+
+    // 20% budget for conversation history
+    const prunedHistory = budgetManager.pruneHistory(this.history, alloc.historyBudget);
+
+    // 60% budget for workspace and code context
+    const outbound = buildOutboundMessages(userText, ctx, system, budgetManager, alloc.codeBudget);
     const systemMsg = outbound[0];
     const user = outbound[1];
-    const messages: ChatMessage[] = [systemMsg, ...this.history, user];
+    const messages: ChatMessage[] = [systemMsg, ...prunedHistory, user];
     const text = await this.dispatcher.chat(messages, onEvent);
     this.history = capHistory([...this.history, { role: "user", content: userText }, { role: "assistant", content: text }]);
     const originals: Record<string, string> = {};

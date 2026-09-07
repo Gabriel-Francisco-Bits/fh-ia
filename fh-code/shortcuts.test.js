@@ -76,3 +76,23 @@ test("app.css and app.js include tool calls and reasoning UI components (Issue #
   assert.match(js, /thought-card/);
   assert.match(js, /tool-calls-container/);
 });
+
+test("app.css, app.js and index.html include contextual mentions UI (Issue #24)", () => {
+  const html = fs.readFileSync(path.join(__dirname, "public", "index.html"), "utf8");
+  assert.match(html, /id="mention-menu"/);
+  assert.match(html, /id="mention-menu-list"/);
+
+  const css = fs.readFileSync(path.join(__dirname, "public", "app.css"), "utf8");
+  assert.match(css, /\.mention-menu/);
+  assert.match(css, /\.mention-item/);
+  assert.match(css, /\.mention-item-tag/);
+
+  const js = fs.readFileSync(path.join(__dirname, "public", "app.js"), "utf8");
+  assert.match(js, /@codebase/);
+  assert.match(js, /@symbols/);
+  assert.match(js, /@git/);
+  assert.match(js, /@terminal/);
+  assert.match(js, /@docs/);
+  assert.match(js, /function applyMention/);
+  assert.match(js, /function handleMentionInput/);
+});
