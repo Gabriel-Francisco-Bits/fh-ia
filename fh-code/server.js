@@ -713,6 +713,9 @@ const server = http.createServer(async (req, res) => {
       const abs = safeResolve(WORKSPACE, body.path);
       await fs.mkdir(path.dirname(abs), { recursive: true });
       await fs.writeFile(abs, String(body.content ?? ""), "utf8");
+      if (semanticIndex) {
+        semanticIndex.indexFile(body.path, String(body.content ?? "")).catch(() => {});
+      }
       json(res, 200, { ok: true });
       return;
     }
@@ -1138,6 +1141,9 @@ const server = http.createServer(async (req, res) => {
         await createCheckpoint([body.edit.path]);
       }
       await acceptEdit(body.edit, filesPort);
+      if (semanticIndex && body.edit?.path) {
+        semanticIndex.indexFile(body.edit.path).catch(() => {});
+      }
       json(res, 200, { ok: true });
       return;
     }
